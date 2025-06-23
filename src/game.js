@@ -72,6 +72,61 @@ class GameScene extends Phaser.Scene {
         
         // Update smooth object movements
         this.updateObjectMovements();
+        
+        // Alternative keyboard check using Phaser key objects
+        if (this.keys) {
+            this.checkKeyboardInput();
+        }
+    }
+    
+    checkKeyboardInput() {
+        // Check if any of our mapped keys are currently down
+        const keyMapping = {
+            'Q': 'KeyQ', 'W': 'KeyW', 'E': 'KeyE',
+            'A': 'KeyA', 'S': 'KeyS', 'D': 'KeyD',
+            'Z': 'KeyZ', 'X': 'KeyX', 'C': 'KeyC'
+        };
+        
+        let currentlyHeld = new Set();
+        
+        for (const [key, keyCode] of Object.entries(keyMapping)) {
+            if (this.keys[key] && this.keys[key].isDown) {
+                currentlyHeld.add(keyCode);
+            }
+        }
+        
+        // Check if the held keys have changed
+        const heldKeysArray = Array.from(this.heldKeys);
+        const currentlyHeldArray = Array.from(currentlyHeld);
+        
+        if (heldKeysArray.length !== currentlyHeldArray.length || 
+            !heldKeysArray.every(key => currentlyHeld.has(key))) {
+            
+            console.log('Keys changed:', currentlyHeldArray);
+            this.heldKeys = currentlyHeld;
+            
+            if (this.heldKeys.size > 0) {
+                if (!this.keyboardObject && !this.isSpeaking) {
+                    // Create new keyboard object
+                    const firstKey = Array.from(this.heldKeys)[0];
+                    const position = this.getKeyPosition(firstKey);
+                    if (position) {
+                        const obj = this.spawnObjectAt(position.x, position.y, 'random');
+                        this.displayTextLabels(obj);
+                        this.speakObjectLabel(obj, 'both');
+                        this.generateTone(position.x, position.y, obj.id);
+                        this.createSpawnBurst(position.x, position.y);
+                        this.keyboardObject = obj;
+                    }
+                } else if (this.isSpeaking && !this.keyboardObject) {
+                    this.keyboardObject = this.currentSpeakingObject;
+                }
+                
+                this.updateKeyboardObjectPosition();
+            } else {
+                this.keyboardObject = null;
+            }
+        }
     }
 
     onPointerDown(pointer) {
@@ -97,7 +152,9 @@ class GameScene extends Phaser.Scene {
             // Move the currently speaking object instead of spawning
             this.moveObjectTo(this.currentSpeakingObject, pointer.x, pointer.y, true);
             this.generateTone(pointer.x, pointer.y, this.currentSpeakingObject.id);
-            // Start following mode - speaking object will follow mouse while held
+            // Set up dragging state for the speaking object to follow mouse
+            this.isDragging = true;
+            this.draggedObject = this.currentSpeakingObject;
             this.startHoldTimer(this.currentSpeakingObject);
         } else if (this.isDragging) {
             // Move dragged object to new position (immediate for dragging)
@@ -528,34 +585,170 @@ class GameScene extends Phaser.Scene {
     }
 
     initKeyboardInput() {
-        // Set up key position mappings (grid layout)
-        const width = this.scale.width;
-        const height = this.scale.height;
-        
-        this.keyPositions = {
-            'KeyQ': { x: width * 0.2, y: height * 0.2 },  // Top-left
-            'KeyW': { x: width * 0.5, y: height * 0.2 },  // Top-center
-            'KeyE': { x: width * 0.8, y: height * 0.2 },  // Top-right
-            'KeyA': { x: width * 0.2, y: height * 0.5 },  // Mid-left
-            'KeyS': { x: width * 0.5, y: height * 0.5 },  // Center
-            'KeyD': { x: width * 0.8, y: height * 0.5 },  // Mid-right
-            'KeyZ': { x: width * 0.2, y: height * 0.8 },  // Bottom-left
-            'KeyX': { x: width * 0.5, y: height * 0.8 },  // Bottom-center
-            'KeyC': { x: width * 0.8, y: height * 0.8 }   // Bottom-right
-        };
+        // Initialize empty keyPositions - will be populated when first accessed
+        this.keyPositions = {};
+        this.ensureKeyPositions();
         
         // Set up keyboard event listeners
         this.input.keyboard.on('keydown', this.onKeyDown, this);
         this.input.keyboard.on('keyup', this.onKeyUp, this);
+        
+        // Set up individual key objects for the entire keyboard
+        const allKeys = [
+            // Letters
+            'Q','W','E','R','T','Y','U','I','O','P',
+            'A','S','D','F','G','H','J','K','L',
+            'Z','X','C','V','B','N','M',
+            // Numbers
+            'ONE','TWO','THREE','FOUR','FIVE','SIX','SEVEN','EIGHT','NINE','ZERO',
+            // Function keys
+            'F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12',
+            // Special keys
+            'SPACE','ENTER','BACKSPACE','TAB','SHIFT','CTRL','ALT',
+            // Arrows
+            'UP','DOWN','LEFT','RIGHT',
+            // Punctuation
+            'MINUS','PLUS','OPEN_BRACKET','CLOSED_BRACKET','BACKSLASH',
+            'SEMICOLON','QUOTES','COMMA','PERIOD','FORWARD_SLASH','BACKTICK'
+        ];
+        this.keys = this.input.keyboard.addKeys(allKeys.join(','));
+        
+        // Ensure the game canvas can receive keyboard events
+        this.input.keyboard.enabled = true;
+    }
+    
+    ensureKeyPositions() {
+        // Always recreate key positions to ensure they're current
+        const width = this.scale.width || window.innerWidth || 800;
+        const height = this.scale.height || window.innerHeight || 600;
+        
+        console.log('Setting up key positions with dimensions:', width, 'x', height);
+        
+        // Create a comprehensive mapping for the entire keyboard
+        this.keyPositions = {};
+        
+        // Number row (0-9)
+        const numberKeys = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0'];
+        numberKeys.forEach((key, index) => {
+            this.keyPositions[key] = { x: (width * 0.1) + (index * width * 0.08), y: height * 0.1 };
+        });
+        
+        // Top row (QWERTYUIOP)
+        const topRowKeys = ['KeyQ', 'KeyW', 'KeyE', 'KeyR', 'KeyT', 'KeyY', 'KeyU', 'KeyI', 'KeyO', 'KeyP'];
+        topRowKeys.forEach((key, index) => {
+            this.keyPositions[key] = { x: (width * 0.1) + (index * width * 0.08), y: height * 0.25 };
+        });
+        
+        // Middle row (ASDFGHJKL)
+        const middleRowKeys = ['KeyA', 'KeyS', 'KeyD', 'KeyF', 'KeyG', 'KeyH', 'KeyJ', 'KeyK', 'KeyL'];
+        middleRowKeys.forEach((key, index) => {
+            this.keyPositions[key] = { x: (width * 0.14) + (index * width * 0.08), y: height * 0.4 };
+        });
+        
+        // Bottom row (ZXCVBNM)
+        const bottomRowKeys = ['KeyZ', 'KeyX', 'KeyC', 'KeyV', 'KeyB', 'KeyN', 'KeyM'];
+        bottomRowKeys.forEach((key, index) => {
+            this.keyPositions[key] = { x: (width * 0.18) + (index * width * 0.08), y: height * 0.55 };
+        });
+        
+        // Special keys
+        this.keyPositions['Space'] = { x: width * 0.5, y: height * 0.7 };
+        this.keyPositions['Enter'] = { x: width * 0.85, y: height * 0.4 };
+        this.keyPositions['Backspace'] = { x: width * 0.9, y: height * 0.1 };
+        this.keyPositions['Tab'] = { x: width * 0.05, y: height * 0.25 };
+        this.keyPositions['ShiftLeft'] = { x: width * 0.05, y: height * 0.55 };
+        this.keyPositions['ShiftRight'] = { x: width * 0.9, y: height * 0.55 };
+        this.keyPositions['ControlLeft'] = { x: width * 0.05, y: height * 0.7 };
+        this.keyPositions['ControlRight'] = { x: width * 0.9, y: height * 0.7 };
+        this.keyPositions['AltLeft'] = { x: width * 0.15, y: height * 0.7 };
+        this.keyPositions['AltRight'] = { x: width * 0.8, y: height * 0.7 };
+        
+        // Punctuation and symbols
+        this.keyPositions['Minus'] = { x: width * 0.82, y: height * 0.1 };
+        this.keyPositions['Equal'] = { x: width * 0.86, y: height * 0.1 };
+        this.keyPositions['BracketLeft'] = { x: width * 0.82, y: height * 0.25 };
+        this.keyPositions['BracketRight'] = { x: width * 0.86, y: height * 0.25 };
+        this.keyPositions['Backslash'] = { x: width * 0.9, y: height * 0.25 };
+        this.keyPositions['Semicolon'] = { x: width * 0.78, y: height * 0.4 };
+        this.keyPositions['Quote'] = { x: width * 0.82, y: height * 0.4 };
+        this.keyPositions['Comma'] = { x: width * 0.74, y: height * 0.55 };
+        this.keyPositions['Period'] = { x: width * 0.78, y: height * 0.55 };
+        this.keyPositions['Slash'] = { x: width * 0.82, y: height * 0.55 };
+        this.keyPositions['Backquote'] = { x: width * 0.05, y: height * 0.1 };
+        
+        // Arrow keys
+        this.keyPositions['ArrowUp'] = { x: width * 0.85, y: height * 0.8 };
+        this.keyPositions['ArrowDown'] = { x: width * 0.85, y: height * 0.85 };
+        this.keyPositions['ArrowLeft'] = { x: width * 0.8, y: height * 0.85 };
+        this.keyPositions['ArrowRight'] = { x: width * 0.9, y: height * 0.85 };
+        
+        // Function keys (F1-F12) - spread across top
+        for (let i = 1; i <= 12; i++) {
+            this.keyPositions[`F${i}`] = { x: (width * 0.05) + ((i-1) * width * 0.075), y: height * 0.03 };
+        }
+        
+        // Detect and map numpad if available
+        if (this.hasNumpad()) {
+            this.addNumpadMapping(width, height);
+        }
+        
+        console.log('Key positions created for', Object.keys(this.keyPositions).length, 'keys');
+        console.log('All key codes:', Object.keys(this.keyPositions));
+    }
+    
+    hasNumpad() {
+        // Simple heuristic: if screen is wide enough, assume numpad might be present
+        const width = this.scale.width || window.innerWidth || 800;
+        return width > 1200; // Assume numpad on wider screens
+    }
+    
+    addNumpadMapping(width, height) {
+        // Numpad layout (right side of screen)
+        const numpadKeys = [
+            'Numpad7', 'Numpad8', 'Numpad9',
+            'Numpad4', 'Numpad5', 'Numpad6', 
+            'Numpad1', 'Numpad2', 'Numpad3',
+            'Numpad0'
+        ];
+        
+        // 3x3 grid for numpad 1-9
+        for (let i = 0; i < 9; i++) {
+            const row = Math.floor(i / 3);
+            const col = i % 3;
+            this.keyPositions[numpadKeys[i]] = {
+                x: width * 0.92 + (col * width * 0.025),
+                y: height * 0.25 + (row * height * 0.08)
+            };
+        }
+        
+        // Numpad 0 (wider, bottom row)
+        this.keyPositions['Numpad0'] = { x: width * 0.93, y: height * 0.49 };
+        
+        // Numpad operators
+        this.keyPositions['NumpadAdd'] = { x: width * 0.985, y: height * 0.33 };
+        this.keyPositions['NumpadSubtract'] = { x: width * 0.985, y: height * 0.25 };
+        this.keyPositions['NumpadMultiply'] = { x: width * 0.985, y: height * 0.17 };
+        this.keyPositions['NumpadDivide'] = { x: width * 0.985, y: height * 0.09 };
+        this.keyPositions['NumpadEnter'] = { x: width * 0.985, y: height * 0.45 };
+        this.keyPositions['NumpadDecimal'] = { x: width * 0.97, y: height * 0.49 };
+        
+        console.log('Numpad mapping added');
     }
     
     onKeyDown(event) {
-        const position = this.getKeyPosition(event.code);
-        if (!position) return;
+        // Handle both event.code (from Phaser) and event.keyCode/key
+        let keyCode = event.code || event.key;
+        console.log('Key down:', keyCode, 'Event:', event);
+        
+        const position = this.getKeyPosition(keyCode);
+        if (!position) {
+            console.log('No position found for key:', keyCode);
+            return;
+        }
         
         // Add key to held keys set
         const wasEmpty = this.heldKeys.size === 0;
-        this.heldKeys.add(event.code);
+        this.heldKeys.add(keyCode);
         
         if (wasEmpty) {
             // First key pressed - create or identify keyboard object
@@ -578,8 +771,11 @@ class GameScene extends Phaser.Scene {
     }
     
     onKeyUp(event) {
+        // Handle both event.code (from Phaser) and event.keyCode/key
+        let keyCode = event.code || event.key;
+        
         // Remove key from held keys set
-        this.heldKeys.delete(event.code);
+        this.heldKeys.delete(keyCode);
         
         if (this.heldKeys.size === 0) {
             // No more keys held - clear keyboard object
@@ -628,6 +824,9 @@ class GameScene extends Phaser.Scene {
     }
     
     getKeyPosition(keyCode) {
+        this.ensureKeyPositions();
+        console.log('Available key positions:', Object.keys(this.keyPositions));
+        console.log('Looking for keyCode:', keyCode);
         return this.keyPositions[keyCode] || null;
     }
 

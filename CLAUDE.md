@@ -72,4 +72,8 @@ Each command uses `$ARGUMENTS` for flexibility :contentReference[oaicite:10]{ind
 4. Use visual iteration for UI polish  
 5. Create PR with small, verified changes  
 
-Let's build out this project step-by-step. Please populate and update /CLAUDE-TODO.md with a structured plan to implement this project, and refer to it reguarlly. Update it indicating what parts are complete as you complete them.
+Let's build out this project step-by-step.
+
+Please use @CLAUDE-TODO.md as your personal todo list. It must be kept up to date.
+
+Please populate and update /CLAUDE-TODO.md with a structured plan to implement this project, and refer to it reguarlly. Update it indicating what parts are complete as you complete them.

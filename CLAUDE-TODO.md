@@ -59,13 +59,15 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - Service worker for resource caching and background sync support
 - Cross-platform compatibility (Android, iOS, ChromeOS, desktop)
 
-### Phase 5: Enhanced Input Mechanics (High Priority) 🚧 IN PROGRESS
+### Phase 5: Enhanced Input Mechanics (High Priority) ✅ COMPLETED
 
-- [ ] Implement object dragging for touch/mouse interactions
-- [ ] Add multi-touch averaging for drag location
-- [ ] Implement multiple key holding with interpolation between locations
-- [ ] Add key release handling to remove from interpolation average
-- [ ] Implement continuous drag mode for held gamepad buttons
+- [x] Implement object dragging for touch/mouse interactions
+- [x] Add multi-touch averaging for drag location  
+- [x] Implement multiple key holding with interpolation between locations
+- [x] Add key release handling to remove from interpolation average
+- [x] Implement continuous drag mode for held gamepad buttons
+- [x] Fix click-during-speech dragging - object jumps to click point and follows mouse when held
+- [x] Fix keyboard input initialization - keys now properly spawn objects at mapped grid locations
 
 ### Phase 6: Advanced Display Features (Medium Priority) 📋 PENDING
 
@@ -86,21 +88,23 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - [ ] Add trails or pulses during object dragging
 - [ ] Add word-specific sparkle effects when words are spoken
 
-### Current Status 🎯 CORE COMPLETE - ENHANCEMENTS IN PROGRESS
+### Current Status 🎯 ENHANCED INPUT COMPLETE - DISPLAY FEATURES PENDING
 
-**Fully functional core experience with:**
-- Touch/click, keyboard, and gamepad interactions
+**Fully functional enhanced experience with:**
+- Touch/click, keyboard, and gamepad interactions with advanced input mechanics
+- Object dragging with click-during-speech support and smooth lerp movement
+- Multi-key keyboard interpolation and hold/release handling
 - Bilingual speech synthesis (English/Spanish)
 - Position-based audio tones with multiple waveforms
 - Visual particle effects and text display
 - PWA installation and offline functionality
 - Comprehensive test coverage (30 tests across 7 suites)
 
-**Missing features from README.md specification:**
-- Object dragging and advanced input mechanics
+**Remaining features from README.md specification:**
 - Multi-modal number displays (Cistercian, Kaktovik, Binary)
 - Enhanced speech animations and queue management
 - Advanced visual effects during interaction
+- Lowercase letter display
 
 ### Notes
 

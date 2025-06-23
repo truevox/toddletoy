@@ -1,5 +1,5 @@
 // Service Worker for Toddler Toy PWA
-const CACHE_NAME = 'toddler-toy-v2';
+const CACHE_NAME = 'toddler-toy-v3';
 const urlsToCache = [
   '/',
   '/index.html',

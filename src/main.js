@@ -27,5 +27,6 @@ if ('serviceWorker' in navigator) {
 
 // Start the game when DOM is loaded
 window.addEventListener('DOMContentLoaded', () => {
+    console.log('Starting Toddler Toy Game v3 with full keyboard support');
     new ToddlerToyGame();
 });
