@@ -50,11 +50,23 @@ class GameScene extends Phaser.Scene {
         // Initialize speech queue state
         this.isSpeaking = false;
         this.currentSpeakingObject = null;
+        
+        // Initialize smooth movement state
+        this.movingObjects = new Map(); // Objects currently lerping to target positions
+        this.lerpSpeed = 0.15; // Lerp interpolation speed (0.1 = slow, 0.3 = fast)
+        
+        // Initialize auto-drag state
+        this.holdTimer = null;
+        this.holdDuration = 500; // 500ms hold to start auto-drag
+        this.isHolding = false;
     }
 
     update() {
         // Update gamepad input
         this.updateGamepadInput();
+        
+        // Update smooth object movements
+        this.updateObjectMovements();
     }
 
     onPointerDown(pointer) {
@@ -65,6 +77,7 @@ class GameScene extends Phaser.Scene {
             // Start dragging the existing object
             this.isDragging = true;
             this.draggedObject = hitObject;
+            this.startHoldTimer(hitObject);
         } else if (!this.isDragging && !this.isSpeaking) {
             // Spawn new object only if not currently dragging AND not speaking
             const obj = this.spawnObjectAt(pointer.x, pointer.y, 'random');
@@ -72,27 +85,37 @@ class GameScene extends Phaser.Scene {
             this.speakObjectLabel(obj, 'both');
             this.generateTone(pointer.x, pointer.y, obj.id);
             this.createSpawnBurst(pointer.x, pointer.y);
+            this.startHoldTimer(obj);
         } else if (this.isSpeaking && this.currentSpeakingObject) {
             // Move the currently speaking object instead of spawning
-            this.moveObjectTo(this.currentSpeakingObject, pointer.x, pointer.y);
+            this.moveObjectTo(this.currentSpeakingObject, pointer.x, pointer.y, true);
             this.generateTone(pointer.x, pointer.y, this.currentSpeakingObject.id);
         } else if (this.isDragging) {
-            // Move dragged object to new position
-            this.moveObjectTo(this.draggedObject, pointer.x, pointer.y);
+            // Move dragged object to new position (immediate for dragging)
+            this.moveObjectTo(this.draggedObject, pointer.x, pointer.y, false);
         }
     }
     
     onPointerMove(pointer) {
         if (this.isDragging && this.draggedObject) {
-            this.moveObjectTo(this.draggedObject, pointer.x, pointer.y);
+            // Immediate movement during active dragging
+            this.moveObjectTo(this.draggedObject, pointer.x, pointer.y, false);
+        } else if (this.isHolding && this.draggedObject) {
+            // Smooth movement during auto-drag mode
+            this.moveObjectTo(this.draggedObject, pointer.x, pointer.y, true);
         }
     }
     
     onPointerUp(pointer) {
+        // Clear hold timer and state
+        this.clearHoldTimer();
+        
         if (this.isDragging) {
             this.isDragging = false;
             this.draggedObject = null;
         }
+        
+        this.isHolding = false;
     }
     
     getObjectUnderPointer(x, y) {
@@ -111,7 +134,26 @@ class GameScene extends Phaser.Scene {
         return closestObject;
     }
     
-    moveObjectTo(obj, x, y) {
+    moveObjectTo(obj, x, y, useSmooth = true) {
+        if (!obj) return;
+        
+        if (useSmooth) {
+            // Start smooth lerp movement
+            this.movingObjects.set(obj.id, {
+                object: obj,
+                targetX: x,
+                targetY: y,
+                startX: obj.x,
+                startY: obj.y,
+                progress: 0
+            });
+        } else {
+            // Immediate movement
+            this.setObjectPosition(obj, x, y);
+        }
+    }
+    
+    setObjectPosition(obj, x, y) {
         if (!obj) return;
         
         // Update object position
@@ -129,6 +171,44 @@ class GameScene extends Phaser.Scene {
         }
         if (obj.spanishLabel) {
             obj.spanishLabel.setPosition(x, y + 90);
+        }
+    }
+    
+    updateObjectMovements() {
+        // Update all objects that are currently lerping
+        for (const [objId, movement] of this.movingObjects) {
+            movement.progress += this.lerpSpeed;
+            
+            if (movement.progress >= 1) {
+                // Movement complete
+                this.setObjectPosition(movement.object, movement.targetX, movement.targetY);
+                this.movingObjects.delete(objId);
+            } else {
+                // Interpolate position
+                const currentX = this.lerp(movement.startX, movement.targetX, movement.progress);
+                const currentY = this.lerp(movement.startY, movement.targetY, movement.progress);
+                this.setObjectPosition(movement.object, currentX, currentY);
+            }
+        }
+    }
+    
+    lerp(start, end, progress) {
+        return start + (end - start) * progress;
+    }
+    
+    startHoldTimer(obj) {
+        this.clearHoldTimer();
+        this.holdTimer = setTimeout(() => {
+            this.isHolding = true;
+            this.draggedObject = obj;
+            // Could add visual feedback here (e.g., pulse effect)
+        }, this.holdDuration);
+    }
+    
+    clearHoldTimer() {
+        if (this.holdTimer) {
+            clearTimeout(this.holdTimer);
+            this.holdTimer = null;
         }
     }
 
