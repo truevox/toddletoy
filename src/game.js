@@ -46,6 +46,7 @@ export class ToddlerToyGame {
 
     onPointerDown(pointer) {
         const obj = this.spawnObjectAt(pointer.x, pointer.y, 'emoji');
+        this.displayTextLabels(obj);
         this.speakObjectLabel(obj, 'both');
     }
 
@@ -124,6 +125,41 @@ export class ToddlerToyGame {
         
         this.currentSpeech = utterance;
         speechSynthesis.speak(utterance);
+    }
+
+    displayTextLabels(obj) {
+        if (!obj || !obj.data) return;
+        
+        const data = obj.data;
+        const x = obj.x;
+        const y = obj.y;
+        
+        // Text style for labels
+        const labelStyle = {
+            fontSize: '24px',
+            fill: '#ffffff',
+            fontFamily: 'Arial',
+            align: 'center',
+            stroke: '#000000',
+            strokeThickness: 2
+        };
+        
+        // Create English label (positioned below emoji)
+        const englishText = this.add.text(x, y + 60, data.en, labelStyle)
+            .setOrigin(0.5);
+        
+        // Create Spanish label (positioned below English)
+        const spanishText = this.add.text(x, y + 90, data.es, labelStyle)
+            .setOrigin(0.5);
+        
+        // Store references to text objects for cleanup
+        obj.englishLabel = englishText;
+        obj.spanishLabel = spanishText;
+        
+        return {
+            english: englishText,
+            spanish: spanishText
+        };
     }
 }
 
