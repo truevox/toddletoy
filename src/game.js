@@ -46,6 +46,10 @@ class GameScene extends Phaser.Scene {
         // Initialize dragging state
         this.isDragging = false;
         this.draggedObject = null;
+        
+        // Initialize speech queue state
+        this.isSpeaking = false;
+        this.currentSpeakingObject = null;
     }
 
     update() {
@@ -61,14 +65,18 @@ class GameScene extends Phaser.Scene {
             // Start dragging the existing object
             this.isDragging = true;
             this.draggedObject = hitObject;
-        } else if (!this.isDragging) {
-            // Spawn new object only if not currently dragging
+        } else if (!this.isDragging && !this.isSpeaking) {
+            // Spawn new object only if not currently dragging AND not speaking
             const obj = this.spawnObjectAt(pointer.x, pointer.y, 'random');
             this.displayTextLabels(obj);
             this.speakObjectLabel(obj, 'both');
             this.generateTone(pointer.x, pointer.y, obj.id);
             this.createSpawnBurst(pointer.x, pointer.y);
-        } else {
+        } else if (this.isSpeaking && this.currentSpeakingObject) {
+            // Move the currently speaking object instead of spawning
+            this.moveObjectTo(this.currentSpeakingObject, pointer.x, pointer.y);
+            this.generateTone(pointer.x, pointer.y, this.currentSpeakingObject.id);
+        } else if (this.isDragging) {
             // Move dragged object to new position
             this.moveObjectTo(this.draggedObject, pointer.x, pointer.y);
         }
@@ -340,6 +348,10 @@ class GameScene extends Phaser.Scene {
             speechSynthesis.cancel();
         }
         
+        // Set speaking state
+        this.isSpeaking = true;
+        this.currentSpeakingObject = obj;
+        
         const data = obj.data;
         let textsToSpeak = [];
         
@@ -358,7 +370,10 @@ class GameScene extends Phaser.Scene {
     
     speakTextSequence(texts, index) {
         if (index >= texts.length) {
+            // Speech sequence complete - unlock the queue
             this.currentSpeech = null;
+            this.isSpeaking = false;
+            this.currentSpeakingObject = null;
             return;
         }
         
@@ -369,6 +384,13 @@ class GameScene extends Phaser.Scene {
         
         utterance.onend = () => {
             this.speakTextSequence(texts, index + 1);
+        };
+        
+        utterance.onerror = () => {
+            // Handle speech errors by unlocking the queue
+            this.isSpeaking = false;
+            this.currentSpeakingObject = null;
+            this.currentSpeech = null;
         };
         
         this.currentSpeech = utterance;
@@ -434,11 +456,18 @@ class GameScene extends Phaser.Scene {
     onKeyDown(event) {
         const position = this.getKeyPosition(event.code);
         if (position) {
-            const obj = this.spawnObjectAt(position.x, position.y, 'random');
-            this.displayTextLabels(obj);
-            this.speakObjectLabel(obj, 'both');
-            this.generateTone(position.x, position.y, obj.id);
-            this.createSpawnBurst(position.x, position.y);
+            if (!this.isSpeaking) {
+                // Spawn new object only if not speaking
+                const obj = this.spawnObjectAt(position.x, position.y, 'random');
+                this.displayTextLabels(obj);
+                this.speakObjectLabel(obj, 'both');
+                this.generateTone(position.x, position.y, obj.id);
+                this.createSpawnBurst(position.x, position.y);
+            } else if (this.currentSpeakingObject) {
+                // Move the currently speaking object
+                this.moveObjectTo(this.currentSpeakingObject, position.x, position.y);
+                this.generateTone(position.x, position.y, this.currentSpeakingObject.id);
+            }
         }
     }
     
@@ -665,17 +694,23 @@ class GameScene extends Phaser.Scene {
     }
 
     onGamepadButtonDown(gamepad, buttonIndex) {
-        // Spawn object at current gamepad cursor position
-        const obj = this.spawnObjectAt(
-            this.currentGamepadPosition.x, 
-            this.currentGamepadPosition.y, 
-            'random'
-        );
-        
-        this.displayTextLabels(obj);
-        this.speakObjectLabel(obj, 'both');
-        this.generateTone(this.currentGamepadPosition.x, this.currentGamepadPosition.y, obj.id);
-        this.createSpawnBurst(this.currentGamepadPosition.x, this.currentGamepadPosition.y);
+        if (!this.isSpeaking) {
+            // Spawn object at current gamepad cursor position
+            const obj = this.spawnObjectAt(
+                this.currentGamepadPosition.x, 
+                this.currentGamepadPosition.y, 
+                'random'
+            );
+            
+            this.displayTextLabels(obj);
+            this.speakObjectLabel(obj, 'both');
+            this.generateTone(this.currentGamepadPosition.x, this.currentGamepadPosition.y, obj.id);
+            this.createSpawnBurst(this.currentGamepadPosition.x, this.currentGamepadPosition.y);
+        } else if (this.currentSpeakingObject) {
+            // Move the currently speaking object
+            this.moveObjectTo(this.currentSpeakingObject, this.currentGamepadPosition.x, this.currentGamepadPosition.y);
+            this.generateTone(this.currentGamepadPosition.x, this.currentGamepadPosition.y, this.currentSpeakingObject.id);
+        }
     }
 
     getGamepadPosition(gamepad) {

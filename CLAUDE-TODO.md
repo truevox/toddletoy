@@ -59,15 +59,48 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - Service worker for resource caching and background sync support
 - Cross-platform compatibility (Android, iOS, ChromeOS, desktop)
 
-### Current Status 🎯 PROJECT COMPLETE!
+### Phase 5: Enhanced Input Mechanics (High Priority) 🚧 IN PROGRESS
 
-**Fully functional interactive experience with:**
+- [ ] Implement object dragging for touch/mouse interactions
+- [ ] Add multi-touch averaging for drag location
+- [ ] Implement multiple key holding with interpolation between locations
+- [ ] Add key release handling to remove from interpolation average
+- [ ] Implement continuous drag mode for held gamepad buttons
+
+### Phase 6: Advanced Display Features (Medium Priority) 📋 PENDING
+
+- [ ] Restore lowercase letters (both upper and lower case)
+- [ ] Add Cistercian numeral rendering for numbers
+- [ ] Add Kaktovik numeral display for numbers
+- [ ] Add binary representation (❤️🤍) for numbers
+
+### Phase 7: Speech & Animation Enhancements (Medium Priority) 📋 PENDING
+
+- [ ] Implement word highlighting animation during speech
+- [ ] Add speech queue locking until all words are read
+- [ ] Move objects instead of spawning new ones during mid-speech interactions
+- [ ] Implement continuous background tones per object (not 3-second limit)
+
+### Phase 8: Visual Effect Improvements (Low Priority) 📋 PENDING
+
+- [ ] Add trails or pulses during object dragging
+- [ ] Add word-specific sparkle effects when words are spoken
+
+### Current Status 🎯 CORE COMPLETE - ENHANCEMENTS IN PROGRESS
+
+**Fully functional core experience with:**
 - Touch/click, keyboard, and gamepad interactions
 - Bilingual speech synthesis (English/Spanish)
 - Position-based audio tones with multiple waveforms
 - Visual particle effects and text display
 - PWA installation and offline functionality
 - Comprehensive test coverage (30 tests across 7 suites)
+
+**Missing features from README.md specification:**
+- Object dragging and advanced input mechanics
+- Multi-modal number displays (Cistercian, Kaktovik, Binary)
+- Enhanced speech animations and queue management
+- Advanced visual effects during interaction
 
 ### Notes
 
@@ -76,4 +109,4 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - Code files kept under 300 lines
 - Frequent commits with clear messages
 - All tests passing ✅
-- Ready for deployment and app store submission
+- Ready for core functionality deployment, enhancement phases in progress

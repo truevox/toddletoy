@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Cache</title>
+</head>
+<body>
+    <h1>Cache Clearing Tool</h1>
+    <button onclick="clearCache()">Clear All Caches & Service Workers</button>
+    <div id="status"></div>
+
+    <script>
+        async function clearCache() {
+            const status = document.getElementById('status');
+            status.innerHTML = 'Clearing...';
+
+            try {
+                // Unregister all service workers
+                if ('serviceWorker' in navigator) {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    for (let registration of registrations) {
+                        await registration.unregister();
+                        console.log('Service worker unregistered:', registration);
+                    }
+                }
+
+                // Clear all caches
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(
+                        cacheNames.map(cacheName => caches.delete(cacheName))
+                    );
+                    console.log('All caches cleared');
+                }
+
+                status.innerHTML = 'Cache cleared! Please close this tab and navigate to <a href="http://localhost:3000">http://localhost:3000</a>';
+            } catch (error) {
+                status.innerHTML = 'Error: ' + error.message;
+                console.error('Error clearing cache:', error);
+            }
+        }
+
+        // Auto-clear on page load
+        window.addEventListener('load', clearCache);
+    </script>
+</body>
+</html>
