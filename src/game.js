@@ -25,6 +25,9 @@ export class ToddlerToyGame {
         this.audioContext = null;
         this.activeTones = new Map();
         this.particleEmitters = new Map();
+        this.currentGamepadPosition = { x: this.config.width / 2, y: this.config.height / 2 };
+        this.gamepadDeadzone = 0.1;
+        this.gamepadButtonStates = new Map();
     }
 
     preload() {
@@ -41,6 +44,9 @@ export class ToddlerToyGame {
         // Initialize audio
         this.initAudio();
         
+        // Initialize gamepad input
+        this.initGamepadInput();
+        
         // Create text style
         this.textStyle = {
             fontSize: '32px',
@@ -51,7 +57,8 @@ export class ToddlerToyGame {
     }
 
     update() {
-        // Game update loop
+        // Update gamepad input
+        this.updateGamepadInput();
     }
 
     onPointerDown(pointer) {
@@ -385,6 +392,95 @@ export class ToddlerToyGame {
             }
             this.particleEmitters.delete(objId);
         }
+    }
+
+    initGamepadInput() {
+        // Set up gamepad event listeners if available
+        if (this.input.gamepad) {
+            this.input.gamepad.on('connected', (gamepad) => {
+                console.log('Gamepad connected:', gamepad);
+            });
+            
+            this.input.gamepad.on('disconnected', (gamepad) => {
+                console.log('Gamepad disconnected:', gamepad);
+            });
+        }
+    }
+
+    updateGamepadInput() {
+        // Get gamepad via native API (more reliable than Phaser gamepad)
+        if (navigator.getGamepads) {
+            const gamepads = navigator.getGamepads();
+            
+            for (let i = 0; i < gamepads.length; i++) {
+                const gamepad = gamepads[i];
+                if (gamepad && gamepad.connected) {
+                    // Update position based on joystick input
+                    const position = this.getGamepadPosition(gamepad);
+                    this.currentGamepadPosition = position;
+                    
+                    // Check for button presses
+                    for (let buttonIndex = 0; buttonIndex < gamepad.buttons.length; buttonIndex++) {
+                        const button = gamepad.buttons[buttonIndex];
+                        const wasPressed = this.gamepadButtonStates.get(`${i}-${buttonIndex}`) || false;
+                        
+                        if (button.pressed && !wasPressed) {
+                            this.onGamepadButtonDown(gamepad, buttonIndex);
+                        }
+                        
+                        this.gamepadButtonStates.set(`${i}-${buttonIndex}`, button.pressed);
+                    }
+                }
+            }
+        }
+    }
+
+    onGamepadButtonDown(gamepad, buttonIndex) {
+        // Spawn object at current gamepad cursor position
+        const obj = this.spawnObjectAt(
+            this.currentGamepadPosition.x, 
+            this.currentGamepadPosition.y, 
+            'emoji'
+        );
+        
+        this.displayTextLabels(obj);
+        this.speakObjectLabel(obj, 'both');
+        this.generateTone(this.currentGamepadPosition.x, this.currentGamepadPosition.y, obj.id);
+        this.createSpawnBurst(this.currentGamepadPosition.x, this.currentGamepadPosition.y);
+    }
+
+    getGamepadPosition(gamepad) {
+        // Average both analog sticks for position (as per design doc)
+        const leftStickX = this.applyDeadzone(gamepad.axes[0], this.gamepadDeadzone);
+        const leftStickY = this.applyDeadzone(gamepad.axes[1], this.gamepadDeadzone);
+        const rightStickX = this.applyDeadzone(gamepad.axes[2], this.gamepadDeadzone);
+        const rightStickY = this.applyDeadzone(gamepad.axes[3], this.gamepadDeadzone);
+        
+        // Average the stick inputs
+        const avgX = (leftStickX + rightStickX) / 2;
+        const avgY = (leftStickY + rightStickY) / 2;
+        
+        // Convert from gamepad coordinates (-1 to 1) to screen coordinates
+        const screenX = (avgX + 1) * (this.config.width / 2);
+        const screenY = (avgY + 1) * (this.config.height / 2);
+        
+        // Clamp to screen bounds
+        return {
+            x: Math.max(0, Math.min(this.config.width, screenX)),
+            y: Math.max(0, Math.min(this.config.height, screenY))
+        };
+    }
+
+    applyDeadzone(value, deadzone) {
+        // Apply deadzone to prevent drift
+        if (Math.abs(value) < deadzone) {
+            return 0;
+        }
+        
+        // Scale the remaining range to maintain smooth movement
+        const sign = Math.sign(value);
+        const scaledValue = (Math.abs(value) - deadzone) / (1 - deadzone);
+        return sign * scaledValue;
     }
 }
 
