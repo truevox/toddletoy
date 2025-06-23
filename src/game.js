@@ -60,6 +60,10 @@ class GameScene extends Phaser.Scene {
         this.holdDuration = 500; // 500ms hold to start auto-drag
         this.isHolding = false;
         this.pointerIsDown = false; // Track if pointer is currently pressed
+        
+        // Initialize advanced keyboard state
+        this.heldKeys = new Set(); // Track currently held keys
+        this.keyboardObject = null; // Object controlled by keyboard
     }
 
     update() {
@@ -542,11 +546,19 @@ class GameScene extends Phaser.Scene {
         
         // Set up keyboard event listeners
         this.input.keyboard.on('keydown', this.onKeyDown, this);
+        this.input.keyboard.on('keyup', this.onKeyUp, this);
     }
     
     onKeyDown(event) {
         const position = this.getKeyPosition(event.code);
-        if (position) {
+        if (!position) return;
+        
+        // Add key to held keys set
+        const wasEmpty = this.heldKeys.size === 0;
+        this.heldKeys.add(event.code);
+        
+        if (wasEmpty) {
+            // First key pressed - create or identify keyboard object
             if (!this.isSpeaking) {
                 // Spawn new object only if not speaking
                 const obj = this.spawnObjectAt(position.x, position.y, 'random');
@@ -554,12 +566,65 @@ class GameScene extends Phaser.Scene {
                 this.speakObjectLabel(obj, 'both');
                 this.generateTone(position.x, position.y, obj.id);
                 this.createSpawnBurst(position.x, position.y);
+                this.keyboardObject = obj;
             } else if (this.currentSpeakingObject) {
-                // Move the currently speaking object
-                this.moveObjectTo(this.currentSpeakingObject, position.x, position.y);
-                this.generateTone(position.x, position.y, this.currentSpeakingObject.id);
+                // Use the currently speaking object as keyboard object
+                this.keyboardObject = this.currentSpeakingObject;
             }
         }
+        
+        // Update object position based on interpolated key positions
+        this.updateKeyboardObjectPosition();
+    }
+    
+    onKeyUp(event) {
+        // Remove key from held keys set
+        this.heldKeys.delete(event.code);
+        
+        if (this.heldKeys.size === 0) {
+            // No more keys held - clear keyboard object
+            this.keyboardObject = null;
+        } else {
+            // Update position based on remaining held keys
+            this.updateKeyboardObjectPosition();
+        }
+    }
+    
+    updateKeyboardObjectPosition() {
+        if (!this.keyboardObject || this.heldKeys.size === 0) return;
+        
+        // Calculate interpolated position from all held keys
+        const interpolatedPosition = this.getInterpolatedKeyPosition();
+        if (interpolatedPosition) {
+            this.moveObjectTo(this.keyboardObject, interpolatedPosition.x, interpolatedPosition.y, true);
+            this.generateTone(interpolatedPosition.x, interpolatedPosition.y, this.keyboardObject.id);
+        }
+    }
+    
+    getInterpolatedKeyPosition() {
+        if (this.heldKeys.size === 0) return null;
+        
+        let totalX = 0;
+        let totalY = 0;
+        let validKeys = 0;
+        
+        // Sum all positions from held keys
+        for (const keyCode of this.heldKeys) {
+            const position = this.getKeyPosition(keyCode);
+            if (position) {
+                totalX += position.x;
+                totalY += position.y;
+                validKeys++;
+            }
+        }
+        
+        if (validKeys === 0) return null;
+        
+        // Return average position
+        return {
+            x: totalX / validKeys,
+            y: totalY / validKeys
+        };
     }
     
     getKeyPosition(keyCode) {
