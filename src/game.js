@@ -1,4 +1,6 @@
-class ToddlerToyGame {
+import Phaser from 'phaser'
+
+export class ToddlerToyGame {
     constructor() {
         this.config = {
             type: Phaser.AUTO,
@@ -125,7 +127,3 @@ class ToddlerToyGame {
     }
 }
 
-// Start the game when DOM is loaded
-window.addEventListener('DOMContentLoaded', () => {
-    new ToddlerToyGame();
-});

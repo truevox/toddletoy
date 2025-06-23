@@ -5,8 +5,9 @@
   "main": "index.html",
   "scripts": {
     "test": "jest",
-    "dev": "serve -s .",
-    "build": "echo 'Build complete'",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
     "lint": "eslint src/",
     "typecheck": "echo 'No TypeScript yet'"
   },
@@ -16,7 +17,7 @@
   "devDependencies": {
     "jest": "^29.0.0",
     "jest-environment-jsdom": "^29.0.0",
-    "serve": "^14.0.0",
+    "vite": "^5.0.0",
     "eslint": "^8.0.0"
   },
   "keywords": ["pwa", "toddler", "montessori", "educational", "interactive"],
