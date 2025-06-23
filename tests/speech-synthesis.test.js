@@ -28,31 +28,55 @@ describe('Speech Synthesis', () => {
             objects: [],
             currentSpeech: null,
             speakObjectLabel: function(obj, language = 'en') {
-                // This should be implemented to pass tests
-                throw new Error('speakObjectLabel not implemented');
+                if (!obj || !obj.data) return;
+                
+                if (this.currentSpeech) {
+                    speechSynthesis.cancel();
+                }
+                
+                const data = obj.data;
+                let textsToSpeak = [];
+                
+                if (language === 'en') {
+                    textsToSpeak = [data.en];
+                } else if (language === 'es') {
+                    textsToSpeak = [data.es];
+                } else if (language === 'both') {
+                    textsToSpeak = [data.en, data.es];
+                }
+                
+                this.speakTextSequence(textsToSpeak, 0);
+            },
+            speakTextSequence: function(texts, index) {
+                if (index >= texts.length) {
+                    this.currentSpeech = null;
+                    return;
+                }
+                
+                const utterance = new SpeechSynthesisUtterance(texts[index]);
+                utterance.lang = index === 0 ? 'en-US' : 'es-ES';
+                utterance.rate = 0.8;
+                utterance.volume = 0.7;
+                
+                utterance.onend = () => {
+                    this.speakTextSequence(texts, index + 1);
+                };
+                
+                this.currentSpeech = utterance;
+                speechSynthesis.speak(utterance);
             }
         };
     });
     
-    test('should throw error when speakObjectLabel is not implemented', () => {
-        const obj = {
-            data: { emoji: '🐶', en: 'Dog', es: 'Perro' }
-        };
-        
-        expect(() => {
-            game.speakObjectLabel(obj, 'en');
-        }).toThrow('speakObjectLabel not implemented');
-    });
-
     test('should speak English label when language is en', () => {
-        // This test will fail until implementation
         const obj = {
             data: { emoji: '🐶', en: 'Dog', es: 'Perro' }
         };
         
-        expect(() => {
-            game.speakObjectLabel(obj, 'en');
-        }).toThrow('speakObjectLabel not implemented');
+        game.speakObjectLabel(obj, 'en');
+        
+        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith('Dog');
+        expect(mockSpeechSynthesis.speak).toHaveBeenCalledWith(expect.any(Object));
     });
 
     test('should speak Spanish label when language is es', () => {
@@ -60,9 +84,10 @@ describe('Speech Synthesis', () => {
             data: { emoji: '🐱', en: 'Cat', es: 'Gato' }
         };
         
-        expect(() => {
-            game.speakObjectLabel(obj, 'es');
-        }).toThrow('speakObjectLabel not implemented');
+        game.speakObjectLabel(obj, 'es');
+        
+        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith('Gato');
+        expect(mockSpeechSynthesis.speak).toHaveBeenCalledWith(expect.any(Object));
     });
 
     test('should handle bilingual speech sequence', () => {
@@ -70,8 +95,20 @@ describe('Speech Synthesis', () => {
             data: { emoji: '🐻', en: 'Bear', es: 'Oso' }
         };
         
-        expect(() => {
-            game.speakObjectLabel(obj, 'both');
-        }).toThrow('speakObjectLabel not implemented');
+        game.speakObjectLabel(obj, 'both');
+        
+        expect(global.SpeechSynthesisUtterance).toHaveBeenCalledWith('Bear');
+        expect(mockSpeechSynthesis.speak).toHaveBeenCalledWith(expect.any(Object));
+    });
+
+    test('should cancel current speech before starting new speech', () => {
+        const obj = {
+            data: { emoji: '🐶', en: 'Dog', es: 'Perro' }
+        };
+        
+        game.currentSpeech = {}; // Simulate ongoing speech
+        game.speakObjectLabel(obj, 'en');
+        
+        expect(mockSpeechSynthesis.cancel).toHaveBeenCalled();
     });
 });

@@ -18,6 +18,7 @@ class ToddlerToyGame {
         
         this.game = new Phaser.Game(this.config);
         this.objects = [];
+        this.currentSpeech = null;
     }
 
     preload() {
@@ -42,7 +43,8 @@ class ToddlerToyGame {
     }
 
     onPointerDown(pointer) {
-        this.spawnObjectAt(pointer.x, pointer.y, 'emoji');
+        const obj = this.spawnObjectAt(pointer.x, pointer.y, 'emoji');
+        this.speakObjectLabel(obj, 'both');
     }
 
     spawnObjectAt(x, y, type = 'emoji') {
@@ -77,6 +79,49 @@ class ToddlerToyGame {
         obj.sprite = emojiText;
         
         return obj;
+    }
+
+    speakObjectLabel(obj, language = 'en') {
+        if (!obj || !obj.data) return;
+        
+        // Cancel any current speech
+        if (this.currentSpeech) {
+            speechSynthesis.cancel();
+        }
+        
+        const data = obj.data;
+        let textsToSpeak = [];
+        
+        // Determine what to speak based on language parameter
+        if (language === 'en') {
+            textsToSpeak = [data.en];
+        } else if (language === 'es') {
+            textsToSpeak = [data.es];
+        } else if (language === 'both') {
+            textsToSpeak = [data.en, data.es];
+        }
+        
+        // Speak each text in sequence
+        this.speakTextSequence(textsToSpeak, 0);
+    }
+    
+    speakTextSequence(texts, index) {
+        if (index >= texts.length) {
+            this.currentSpeech = null;
+            return;
+        }
+        
+        const utterance = new SpeechSynthesisUtterance(texts[index]);
+        utterance.lang = index === 0 ? 'en-US' : 'es-ES';
+        utterance.rate = 0.8;
+        utterance.volume = 0.7;
+        
+        utterance.onend = () => {
+            this.speakTextSequence(texts, index + 1);
+        };
+        
+        this.currentSpeech = utterance;
+        speechSynthesis.speak(utterance);
     }
 }
 
