@@ -59,6 +59,7 @@ class GameScene extends Phaser.Scene {
         this.holdTimer = null;
         this.holdDuration = 500; // 500ms hold to start auto-drag
         this.isHolding = false;
+        this.pointerIsDown = false; // Track if pointer is currently pressed
     }
 
     update() {
@@ -70,6 +71,8 @@ class GameScene extends Phaser.Scene {
     }
 
     onPointerDown(pointer) {
+        this.pointerIsDown = true;
+        
         // Check if we hit an existing object
         const hitObject = this.getObjectUnderPointer(pointer.x, pointer.y);
         
@@ -90,6 +93,8 @@ class GameScene extends Phaser.Scene {
             // Move the currently speaking object instead of spawning
             this.moveObjectTo(this.currentSpeakingObject, pointer.x, pointer.y, true);
             this.generateTone(pointer.x, pointer.y, this.currentSpeakingObject.id);
+            // Start following mode - speaking object will follow mouse while held
+            this.startHoldTimer(this.currentSpeakingObject);
         } else if (this.isDragging) {
             // Move dragged object to new position (immediate for dragging)
             this.moveObjectTo(this.draggedObject, pointer.x, pointer.y, false);
@@ -103,10 +108,16 @@ class GameScene extends Phaser.Scene {
         } else if (this.isHolding && this.draggedObject) {
             // Smooth movement during auto-drag mode
             this.moveObjectTo(this.draggedObject, pointer.x, pointer.y, true);
+        } else if (this.pointerIsDown && this.isSpeaking && this.currentSpeakingObject) {
+            // Speaking object follows mouse when pointer is held down during speech
+            this.moveObjectTo(this.currentSpeakingObject, pointer.x, pointer.y, true);
+            this.generateTone(pointer.x, pointer.y, this.currentSpeakingObject.id);
         }
     }
     
     onPointerUp(pointer) {
+        this.pointerIsDown = false;
+        
         // Clear hold timer and state
         this.clearHoldTimer();
         
