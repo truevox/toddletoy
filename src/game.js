@@ -1,33 +1,8 @@
 import Phaser from 'phaser'
 
-export class ToddlerToyGame {
+class GameScene extends Phaser.Scene {
     constructor() {
-        this.config = {
-            type: Phaser.AUTO,
-            width: window.innerWidth,
-            height: window.innerHeight,
-            parent: 'game-container',
-            scene: {
-                preload: this.preload.bind(this),
-                create: this.create.bind(this),
-                update: this.update.bind(this)
-            },
-            scale: {
-                mode: Phaser.Scale.RESIZE,
-                autoCenter: Phaser.Scale.CENTER_BOTH
-            }
-        };
-        
-        this.game = new Phaser.Game(this.config);
-        this.objects = [];
-        this.currentSpeech = null;
-        this.keyPositions = {};
-        this.audioContext = null;
-        this.activeTones = new Map();
-        this.particleEmitters = new Map();
-        this.currentGamepadPosition = { x: this.config.width / 2, y: this.config.height / 2 };
-        this.gamepadDeadzone = 0.1;
-        this.gamepadButtonStates = new Map();
+        super({ key: 'GameScene' });
     }
 
     preload() {
@@ -54,6 +29,17 @@ export class ToddlerToyGame {
             fontFamily: 'Arial',
             align: 'center'
         };
+        
+        // Initialize game state
+        this.objects = [];
+        this.currentSpeech = null;
+        this.keyPositions = {};
+        this.audioContext = null;
+        this.activeTones = new Map();
+        this.particleEmitters = new Map();
+        this.currentGamepadPosition = { x: 400, y: 300 }; // Default to center
+        this.gamepadDeadzone = 0.1;
+        this.gamepadButtonStates = new Map();
     }
 
     update() {
@@ -183,8 +169,8 @@ export class ToddlerToyGame {
 
     initKeyboardInput() {
         // Set up key position mappings (grid layout)
-        const width = this.config.width;
-        const height = this.config.height;
+        const width = this.scale.width;
+        const height = this.scale.height;
         
         this.keyPositions = {
             'KeyQ': { x: width * 0.2, y: height * 0.2 },  // Top-left
@@ -282,7 +268,7 @@ export class ToddlerToyGame {
     getFrequencyFromPosition(x, y) {
         // Map Y position to frequency range (200Hz - 800Hz)
         // Higher Y = lower frequency (like a piano)
-        const normalizedY = 1 - (y / this.config.height);
+        const normalizedY = 1 - (y / this.scale.height);
         const minFreq = 200;
         const maxFreq = 800;
         return minFreq + (normalizedY * (maxFreq - minFreq));
@@ -290,8 +276,8 @@ export class ToddlerToyGame {
 
     getWaveformFromPosition(x, y) {
         // Map screen quadrants to different waveforms
-        const midX = this.config.width / 2;
-        const midY = this.config.height / 2;
+        const midX = this.scale.width / 2;
+        const midY = this.scale.height / 2;
         
         if (x < midX && y < midY) return 'sine';        // Top-left
         if (x >= midX && y < midY) return 'square';     // Top-right  
@@ -461,13 +447,13 @@ export class ToddlerToyGame {
         const avgY = (leftStickY + rightStickY) / 2;
         
         // Convert from gamepad coordinates (-1 to 1) to screen coordinates
-        const screenX = (avgX + 1) * (this.config.width / 2);
-        const screenY = (avgY + 1) * (this.config.height / 2);
+        const screenX = (avgX + 1) * (this.scale.width / 2);
+        const screenY = (avgY + 1) * (this.scale.height / 2);
         
         // Clamp to screen bounds
         return {
-            x: Math.max(0, Math.min(this.config.width, screenX)),
-            y: Math.max(0, Math.min(this.config.height, screenY))
+            x: Math.max(0, Math.min(this.scale.width, screenX)),
+            y: Math.max(0, Math.min(this.scale.height, screenY))
         };
     }
 
@@ -481,6 +467,24 @@ export class ToddlerToyGame {
         const sign = Math.sign(value);
         const scaledValue = (Math.abs(value) - deadzone) / (1 - deadzone);
         return sign * scaledValue;
+    }
+}
+
+export class ToddlerToyGame {
+    constructor() {
+        this.config = {
+            type: Phaser.AUTO,
+            width: window.innerWidth,
+            height: window.innerHeight,
+            parent: 'game-container',
+            scene: GameScene,
+            scale: {
+                mode: Phaser.Scale.RESIZE,
+                autoCenter: Phaser.Scale.CENTER_BOTH
+            }
+        };
+        
+        this.game = new Phaser.Game(this.config);
     }
 }
 
