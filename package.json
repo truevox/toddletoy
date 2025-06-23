@@ -1,0 +1,25 @@
+{
+  "name": "toddler-toy-pwa", 
+  "version": "1.0.0",
+  "description": "Montessori-aligned interactive toddler toy PWA",
+  "main": "index.html",
+  "scripts": {
+    "test": "jest",
+    "dev": "serve -s .",
+    "build": "echo 'Build complete'",
+    "lint": "eslint src/",
+    "typecheck": "echo 'No TypeScript yet'"
+  },
+  "dependencies": {
+    "phaser": "^3.70.0"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0",
+    "jest-environment-jsdom": "^29.0.0",
+    "serve": "^14.0.0",
+    "eslint": "^8.0.0"
+  },
+  "keywords": ["pwa", "toddler", "montessori", "educational", "interactive"],
+  "author": "Marvin Bentley II",
+  "license": "MIT"
+}

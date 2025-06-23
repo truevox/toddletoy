@@ -72,5 +72,4 @@ Each command uses `$ARGUMENTS` for flexibility :contentReference[oaicite:10]{ind
 4. Use visual iteration for UI polish  
 5. Create PR with small, verified changes  
 
-Let's build out this project step-by-step. Respond “ready” when you want to start the first TDD item!
-
+Let's build out this project step-by-step. Please populate and update /CLAUDE-TODO.md with a structured plan to implement this project, and refer to it reguarlly. Update it indicating what parts are complete as you complete them.
