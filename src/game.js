@@ -12,6 +12,8 @@ class GameScene extends Phaser.Scene {
     create() {
         // Set up input handlers
         this.input.on('pointerdown', this.onPointerDown, this);
+        this.input.on('pointermove', this.onPointerMove, this);
+        this.input.on('pointerup', this.onPointerUp, this);
         
         // Initialize keyboard input
         this.initKeyboardInput();
@@ -40,6 +42,10 @@ class GameScene extends Phaser.Scene {
         this.currentGamepadPosition = { x: 400, y: 300 }; // Default to center
         this.gamepadDeadzone = 0.1;
         this.gamepadButtonStates = new Map();
+        
+        // Initialize dragging state
+        this.isDragging = false;
+        this.draggedObject = null;
     }
 
     update() {
@@ -48,23 +54,97 @@ class GameScene extends Phaser.Scene {
     }
 
     onPointerDown(pointer) {
-        const obj = this.spawnObjectAt(pointer.x, pointer.y, 'emoji');
-        this.displayTextLabels(obj);
-        this.speakObjectLabel(obj, 'both');
-        this.generateTone(pointer.x, pointer.y, obj.id);
-        this.createSpawnBurst(pointer.x, pointer.y);
+        // Check if we hit an existing object
+        const hitObject = this.getObjectUnderPointer(pointer.x, pointer.y);
+        
+        if (hitObject) {
+            // Start dragging the existing object
+            this.isDragging = true;
+            this.draggedObject = hitObject;
+        } else if (!this.isDragging) {
+            // Spawn new object only if not currently dragging
+            const obj = this.spawnObjectAt(pointer.x, pointer.y, 'random');
+            this.displayTextLabels(obj);
+            this.speakObjectLabel(obj, 'both');
+            this.generateTone(pointer.x, pointer.y, obj.id);
+            this.createSpawnBurst(pointer.x, pointer.y);
+        } else {
+            // Move dragged object to new position
+            this.moveObjectTo(this.draggedObject, pointer.x, pointer.y);
+        }
+    }
+    
+    onPointerMove(pointer) {
+        if (this.isDragging && this.draggedObject) {
+            this.moveObjectTo(this.draggedObject, pointer.x, pointer.y);
+        }
+    }
+    
+    onPointerUp(pointer) {
+        if (this.isDragging) {
+            this.isDragging = false;
+            this.draggedObject = null;
+        }
+    }
+    
+    getObjectUnderPointer(x, y) {
+        // Find the closest object within a reasonable distance (50 pixels)
+        let closestObject = null;
+        let closestDistance = 50; // Maximum hit distance
+        
+        for (const obj of this.objects) {
+            const distance = Math.sqrt((x - obj.x) ** 2 + (y - obj.y) ** 2);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestObject = obj;
+            }
+        }
+        
+        return closestObject;
+    }
+    
+    moveObjectTo(obj, x, y) {
+        if (!obj) return;
+        
+        // Update object position
+        obj.x = x;
+        obj.y = y;
+        
+        // Update sprite position
+        if (obj.sprite) {
+            obj.sprite.setPosition(x, y);
+        }
+        
+        // Update label positions
+        if (obj.englishLabel) {
+            obj.englishLabel.setPosition(x, y + 60);
+        }
+        if (obj.spanishLabel) {
+            obj.spanishLabel.setPosition(x, y + 90);
+        }
     }
 
-    spawnObjectAt(x, y, type = 'emoji') {
-        // Load emoji data
-        const emojis = [
-            {"emoji":"🐶","en":"Dog","es":"Perro","type":"emoji"},
-            {"emoji":"🐱","en":"Cat","es":"Gato","type":"emoji"},
-            {"emoji":"🐻","en":"Bear","es":"Oso","type":"emoji"}
-        ];
+    spawnObjectAt(x, y, type = 'random') {
+        let selectedItem;
         
-        // Select random emoji for now
-        const selectedEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+        if (type === 'random') {
+            // Randomly choose between emoji, shape, letter, or number
+            const types = ['emoji', 'shape', 'letter', 'number'];
+            type = types[Math.floor(Math.random() * types.length)];
+        }
+        
+        if (type === 'emoji') {
+            selectedItem = this.getRandomEmoji();
+        } else if (type === 'shape') {
+            selectedItem = this.getRandomShape();
+        } else if (type === 'letter') {
+            selectedItem = this.getRandomLetter();
+        } else if (type === 'number') {
+            selectedItem = this.getRandomNumber();
+        } else {
+            // Fallback to emoji
+            selectedItem = this.getRandomEmoji();
+        }
         
         // Create visual object
         const obj = {
@@ -72,21 +152,184 @@ class GameScene extends Phaser.Scene {
             y: y,
             type: type,
             id: Date.now() + Math.random(),
-            data: selectedEmoji
+            data: selectedItem
         };
         
         // Add to objects array
         this.objects.push(obj);
         
-        // Create Phaser text object for the emoji
-        const emojiText = this.add.text(x, y, selectedEmoji.emoji, {
+        // Create Phaser text object with appropriate content
+        const displayText = this.getDisplayText(selectedItem, type);
+        const objectText = this.add.text(x, y, displayText, {
             fontSize: '64px',
-            align: 'center'
+            align: 'center',
+            fill: selectedItem.color || '#ffffff'
         }).setOrigin(0.5);
         
-        obj.sprite = emojiText;
+        obj.sprite = objectText;
         
         return obj;
+    }
+
+    getRandomEmoji() {
+        // Load from emojis.json data
+        const emojis = [
+            {"emoji":"🐶","en":"Dog","es":"Perro","type":"emoji"},
+            {"emoji":"🐱","en":"Cat","es":"Gato","type":"emoji"},
+            {"emoji":"🐭","en":"Mouse","es":"Ratón","type":"emoji"},
+            {"emoji":"🐹","en":"Hamster","es":"Hámster","type":"emoji"},
+            {"emoji":"🐰","en":"Rabbit","es":"Conejo","type":"emoji"},
+            {"emoji":"🦊","en":"Fox","es":"Zorro","type":"emoji"},
+            {"emoji":"🐻","en":"Bear","es":"Oso","type":"emoji"},
+            {"emoji":"🐼","en":"Panda","es":"Panda","type":"emoji"},
+            {"emoji":"🐨","en":"Koala","es":"Koala","type":"emoji"},
+            {"emoji":"🐯","en":"Tiger","es":"Tigre","type":"emoji"},
+            {"emoji":"🦁","en":"Lion","es":"León","type":"emoji"},
+            {"emoji":"🐮","en":"Cow","es":"Vaca","type":"emoji"},
+            {"emoji":"🐷","en":"Pig","es":"Cerdo","type":"emoji"},
+            {"emoji":"🐸","en":"Frog","es":"Rana","type":"emoji"},
+            {"emoji":"🐵","en":"Monkey","es":"Mono","type":"emoji"},
+            {"emoji":"🐔","en":"Chicken","es":"Gallina","type":"emoji"},
+            {"emoji":"🐤","en":"Chick","es":"Pollito","type":"emoji"},
+            {"emoji":"🦆","en":"Duck","es":"Pato","type":"emoji"},
+            {"emoji":"🐴","en":"Horse","es":"Caballo","type":"emoji"},
+            {"emoji":"🦄","en":"Unicorn","es":"Unicornio","type":"emoji"},
+            {"emoji":"🐢","en":"Turtle","es":"Tortuga","type":"emoji"},
+            {"emoji":"🐛","en":"Caterpillar","es":"Oruga","type":"emoji"},
+            {"emoji":"🦋","en":"Butterfly","es":"Mariposa","type":"emoji"},
+            {"emoji":"🐝","en":"Bee","es":"Abeja","type":"emoji"},
+            {"emoji":"🐞","en":"Ladybug","es":"Mariquita","type":"emoji"},
+            {"emoji":"🐠","en":"Fish","es":"Pez","type":"emoji"},
+            {"emoji":"🐳","en":"Whale","es":"Ballena","type":"emoji"},
+            {"emoji":"🐬","en":"Dolphin","es":"Delfín","type":"emoji"},
+            {"emoji":"🦀","en":"Crab","es":"Cangrejo","type":"emoji"},
+            {"emoji":"🐙","en":"Octopus","es":"Pulpo","type":"emoji"},
+            {"emoji":"🚗","en":"Car","es":"Coche","type":"emoji"},
+            {"emoji":"🚂","en":"Train","es":"Tren","type":"emoji"},
+            {"emoji":"✈️","en":"Airplane","es":"Avión","type":"emoji"},
+            {"emoji":"🚀","en":"Rocket","es":"Cohete","type":"emoji"},
+            {"emoji":"🍎","en":"Apple","es":"Manzana","type":"emoji"},
+            {"emoji":"🍌","en":"Banana","es":"Banana","type":"emoji"},
+            {"emoji":"🍓","en":"Strawberry","es":"Fresa","type":"emoji"},
+            {"emoji":"🍇","en":"Grapes","es":"Uvas","type":"emoji"},
+            {"emoji":"🍉","en":"Watermelon","es":"Sandía","type":"emoji"},
+            {"emoji":"🍕","en":"Pizza","es":"Pizza","type":"emoji"},
+            {"emoji":"🍦","en":"Ice Cream","es":"Helado","type":"emoji"},
+            {"emoji":"🍪","en":"Cookie","es":"Galleta","type":"emoji"},
+            {"emoji":"🍼","en":"Bottle","es":"Biberón","type":"emoji"},
+            {"emoji":"🎈","en":"Balloon","es":"Globo","type":"emoji"},
+            {"emoji":"🎁","en":"Gift","es":"Regalo","type":"emoji"},
+            {"emoji":"🧸","en":"Teddy Bear","es":"Osito","type":"emoji"},
+            {"emoji":"🎵","en":"Music Note","es":"Nota","type":"emoji"},
+            {"emoji":"🎶","en":"Music Notes","es":"Notas","type":"emoji"},
+            {"emoji":"😀","en":"Happy Face","es":"Cara Feliz","type":"emoji"},
+            {"emoji":"😃","en":"Big Eyes","es":"Ojos Grandes","type":"emoji"},
+            {"emoji":"😊","en":"Smiling Eyes","es":"Ojos Felices","type":"emoji"},
+            {"emoji":"😎","en":"Cool Face","es":"Cara Cool","type":"emoji"},
+            {"emoji":"😍","en":"Heart Eyes","es":"Ojos Corazón","type":"emoji"},
+            {"emoji":"😢","en":"Sad Face","es":"Cara Triste","type":"emoji"},
+            {"emoji":"😡","en":"Angry Face","es":"Cara Enfadada","type":"emoji"},
+            {"emoji":"😂","en":"Laughing Face","es":"Cara Riendo","type":"emoji"},
+            {"emoji":"❤️","en":"Red Heart","es":"Corazón Rojo","type":"emoji"}
+        ];
+        return emojis[Math.floor(Math.random() * emojis.length)];
+    }
+
+    getRandomShape() {
+        const colors = [
+            { value: "Red", en: "Red", es: "Rojo", hex: "#ff0000" },
+            { value: "Blue", en: "Blue", es: "Azul", hex: "#0000ff" },
+            { value: "Green", en: "Green", es: "Verde", hex: "#00ff00" },
+            { value: "Yellow", en: "Yellow", es: "Amarillo", hex: "#ffff00" },
+            { value: "Purple", en: "Purple", es: "Morado", hex: "#800080" },
+            { value: "Orange", en: "Orange", es: "Naranja", hex: "#ffa500" }
+        ];
+        
+        const shapes = [
+            { value: "Circle", en: "Circle", es: "Círculo", symbol: "●" },
+            { value: "Square", en: "Square", es: "Cuadro", symbol: "■" },
+            { value: "Triangle", en: "Triangle", es: "Triángulo", symbol: "▲" },
+            { value: "Star", en: "Star", es: "Estrella", symbol: "★" },
+            { value: "Heart", en: "Heart", es: "Corazón", symbol: "♥" },
+            { value: "Diamond", en: "Diamond", es: "Diamante", symbol: "♦" }
+        ];
+        
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const shape = shapes[Math.floor(Math.random() * shapes.length)];
+        
+        return {
+            type: 'shape',
+            symbol: shape.symbol,
+            color: color.hex,
+            en: `${color.en} ${shape.en}`,
+            es: `${shape.es} ${color.es}`
+        };
+    }
+
+    getRandomLetter() {
+        const colors = [
+            { value: "Red", en: "Red", es: "Rojo", hex: "#ff0000" },
+            { value: "Blue", en: "Blue", es: "Azul", hex: "#0000ff" },
+            { value: "Green", en: "Green", es: "Verde", hex: "#00ff00" },
+            { value: "Yellow", en: "Yellow", es: "Amarillo", hex: "#ffff00" },
+            { value: "Purple", en: "Purple", es: "Morado", hex: "#800080" },
+            { value: "Orange", en: "Orange", es: "Naranja", hex: "#ffa500" }
+        ];
+        
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        const letter = letters[Math.floor(Math.random() * letters.length)];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        
+        return {
+            type: 'letter',
+            symbol: letter,
+            color: color.hex,
+            en: `${color.en} ${letter}`,
+            es: `${letter} ${color.es}`
+        };
+    }
+
+    getRandomNumber() {
+        const colors = [
+            { value: "Red", en: "Red", es: "Rojo", hex: "#ff0000" },
+            { value: "Blue", en: "Blue", es: "Azul", hex: "#0000ff" },
+            { value: "Green", en: "Green", es: "Verde", hex: "#00ff00" },
+            { value: "Yellow", en: "Yellow", es: "Amarillo", hex: "#ffff00" },
+            { value: "Purple", en: "Purple", es: "Morado", hex: "#800080" },
+            { value: "Orange", en: "Orange", es: "Naranja", hex: "#ffa500" }
+        ];
+        
+        // Weighted random number generation as per design doc
+        let number;
+        const rand = Math.random();
+        if (rand < 0.6) {
+            // 0-20: most frequent (60%)
+            number = Math.floor(Math.random() * 21);
+        } else if (rand < 0.9) {
+            // 21-1000: less frequent (30%)
+            number = 21 + Math.floor(Math.random() * 980);
+        } else {
+            // 1001-9999: least frequent (10%)
+            number = 1001 + Math.floor(Math.random() * 8999);
+        }
+        
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        
+        return {
+            type: 'number',
+            symbol: number.toString(),
+            color: color.hex,
+            en: `${color.en} ${number}`,
+            es: `${number} ${color.es}`
+        };
+    }
+
+    getDisplayText(item, type) {
+        if (type === 'emoji') {
+            return item.emoji;
+        } else {
+            return item.symbol;
+        }
     }
 
     speakObjectLabel(obj, language = 'en') {
@@ -191,7 +434,7 @@ class GameScene extends Phaser.Scene {
     onKeyDown(event) {
         const position = this.getKeyPosition(event.code);
         if (position) {
-            const obj = this.spawnObjectAt(position.x, position.y, 'emoji');
+            const obj = this.spawnObjectAt(position.x, position.y, 'random');
             this.displayTextLabels(obj);
             this.speakObjectLabel(obj, 'both');
             this.generateTone(position.x, position.y, obj.id);
@@ -426,7 +669,7 @@ class GameScene extends Phaser.Scene {
         const obj = this.spawnObjectAt(
             this.currentGamepadPosition.x, 
             this.currentGamepadPosition.y, 
-            'emoji'
+            'random'
         );
         
         this.displayTextLabels(obj);
