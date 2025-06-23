@@ -22,6 +22,8 @@ export class ToddlerToyGame {
         this.objects = [];
         this.currentSpeech = null;
         this.keyPositions = {};
+        this.audioContext = null;
+        this.activeTones = new Map();
     }
 
     preload() {
@@ -34,6 +36,9 @@ export class ToddlerToyGame {
         
         // Initialize keyboard input
         this.initKeyboardInput();
+        
+        // Initialize audio
+        this.initAudio();
         
         // Create text style
         this.textStyle = {
@@ -52,6 +57,7 @@ export class ToddlerToyGame {
         const obj = this.spawnObjectAt(pointer.x, pointer.y, 'emoji');
         this.displayTextLabels(obj);
         this.speakObjectLabel(obj, 'both');
+        this.generateTone(pointer.x, pointer.y, obj.id);
     }
 
     spawnObjectAt(x, y, type = 'emoji') {
@@ -193,11 +199,94 @@ export class ToddlerToyGame {
             const obj = this.spawnObjectAt(position.x, position.y, 'emoji');
             this.displayTextLabels(obj);
             this.speakObjectLabel(obj, 'both');
+            this.generateTone(position.x, position.y, obj.id);
         }
     }
     
     getKeyPosition(keyCode) {
         return this.keyPositions[keyCode] || null;
+    }
+
+    initAudio() {
+        try {
+            // Create AudioContext with fallback for older browsers
+            this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (error) {
+            console.warn('Web Audio API not supported:', error);
+        }
+    }
+
+    generateTone(x, y, objId) {
+        if (!this.audioContext) return;
+
+        // Stop any existing tone for this object
+        this.stopTone(objId);
+
+        try {
+            // Create oscillator and gain nodes
+            const oscillator = this.audioContext.createOscillator();
+            const gainNode = this.audioContext.createGain();
+
+            // Set frequency based on Y position (higher = higher pitch)
+            const frequency = this.getFrequencyFromPosition(x, y);
+            oscillator.frequency.value = frequency;
+
+            // Set waveform based on X/Y position
+            oscillator.type = this.getWaveformFromPosition(x, y);
+
+            // Set volume (lower than speech)
+            gainNode.gain.value = 0.1;
+
+            // Connect audio nodes
+            oscillator.connect(gainNode);
+            gainNode.connect(this.audioContext.destination);
+
+            // Start the tone
+            oscillator.start();
+
+            // Store reference for cleanup
+            this.activeTones.set(objId, { oscillator, gainNode });
+
+            // Auto-stop after 3 seconds to prevent endless tones
+            setTimeout(() => {
+                this.stopTone(objId);
+            }, 3000);
+
+        } catch (error) {
+            console.warn('Error generating tone:', error);
+        }
+    }
+
+    stopTone(objId) {
+        const tone = this.activeTones.get(objId);
+        if (tone) {
+            try {
+                tone.oscillator.stop();
+            } catch (error) {
+                // Oscillator may already be stopped
+            }
+            this.activeTones.delete(objId);
+        }
+    }
+
+    getFrequencyFromPosition(x, y) {
+        // Map Y position to frequency range (200Hz - 800Hz)
+        // Higher Y = lower frequency (like a piano)
+        const normalizedY = 1 - (y / this.config.height);
+        const minFreq = 200;
+        const maxFreq = 800;
+        return minFreq + (normalizedY * (maxFreq - minFreq));
+    }
+
+    getWaveformFromPosition(x, y) {
+        // Map screen quadrants to different waveforms
+        const midX = this.config.width / 2;
+        const midY = this.config.height / 2;
+        
+        if (x < midX && y < midY) return 'sine';        // Top-left
+        if (x >= midX && y < midY) return 'square';     // Top-right  
+        if (x < midX && y >= midY) return 'sawtooth';   // Bottom-left
+        return 'triangle';                              // Bottom-right
     }
 }
 
