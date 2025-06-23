@@ -34,49 +34,79 @@ describe('Keyboard Input', () => {
             })
         };
 
-        // Create game instance
+        // Create game instance with keyboard input implementation
         game = {
             add: mockAdd,
             input: mockInput,
             objects: [],
             keyPositions: {},
+            config: { width: 800, height: 600 },
+            spawnObjectAt: jest.fn().mockReturnValue({ x: 100, y: 100, data: {} }),
+            displayTextLabels: jest.fn(),
+            speakObjectLabel: jest.fn(),
             initKeyboardInput: function() {
-                throw new Error('initKeyboardInput not implemented');
+                const width = this.config.width;
+                const height = this.config.height;
+                
+                this.keyPositions = {
+                    'KeyQ': { x: width * 0.2, y: height * 0.2 },
+                    'KeyW': { x: width * 0.5, y: height * 0.2 },
+                    'KeyE': { x: width * 0.8, y: height * 0.2 },
+                    'KeyA': { x: width * 0.2, y: height * 0.5 },
+                    'KeyS': { x: width * 0.5, y: height * 0.5 },
+                    'KeyD': { x: width * 0.8, y: height * 0.5 },
+                    'KeyZ': { x: width * 0.2, y: height * 0.8 },
+                    'KeyX': { x: width * 0.5, y: height * 0.8 },
+                    'KeyC': { x: width * 0.8, y: height * 0.8 }
+                };
+                
+                this.input.keyboard.on('keydown', this.onKeyDown, this);
             },
             onKeyDown: function(event) {
-                throw new Error('onKeyDown not implemented');
+                const position = this.getKeyPosition(event.code);
+                if (position) {
+                    const obj = this.spawnObjectAt(position.x, position.y, 'emoji');
+                    this.displayTextLabels(obj);
+                    this.speakObjectLabel(obj, 'both');
+                }
             },
-            getKeyPosition: function(key) {
-                throw new Error('getKeyPosition not implemented');
+            getKeyPosition: function(keyCode) {
+                return this.keyPositions[keyCode] || null;
             }
         };
     });
 
-    test('should throw error when initKeyboardInput is not implemented', () => {
-        expect(() => {
-            game.initKeyboardInput();
-        }).toThrow('initKeyboardInput not implemented');
+    test('should initialize keyboard input and set up key positions', () => {
+        game.initKeyboardInput();
+        
+        expect(game.keyPositions['KeyA']).toEqual({ x: 160, y: 300 }); // Mid-left
+        expect(game.keyPositions['KeyS']).toEqual({ x: 400, y: 300 }); // Center
+        expect(mockInput.keyboard.on).toHaveBeenCalledWith('keydown', game.onKeyDown, game);
     });
 
-    test('should throw error when onKeyDown is not implemented', () => {
+    test('should spawn object at key position when key is pressed', () => {
+        game.initKeyboardInput();
         const mockEvent = { code: 'KeyA' };
         
-        expect(() => {
-            game.onKeyDown(mockEvent);
-        }).toThrow('onKeyDown not implemented');
+        game.onKeyDown(mockEvent);
+        
+        expect(game.spawnObjectAt).toHaveBeenCalledWith(160, 300, 'emoji');
+        expect(game.displayTextLabels).toHaveBeenCalled();
+        expect(game.speakObjectLabel).toHaveBeenCalled();
     });
 
-    test('should throw error when getKeyPosition is not implemented', () => {
-        expect(() => {
-            game.getKeyPosition('KeyA');
-        }).toThrow('getKeyPosition not implemented');
+    test('should return correct position for mapped keys', () => {
+        game.initKeyboardInput();
+        
+        expect(game.getKeyPosition('KeyQ')).toEqual({ x: 160, y: 120 }); // Top-left
+        expect(game.getKeyPosition('KeyC')).toEqual({ x: 640, y: 480 }); // Bottom-right
+        expect(game.getKeyPosition('KeyS')).toEqual({ x: 400, y: 300 }); // Center
     });
 
-    test('should map specific keys to screen positions', () => {
-        expect(() => {
-            game.getKeyPosition('KeyA'); // Should map to top-left
-            game.getKeyPosition('KeyS'); // Should map to bottom-left
-            game.getKeyPosition('KeyL'); // Should map to top-right
-        }).toThrow('getKeyPosition not implemented');
+    test('should return null for unmapped keys', () => {
+        game.initKeyboardInput();
+        
+        expect(game.getKeyPosition('KeyP')).toBeNull();
+        expect(game.getKeyPosition('KeyL')).toBeNull();
     });
 });

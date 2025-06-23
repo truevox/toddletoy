@@ -21,6 +21,7 @@ export class ToddlerToyGame {
         this.game = new Phaser.Game(this.config);
         this.objects = [];
         this.currentSpeech = null;
+        this.keyPositions = {};
     }
 
     preload() {
@@ -30,6 +31,9 @@ export class ToddlerToyGame {
     create() {
         // Set up input handlers
         this.input.on('pointerdown', this.onPointerDown, this);
+        
+        // Initialize keyboard input
+        this.initKeyboardInput();
         
         // Create text style
         this.textStyle = {
@@ -160,6 +164,40 @@ export class ToddlerToyGame {
             english: englishText,
             spanish: spanishText
         };
+    }
+
+    initKeyboardInput() {
+        // Set up key position mappings (grid layout)
+        const width = this.config.width;
+        const height = this.config.height;
+        
+        this.keyPositions = {
+            'KeyQ': { x: width * 0.2, y: height * 0.2 },  // Top-left
+            'KeyW': { x: width * 0.5, y: height * 0.2 },  // Top-center
+            'KeyE': { x: width * 0.8, y: height * 0.2 },  // Top-right
+            'KeyA': { x: width * 0.2, y: height * 0.5 },  // Mid-left
+            'KeyS': { x: width * 0.5, y: height * 0.5 },  // Center
+            'KeyD': { x: width * 0.8, y: height * 0.5 },  // Mid-right
+            'KeyZ': { x: width * 0.2, y: height * 0.8 },  // Bottom-left
+            'KeyX': { x: width * 0.5, y: height * 0.8 },  // Bottom-center
+            'KeyC': { x: width * 0.8, y: height * 0.8 }   // Bottom-right
+        };
+        
+        // Set up keyboard event listeners
+        this.input.keyboard.on('keydown', this.onKeyDown, this);
+    }
+    
+    onKeyDown(event) {
+        const position = this.getKeyPosition(event.code);
+        if (position) {
+            const obj = this.spawnObjectAt(position.x, position.y, 'emoji');
+            this.displayTextLabels(obj);
+            this.speakObjectLabel(obj, 'both');
+        }
+    }
+    
+    getKeyPosition(keyCode) {
+        return this.keyPositions[keyCode] || null;
     }
 }
 
