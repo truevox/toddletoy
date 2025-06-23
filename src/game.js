@@ -42,8 +42,41 @@ class ToddlerToyGame {
     }
 
     onPointerDown(pointer) {
-        // This will be implemented in the next step
-        console.log('Touch detected at:', pointer.x, pointer.y);
+        this.spawnObjectAt(pointer.x, pointer.y, 'emoji');
+    }
+
+    spawnObjectAt(x, y, type = 'emoji') {
+        // Load emoji data
+        const emojis = [
+            {"emoji":"🐶","en":"Dog","es":"Perro","type":"emoji"},
+            {"emoji":"🐱","en":"Cat","es":"Gato","type":"emoji"},
+            {"emoji":"🐻","en":"Bear","es":"Oso","type":"emoji"}
+        ];
+        
+        // Select random emoji for now
+        const selectedEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+        
+        // Create visual object
+        const obj = {
+            x: x,
+            y: y,
+            type: type,
+            id: Date.now() + Math.random(),
+            data: selectedEmoji
+        };
+        
+        // Add to objects array
+        this.objects.push(obj);
+        
+        // Create Phaser text object for the emoji
+        const emojiText = this.add.text(x, y, selectedEmoji.emoji, {
+            fontSize: '64px',
+            align: 'center'
+        }).setOrigin(0.5);
+        
+        obj.sprite = emojiText;
+        
+        return obj;
     }
 }
 
