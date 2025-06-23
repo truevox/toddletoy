@@ -24,6 +24,7 @@ export class ToddlerToyGame {
         this.keyPositions = {};
         this.audioContext = null;
         this.activeTones = new Map();
+        this.particleEmitters = new Map();
     }
 
     preload() {
@@ -58,6 +59,7 @@ export class ToddlerToyGame {
         this.displayTextLabels(obj);
         this.speakObjectLabel(obj, 'both');
         this.generateTone(pointer.x, pointer.y, obj.id);
+        this.createSpawnBurst(pointer.x, pointer.y);
     }
 
     spawnObjectAt(x, y, type = 'emoji') {
@@ -200,6 +202,7 @@ export class ToddlerToyGame {
             this.displayTextLabels(obj);
             this.speakObjectLabel(obj, 'both');
             this.generateTone(position.x, position.y, obj.id);
+            this.createSpawnBurst(position.x, position.y);
         }
     }
     
@@ -287,6 +290,101 @@ export class ToddlerToyGame {
         if (x >= midX && y < midY) return 'square';     // Top-right  
         if (x < midX && y >= midY) return 'sawtooth';   // Bottom-left
         return 'triangle';                              // Bottom-right
+    }
+
+    createParticleEffect(x, y, objId) {
+        try {
+            // Create a simple particle system using Phaser graphics
+            const particles = this.add.particles(x, y, 'particle', {
+                speed: { min: 50, max: 150 },
+                scale: { start: 0.5, end: 0 },
+                blendMode: 'ADD',
+                lifespan: 300
+            });
+
+            // Store reference for cleanup
+            this.particleEmitters.set(objId, particles);
+
+            // Auto-cleanup after animation
+            setTimeout(() => {
+                this.cleanupParticles(objId);
+            }, 1000);
+
+            return particles;
+        } catch (error) {
+            // Fallback: create simple visual effect with graphics
+            return this.createFallbackEffect(x, y, objId);
+        }
+    }
+
+    createSpawnBurst(x, y) {
+        try {
+            // Create a burst effect using simple graphics since we don't have texture assets
+            const graphics = this.add.graphics();
+            
+            // Create colorful burst circles
+            const colors = [0xff6b6b, 0x4ecdc4, 0x45b7d1, 0xf9ca24, 0xf0932b, 0xeb4d4b, 0x6c5ce7];
+            
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const distance = 30 + Math.random() * 20;
+                const particleX = x + Math.cos(angle) * distance;
+                const particleY = y + Math.sin(angle) * distance;
+                
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                graphics.fillStyle(color);
+                graphics.fillCircle(particleX, particleY, 3 + Math.random() * 3);
+            }
+
+            // Fade out the burst effect
+            this.tweens.add({
+                targets: graphics,
+                alpha: 0,
+                duration: 500,
+                ease: 'Power2',
+                onComplete: () => {
+                    graphics.destroy();
+                }
+            });
+
+        } catch (error) {
+            console.warn('Error creating spawn burst:', error);
+        }
+    }
+
+    createFallbackEffect(x, y, objId) {
+        // Simple fallback effect using graphics
+        const graphics = this.add.graphics();
+        graphics.fillStyle(0xffffff);
+        graphics.fillCircle(x, y, 20);
+        
+        // Fade out effect
+        this.tweens.add({
+            targets: graphics,
+            alpha: 0,
+            scaleX: 2,
+            scaleY: 2,
+            duration: 300,
+            onComplete: () => {
+                graphics.destroy();
+                this.particleEmitters.delete(objId);
+            }
+        });
+
+        this.particleEmitters.set(objId, graphics);
+        return graphics;
+    }
+
+    cleanupParticles(objId) {
+        const emitter = this.particleEmitters.get(objId);
+        if (emitter) {
+            try {
+                emitter.destroy();
+            } catch (error) {
+                // Emitter may already be destroyed
+            }
+            this.particleEmitters.delete(objId);
+        }
     }
 }
 
