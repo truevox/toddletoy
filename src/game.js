@@ -374,30 +374,48 @@ class GameScene extends Phaser.Scene {
         // Add to objects array
         this.objects.push(obj);
         
-        // Create Phaser text object with appropriate content
+        // Create Phaser text object with appropriate content and responsive sizing
         const displayText = this.getDisplayText(selectedItem, type);
-        const objectText = this.add.text(x, y, displayText, {
-            fontSize: '64px',
+        
+        // Calculate responsive font size based on screen dimensions
+        const baseSize = 64;
+        const screenWidth = this.scale.width || window.innerWidth || 800;
+        const screenHeight = this.scale.height || window.innerHeight || 600;
+        const minDimension = Math.min(screenWidth, screenHeight);
+        const scaleFactor = Math.max(0.4, Math.min(1.2, minDimension / 600));
+        const fontSize = Math.floor(baseSize * scaleFactor);
+        
+        // Ensure objects stay within safe bounds to prevent clipping
+        const safeMargin = fontSize * 0.8; // 80% of font size as margin
+        const safeX = Math.max(safeMargin, Math.min(screenWidth - safeMargin, x));
+        const safeY = Math.max(safeMargin + 60, Math.min(screenHeight - safeMargin - 120, y)); // Extra margin for labels
+        
+        const objectText = this.add.text(safeX, safeY, displayText, {
+            fontSize: `${fontSize}px`,
             align: 'center',
             fill: selectedItem.color || '#ffffff'
         }).setOrigin(0.5);
         
+        // Update object position to match safe position
+        obj.x = safeX;
+        obj.y = safeY;
+        
         obj.sprite = objectText;
         
-        // Add Kaktovik numeral above numbers as per design specification
+        // Add Kaktovik numeral above numbers as per design specification (using safe position)
         if (type === 'number') {
             const numberValue = parseInt(selectedItem.symbol);
             if (numberValue >= 0) {
-                const kaktovikText = this.renderKaktovikNumeral(numberValue, x, y - 60);
+                const kaktovikText = this.renderKaktovikNumeral(numberValue, safeX, safeY - (fontSize * 0.9));
                 obj.kaktovikNumeral = kaktovikText;
             }
         }
 
-        // Add binary hearts above Kaktovik numerals (above numbers)
+        // Add binary hearts above Kaktovik numerals (above numbers, using safe position)
         if (type === 'number') {
             const numberValue = parseInt(selectedItem.symbol);
             if (numberValue >= 0) {
-                const binaryHeartsText = this.renderBinaryHearts(numberValue, x, y - 30);
+                const binaryHeartsText = this.renderBinaryHearts(numberValue, safeX, safeY - (fontSize * 0.5));
                 obj.binaryHearts = binaryHeartsText;
             }
         }
@@ -658,21 +676,28 @@ class GameScene extends Phaser.Scene {
         const x = obj.x;
         const y = obj.y;
         
-        // Text style for labels
+        // Text style for labels with responsive sizing
+        const screenWidth = this.scale.width || window.innerWidth || 800;
+        const screenHeight = this.scale.height || window.innerHeight || 600;
+        const minDimension = Math.min(screenWidth, screenHeight);
+        const scaleFactor = Math.max(0.4, Math.min(1.2, minDimension / 600));
+        const labelFontSize = Math.floor(24 * scaleFactor);
+        
         const labelStyle = {
-            fontSize: '24px',
+            fontSize: `${labelFontSize}px`,
             fill: '#ffffff',
             fontFamily: 'Arial',
             align: 'center',
             stroke: '#000000',
-            strokeThickness: 2
+            strokeThickness: Math.max(1, Math.floor(2 * scaleFactor))
         };
         
-        // Create individual word objects for English text
-        const englishWords = this.createWordObjects(data.en, x, y + 60, labelStyle);
+        // Create individual word objects for English text with responsive positioning
+        const labelOffset = Math.floor(60 * scaleFactor);
+        const englishWords = this.createWordObjects(data.en, x, y + labelOffset, labelStyle);
         
-        // Create individual word objects for Spanish text  
-        const spanishWords = this.createWordObjects(data.es, x, y + 90, labelStyle);
+        // Create individual word objects for Spanish text with responsive positioning
+        const spanishWords = this.createWordObjects(data.es, x, y + labelOffset + Math.floor(30 * scaleFactor), labelStyle);
         
         // Store references to word objects for cleanup and animation
         obj.englishWords = englishWords;
@@ -1327,9 +1352,15 @@ class GameScene extends Phaser.Scene {
             kaktovikString += String.fromCodePoint(unicodeCodePoint);
         }
         
-        // Create text object with Kaktovik font
+        // Create text object with Kaktovik font and responsive sizing
+        const screenWidth = this.scale.width || window.innerWidth || 800;
+        const screenHeight = this.scale.height || window.innerHeight || 600;
+        const minDimension = Math.min(screenWidth, screenHeight);
+        const scaleFactor = Math.max(0.4, Math.min(1.2, minDimension / 600));
+        const fontSize = Math.floor(32 * scaleFactor);
+        
         const textObj = this.add.text(x, y, kaktovikString, {
-            fontSize: '32px',
+            fontSize: `${fontSize}px`,
             fontFamily: 'Kaktovik, monospace',
             fill: '#ffffff',
             align: 'center'
@@ -1364,9 +1395,15 @@ class GameScene extends Phaser.Scene {
             heartString += bit === '1' ? '❤️' : '🤍';
         }
         
-        // Create text object with heart emojis - position will be set by caller
+        // Create text object with heart emojis and responsive sizing
+        const screenWidth = this.scale.width || window.innerWidth || 800;
+        const screenHeight = this.scale.height || window.innerHeight || 600;
+        const minDimension = Math.min(screenWidth, screenHeight);
+        const scaleFactor = Math.max(0.4, Math.min(1.2, minDimension / 600));
+        const fontSize = Math.floor(16 * scaleFactor);
+        
         const textObj = this.add.text(x, y, heartString, {
-            fontSize: '16px',
+            fontSize: `${fontSize}px`,
             fontFamily: 'Arial, sans-serif',
             fill: '#ffffff',
             align: 'center'
@@ -1507,11 +1544,69 @@ export class ToddlerToyGame {
             scene: GameScene,
             scale: {
                 mode: Phaser.Scale.RESIZE,
-                autoCenter: Phaser.Scale.CENTER_BOTH
+                autoCenter: Phaser.Scale.CENTER_BOTH,
+                min: {
+                    width: 320,
+                    height: 240
+                },
+                max: {
+                    width: 1920,
+                    height: 1080
+                },
+                zoom: 1
+            },
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: { y: 0 },
+                    debug: false
+                }
             }
         };
         
         this.game = new Phaser.Game(this.config);
+        
+        // Add window resize handler for responsive scaling
+        window.addEventListener('resize', () => {
+            this.handleResize();
+        });
+        
+        // Handle orientation changes for mobile
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                this.handleResize();
+            }, 100);
+        });
+    }
+    
+    handleResize() {
+        const canvas = this.game.canvas;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        
+        // Calculate scale factor for responsive design
+        const baseWidth = 800;
+        const baseHeight = 600;
+        const scaleX = width / baseWidth;
+        const scaleY = height / baseHeight;
+        const scale = Math.min(scaleX, scaleY);
+        
+        // Ensure minimum scale for mobile readability
+        const minScale = 0.5;
+        const finalScale = Math.max(scale, minScale);
+        
+        // Update game size
+        this.game.scale.resize(width, height);
+        
+        // Update canvas styling for better mobile experience
+        if (canvas) {
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+            canvas.style.display = 'block';
+            canvas.style.margin = '0 auto';
+        }
+        
+        console.log(`Resized to ${width}x${height}, scale: ${finalScale}`);
     }
 }
 

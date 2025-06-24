@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="theme-color" content="#4CAF50">
     <meta name="description" content="Montessori-aligned interactive toddler toy with bilingual speech, audio tones, and visual effects">
     <meta name="keywords" content="toddler, education, montessori, bilingual, interactive, learning">
@@ -12,6 +12,8 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="msapplication-tap-highlight" content="no">
     <meta name="apple-mobile-web-app-title" content="Toddler Toy">
     <meta name="msapplication-TileColor" content="#4CAF50">
     <meta name="msapplication-config" content="browserconfig.xml">
@@ -32,6 +34,15 @@
             background: #000;
             overflow: hidden;
             font-family: Arial, sans-serif;
+            touch-action: manipulation;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            position: fixed;
+            width: 100%;
+            height: 100%;
         }
         #game-container {
             width: 100vw;
@@ -39,6 +50,36 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+        #game-container canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain;
+        }
+        
+        /* Mobile-specific optimizations */
+        @media screen and (max-width: 768px) {
+            body {
+                -webkit-text-size-adjust: none;
+                -webkit-touch-callout: none;
+                -webkit-user-select: none;
+            }
+            #game-container {
+                padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+            }
+        }
+        
+        /* Orientation handling */
+        @media screen and (orientation: landscape) and (max-height: 500px) {
+            #game-container {
+                height: 100vh;
+            }
         }
     </style>
 </head>
