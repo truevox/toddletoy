@@ -243,7 +243,15 @@ class GameScene extends Phaser.Scene {
             obj.sprite.setPosition(x, y);
         }
         
-        // Update label positions
+        // Update word object positions
+        if (obj.englishWords && obj.englishWords.length > 0) {
+            this.repositionWordObjects(obj.englishWords, x, y + 60);
+        }
+        if (obj.spanishWords && obj.spanishWords.length > 0) {
+            this.repositionWordObjects(obj.spanishWords, x, y + 90);
+        }
+        
+        // Update legacy label positions (for backward compatibility)
         if (obj.englishLabel) {
             obj.englishLabel.setPosition(x, y + 60);
         }
@@ -265,6 +273,33 @@ class GameScene extends Phaser.Scene {
         if (obj.cistercianNumeral) {
             obj.cistercianNumeral.setPosition(x, y - 80);
         }
+    }
+
+    repositionWordObjects(wordObjects, centerX, y) {
+        if (!wordObjects || wordObjects.length === 0) return;
+        
+        // Calculate total width of all words
+        let totalWidth = 0;
+        wordObjects.forEach((wordObj, index) => {
+            totalWidth += wordObj.width;
+            if (index < wordObjects.length - 1) {
+                // Add space width between words
+                totalWidth += wordObj.style.fontSize ? parseInt(wordObj.style.fontSize) * 0.3 : 8;
+            }
+        });
+        
+        // Position words starting from the left edge of the centered group
+        let currentX = centerX - (totalWidth / 2);
+        
+        wordObjects.forEach((wordObj, index) => {
+            wordObj.setPosition(currentX, y);
+            currentX += wordObj.width;
+            
+            // Add space after word (except for the last word)
+            if (index < wordObjects.length - 1) {
+                currentX += wordObj.style.fontSize ? parseInt(wordObj.style.fontSize) * 0.3 : 8;
+            }
+        });
     }
     
     updateObjectMovements() {
@@ -582,6 +617,25 @@ class GameScene extends Phaser.Scene {
         utterance.rate = 0.8;
         utterance.volume = 0.7;
         
+        // Trigger word highlighting animation
+        if (this.currentSpeakingObject) {
+            const obj = this.currentSpeakingObject;
+            let wordObjects = null;
+            
+            // Get the appropriate word objects based on language
+            if (index === 0 && obj.englishWords) {
+                wordObjects = obj.englishWords;
+            } else if (index === 1 && obj.spanishWords) {
+                wordObjects = obj.spanishWords;
+            }
+            
+            // Estimate speech duration and animate words
+            if (wordObjects && wordObjects.length > 0) {
+                const estimatedDuration = (texts[index].length * 100) + 500; // Rough estimate
+                this.animateWordsSequentially(wordObjects, estimatedDuration);
+            }
+        }
+        
         utterance.onend = () => {
             this.speakTextSequence(texts, index + 1);
         };
@@ -614,21 +668,25 @@ class GameScene extends Phaser.Scene {
             strokeThickness: 2
         };
         
-        // Create English label (positioned below emoji)
-        const englishText = this.add.text(x, y + 60, data.en, labelStyle)
-            .setOrigin(0.5);
+        // Create individual word objects for English text
+        const englishWords = this.createWordObjects(data.en, x, y + 60, labelStyle);
         
-        // Create Spanish label (positioned below English)
-        const spanishText = this.add.text(x, y + 90, data.es, labelStyle)
-            .setOrigin(0.5);
+        // Create individual word objects for Spanish text  
+        const spanishWords = this.createWordObjects(data.es, x, y + 90, labelStyle);
         
-        // Store references to text objects for cleanup
-        obj.englishLabel = englishText;
-        obj.spanishLabel = spanishText;
+        // Store references to word objects for cleanup and animation
+        obj.englishWords = englishWords;
+        obj.spanishWords = spanishWords;
+        
+        // Keep legacy single text references for compatibility
+        obj.englishLabel = englishWords.length > 0 ? englishWords[0] : null;
+        obj.spanishLabel = spanishWords.length > 0 ? spanishWords[0] : null;
         
         return {
-            english: englishText,
-            spanish: spanishText
+            englishWords: englishWords,
+            spanishWords: spanishWords,
+            english: obj.englishLabel,
+            spanish: obj.spanishLabel
         };
     }
 
@@ -1299,6 +1357,79 @@ class GameScene extends Phaser.Scene {
     convertToBinary(number) {
         if (number === 0) return '0';
         return number.toString(2);
+    }
+
+    highlightWord(textObject, wordIndex, totalWords) {
+        if (!textObject || wordIndex < 0) return;
+        
+        // Create highlight animation with tint and scale
+        const highlightTween = this.tweens.add({
+            targets: textObject,
+            scaleX: 1.2,
+            scaleY: 1.2,
+            duration: 300,
+            ease: 'Back.easeOut',
+            yoyo: true,
+            onStart: () => {
+                textObject.setTint(0xffff00); // Yellow highlight
+            },
+            onComplete: () => {
+                textObject.setTint(0xffffff); // Back to white
+            }
+        });
+        
+        return highlightTween;
+    }
+
+    animateWordsSequentially(textObjects, speechDuration) {
+        if (!textObjects || textObjects.length === 0) return [];
+        
+        const animations = [];
+        const wordDuration = speechDuration / textObjects.length;
+        
+        textObjects.forEach((textObj, index) => {
+            const delay = index * wordDuration;
+            
+            // Set up delayed highlighting
+            setTimeout(() => {
+                this.highlightWord(textObj, index, textObjects.length);
+            }, delay);
+            
+            animations.push({
+                delay: delay,
+                wordIndex: index,
+                textObject: textObj
+            });
+        });
+        
+        return animations;
+    }
+
+    createWordObjects(text, x, y, labelStyle) {
+        if (!text || text.trim() === '') return [];
+        
+        const words = text.split(' ');
+        const wordObjects = [];
+        
+        // Calculate total text width to center the word group
+        const tempText = this.add.text(0, 0, text, labelStyle);
+        const totalWidth = tempText.width;
+        tempText.destroy();
+        
+        let currentX = x - (totalWidth / 2);
+        
+        words.forEach((word, index) => {
+            // Create individual word text object
+            const wordText = this.add.text(currentX, y, word, labelStyle)
+                .setOrigin(0, 0.5);
+            
+            wordObjects.push(wordText);
+            
+            // Move X position for next word (including space)
+            currentX += wordText.width + (labelStyle.fontSize ? parseInt(labelStyle.fontSize) * 0.3 : 8);
+        });
+        
+        return wordObjects;
     }
 
     preloadKaktovikFont() {
