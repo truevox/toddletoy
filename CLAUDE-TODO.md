@@ -69,11 +69,11 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - [x] Fix click-during-speech dragging - object jumps to click point and follows mouse when held
 - [x] Fix keyboard input initialization - keys now properly spawn objects at mapped grid locations
 
-### Phase 6: Advanced Display Features (Medium Priority) 📋 PENDING
+### Phase 6: Advanced Display Features (Medium Priority) ✅ COMPLETED
 
 - [x] Letters display correctly (uppercase only as per design)
-- [ ] Add Kaktovik numeral display for numbers
-- [ ] Add binary representation (❤️🤍) for numbers
+- [x] Add Kaktovik numeral display for numbers (Unicode font-based, base-20 system)
+- [x] Add binary representation (❤️🤍) for numbers
 
 ### Phase 9: Deferred Features (Low Priority) 🔄 ON HOLD
 
@@ -91,7 +91,7 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - [ ] Add trails or pulses during object dragging
 - [ ] Add word-specific sparkle effects when words are spoken
 
-### Current Status 🎯 ENHANCED INPUT COMPLETE - DISPLAY FEATURES PENDING
+### Current Status 🎯 MULTI-MODAL DISPLAYS COMPLETE - SPEECH ENHANCEMENTS PENDING
 
 **Fully functional enhanced experience with:**
 - Touch/click, keyboard, and gamepad interactions with advanced input mechanics
@@ -101,13 +101,15 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - Position-based audio tones with multiple waveforms
 - Visual particle effects and text display
 - PWA installation and offline functionality
-- Comprehensive test coverage (30 tests across 7 suites)
+- Multi-modal number displays:
+  - Kaktovik numerals (Unicode font-based, base-20 system)
+  - Binary representation with heart emojis (❤️🤍)
+  - Cistercian numerals (implemented but on hold due to bugs)
+- Comprehensive test coverage (78 tests across 15 suites)
 
 **Remaining features from README.md specification:**
-- Multi-modal number displays (Cistercian, Kaktovik, Binary)
 - Enhanced speech animations and queue management
 - Advanced visual effects during interaction
-- Lowercase letter display
 
 ### Notes
 

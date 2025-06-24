@@ -13,6 +13,8 @@ This file configures Claude Code to follow a structured, TDD-first workflow tail
 ### 1. Planning Phase
 - **Prompt Claude to “think hard”** and generate an implementation plan before writing code :contentReference[oaicite:6]{index=6}.
 - Ask Claude to list testable increments (e.g., "spawn object at touch point", "speech Synthesis label output").
+- Use @CLAUDE-TODO.md as your personal todo list. It must be kept up to date.
+- Populate and update /CLAUDE-TODO.md with a structured plan to implement this project, and refer to it reguarlly. Update it indicating what parts are complete as you complete them.
 
 ### 2. TDD Cycle
 Repeat for each feature:
@@ -31,6 +33,7 @@ Repeat for each feature:
 ### 4. Commit & GitHub Integration
 - Use `gh` CLI to create branches, commits, and PRs.
 - Keep commits small and focused.
+- Vite is our bundler - use it.
 
 ---
 
@@ -73,7 +76,3 @@ Each command uses `$ARGUMENTS` for flexibility :contentReference[oaicite:10]{ind
 5. Create PR with small, verified changes  
 
 Let's build out this project step-by-step.
-
-Please use @CLAUDE-TODO.md as your personal todo list. It must be kept up to date.
-
-Please populate and update /CLAUDE-TODO.md with a structured plan to implement this project, and refer to it reguarlly. Update it indicating what parts are complete as you complete them.

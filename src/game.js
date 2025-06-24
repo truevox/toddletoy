@@ -65,6 +65,11 @@ class GameScene extends Phaser.Scene {
         this.heldKeys = new Set(); // Track currently held keys
         this.keyboardObject = null; // Object controlled by keyboard
         
+        // Preload Kaktovik font by rendering invisible characters
+        this.preloadKaktovikFont();
+        
+        // Initialization complete - ready for user interaction
+        
     }
 
     update() {
@@ -246,7 +251,17 @@ class GameScene extends Phaser.Scene {
             obj.spanishLabel.setPosition(x, y + 90);
         }
         
-        // Update Cistercian numeral position
+        // Update Kaktovik numeral position
+        if (obj.kaktovikNumeral) {
+            obj.kaktovikNumeral.setPosition(x, y - 60);
+        }
+        
+        // Update binary hearts position
+        if (obj.binaryHearts) {
+            obj.binaryHearts.setPosition(x, y - 30);
+        }
+        
+        // Update Cistercian numeral position (currently disabled)
         if (obj.cistercianNumeral) {
             obj.cistercianNumeral.setPosition(x, y - 80);
         }
@@ -333,6 +348,24 @@ class GameScene extends Phaser.Scene {
         }).setOrigin(0.5);
         
         obj.sprite = objectText;
+        
+        // Add Kaktovik numeral above numbers as per design specification
+        if (type === 'number') {
+            const numberValue = parseInt(selectedItem.symbol);
+            if (numberValue >= 0) {
+                const kaktovikText = this.renderKaktovikNumeral(numberValue, x, y - 60);
+                obj.kaktovikNumeral = kaktovikText;
+            }
+        }
+
+        // Add binary hearts above Kaktovik numerals (above numbers)
+        if (type === 'number') {
+            const numberValue = parseInt(selectedItem.symbol);
+            if (numberValue >= 0) {
+                const binaryHeartsText = this.renderBinaryHearts(numberValue, x, y - 30);
+                obj.binaryHearts = binaryHeartsText;
+            }
+        }
         
         // Cistercian numerals temporarily disabled (buggy, on hold)
         // if (type === 'number') {
@@ -1199,6 +1232,116 @@ class GameScene extends Phaser.Scene {
                 graphics.lineBetween(baseX, baseY, baseX, baseY + (yOffset * lineLength));
                 break;
         }
+    }
+
+    renderKaktovikNumeral(number, x, y) {
+        if (number < 0) return null;
+        
+        // Convert number to base-20 representation
+        const base20Digits = this.convertToBase20(number);
+        
+        // Create Unicode string for Kaktovik numerals
+        let kaktovikString = '';
+        for (const digit of base20Digits) {
+            // Kaktovik Unicode range: U+1D2C0 (0) to U+1D2D3 (19)
+            const unicodeCodePoint = 0x1D2C0 + digit;
+            kaktovikString += String.fromCodePoint(unicodeCodePoint);
+        }
+        
+        // Create text object with Kaktovik font
+        const textObj = this.add.text(x, y, kaktovikString, {
+            fontSize: '32px',
+            fontFamily: 'Kaktovik, monospace',
+            fill: '#ffffff',
+            align: 'center'
+        }).setOrigin(0.5);
+        
+        return textObj;
+    }
+    
+    convertToBase20(number) {
+        if (number === 0) return [0];
+        
+        const digits = [];
+        let remaining = number;
+        
+        while (remaining > 0) {
+            digits.unshift(remaining % 20);
+            remaining = Math.floor(remaining / 20);
+        }
+        
+        return digits;
+    }
+
+    renderBinaryHearts(number, x, y) {
+        if (number < 0) return null;
+        
+        // Convert number to binary string
+        const binaryString = this.convertToBinary(number);
+        
+        // Convert binary to hearts: 1 = ❤️, 0 = 🤍
+        let heartString = '';
+        for (const bit of binaryString) {
+            heartString += bit === '1' ? '❤️' : '🤍';
+        }
+        
+        // Create text object with heart emojis - position will be set by caller
+        const textObj = this.add.text(x, y, heartString, {
+            fontSize: '16px',
+            fontFamily: 'Arial, sans-serif',
+            fill: '#ffffff',
+            align: 'center'
+        }).setOrigin(0.5);
+        
+        return textObj;
+    }
+
+    convertToBinary(number) {
+        if (number === 0) return '0';
+        return number.toString(2);
+    }
+
+    preloadKaktovikFont() {
+        // Try to use the Font Loading API if available
+        if (document.fonts && document.fonts.load) {
+            document.fonts.load('32px Kaktovik').then(() => {
+                console.log('Kaktovik font loaded via Font Loading API');
+            }).catch(() => {
+                console.log('Font Loading API failed, using fallback method');
+            });
+        }
+        
+        // Fallback: Create invisible text objects with various Kaktovik characters to trigger font loading
+        const kaktovikSamples = [
+            String.fromCodePoint(0x1D2C0), // 0
+            String.fromCodePoint(0x1D2C1), // 1
+            String.fromCodePoint(0x1D2C5), // 5
+            String.fromCodePoint(0x1D2CA), // 10
+            String.fromCodePoint(0x1D2D3)  // 19
+        ];
+        
+        const preloadTexts = [];
+        
+        for (const sample of kaktovikSamples) {
+            const preloadText = this.add.text(-1000, -1000, sample, {
+                fontSize: '32px',
+                fontFamily: 'Kaktovik, monospace',
+                fill: '#ffffff',
+                alpha: 0 // Make completely invisible
+            });
+            preloadTexts.push(preloadText);
+        }
+        
+        // Clean up preload texts after a short delay
+        setTimeout(() => {
+            for (const text of preloadTexts) {
+                if (text && text.destroy) {
+                    text.destroy();
+                }
+            }
+        }, 100);
+        
+        console.log('Kaktovik font preloaded with sample characters');
     }
 }
 
