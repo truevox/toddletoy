@@ -4,6 +4,8 @@
 
 A multi-input, multilingual, Montessori-aligned toddler interaction toy in the form of a PWA web app. The child interacts with the screen using touch, mouse, keyboard, or gamepad. Interactions spawn visual elements such as colored shapes, emojis, colored letters, or colored numbers with accompanying spoken labels and dynamic sound/particle effects. The interface is responsive, non-violent, and focuses on sensorial learning.
 
+**Supports liquid screen resolution and aspect ratio changes for desktop and mobile web.** The interface automatically adapts to different screen sizes and orientations, ensuring optimal readability and usability across all devices.
+
 ## Input Support
 
 ### Touch / Mouse
@@ -131,9 +133,13 @@ Cuadro Azul
 
 ## Layout
 
-* Responsive to screen orientation and aspect ratio.
-* Mobile and desktop friendly.
-* PWA installable on Android, iOS, ChromeOS.
+* **Liquid responsive design** adapts to any screen resolution and aspect ratio
+* **Mobile-optimized** with touch-friendly interactions and safe area support
+* **Desktop-optimized** with keyboard and mouse support
+* **Cross-platform PWA** installable on Android, iOS, ChromeOS, and desktop
+* **Automatic scaling** ensures readability on all devices from 320px to 1920px+
+* **Orientation-aware** handles portrait/landscape changes smoothly
+* **Anti-clipping protection** keeps all content visible within safe margins
 
 ## Libraries
 
