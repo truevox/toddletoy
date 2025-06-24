@@ -79,19 +79,19 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 
 - [ ] Cistercian numeral rendering for numbers (implemented but buggy, disabled for now)
 
-### Phase 7: Speech & Animation Enhancements (Medium Priority) 📋 PENDING
+### Phase 7: Speech & Animation Enhancements (Medium Priority) ✅ COMPLETED
 
-- [ ] Implement word highlighting animation during speech
-- [ ] Add speech queue locking until all words are read
-- [ ] Move objects instead of spawning new ones during mid-speech interactions
-- [ ] Implement continuous background tones per object (not 3-second limit)
+- [x] Implement word highlighting animation during speech
+- [x] Add speech queue locking until all words are read
+- [x] Move objects instead of spawning new ones during mid-speech interactions
+- [x] Implement continuous background tones per object (not 3-second limit)
 
 ### Phase 8: Visual Effect Improvements (Low Priority) 📋 PENDING
 
 - [ ] Add trails or pulses during object dragging
 - [ ] Add word-specific sparkle effects when words are spoken
 
-### Current Status 🎯 MULTI-MODAL DISPLAYS COMPLETE - SPEECH ENHANCEMENTS PENDING
+### Current Status 🎯 SPEECH ENHANCEMENTS COMPLETE - VISUAL EFFECTS PENDING
 
 **Fully functional enhanced experience with:**
 - Touch/click, keyboard, and gamepad interactions with advanced input mechanics
@@ -105,11 +105,15 @@ This document tracks the structured implementation of the toddler-toy PWA follow
   - Kaktovik numerals (Unicode font-based, base-20 system)
   - Binary representation with heart emojis (❤️🤍)
   - Cistercian numerals (implemented but on hold due to bugs)
-- Comprehensive test coverage (78 tests across 15 suites)
+- Enhanced speech features:
+  - Word highlighting animation with yellow tints during speech
+  - Speech queue locking prevents new spawns during speech
+  - Speaking objects move instead of spawning new ones during speech
+  - Continuous background tones per object (no 3-second timeout)
+- Comprehensive test coverage (95 tests across 17 suites)
 
 **Remaining features from README.md specification:**
-- Enhanced speech animations and queue management
-- Advanced visual effects during interaction
+- Advanced visual effects during interaction (trails, sparkles)
 
 ### Notes
 

@@ -157,7 +157,7 @@ class GameScene extends Phaser.Scene {
         } else if (this.isSpeaking && this.currentSpeakingObject) {
             // Move the currently speaking object instead of spawning
             this.moveObjectTo(this.currentSpeakingObject, pointer.x, pointer.y, true);
-            this.generateTone(pointer.x, pointer.y, this.currentSpeakingObject.id);
+            this.updateTonePosition(pointer.x, pointer.y, this.currentSpeakingObject.id);
             // Set up dragging state for the speaking object to follow mouse
             this.isDragging = true;
             this.draggedObject = this.currentSpeakingObject;
@@ -178,7 +178,7 @@ class GameScene extends Phaser.Scene {
         } else if (this.pointerIsDown && this.isSpeaking && this.currentSpeakingObject) {
             // Speaking object follows mouse when pointer is held down during speech
             this.moveObjectTo(this.currentSpeakingObject, pointer.x, pointer.y, true);
-            this.generateTone(pointer.x, pointer.y, this.currentSpeakingObject.id);
+            this.updateTonePosition(pointer.x, pointer.y, this.currentSpeakingObject.id);
         }
     }
     
@@ -899,7 +899,7 @@ class GameScene extends Phaser.Scene {
         const interpolatedPosition = this.getInterpolatedKeyPosition();
         if (interpolatedPosition) {
             this.moveObjectTo(this.keyboardObject, interpolatedPosition.x, interpolatedPosition.y, true);
-            this.generateTone(interpolatedPosition.x, interpolatedPosition.y, this.keyboardObject.id);
+            this.updateTonePosition(interpolatedPosition.x, interpolatedPosition.y, this.keyboardObject.id);
         }
     }
     
@@ -946,7 +946,12 @@ class GameScene extends Phaser.Scene {
     }
 
     generateTone(x, y, objId) {
-        if (!this.audioContext) return;
+        // For backward compatibility, start a continuous tone
+        this.startContinuousTone(x, y, objId);
+    }
+
+    startContinuousTone(x, y, objId) {
+        if (!this.audioContext) return null;
 
         // Stop any existing tone for this object
         this.stopTone(objId);
@@ -973,16 +978,32 @@ class GameScene extends Phaser.Scene {
             // Start the tone
             oscillator.start();
 
-            // Store reference for cleanup
+            // Store reference for cleanup (no timeout for continuous play)
             this.activeTones.set(objId, { oscillator, gainNode });
 
-            // Auto-stop after 3 seconds to prevent endless tones
-            setTimeout(() => {
-                this.stopTone(objId);
-            }, 3000);
-
+            return { oscillator, gainNode };
         } catch (error) {
-            console.warn('Error generating tone:', error);
+            console.warn('Error generating continuous tone:', error);
+            return null;
+        }
+    }
+
+    updateTonePosition(x, y, objId) {
+        const tone = this.activeTones.get(objId);
+        if (tone) {
+            try {
+                // Update frequency and waveform based on new position
+                tone.oscillator.frequency.value = this.getFrequencyFromPosition(x, y);
+                tone.oscillator.type = this.getWaveformFromPosition(x, y);
+            } catch (error) {
+                // Oscillator may have been stopped, ignore
+            }
+        }
+    }
+
+    stopAllTones() {
+        for (const objId of this.activeTones.keys()) {
+            this.stopTone(objId);
         }
     }
 
@@ -1170,7 +1191,7 @@ class GameScene extends Phaser.Scene {
         } else if (this.currentSpeakingObject) {
             // Move the currently speaking object
             this.moveObjectTo(this.currentSpeakingObject, this.currentGamepadPosition.x, this.currentGamepadPosition.y);
-            this.generateTone(this.currentGamepadPosition.x, this.currentGamepadPosition.y, this.currentSpeakingObject.id);
+            this.updateTonePosition(this.currentGamepadPosition.x, this.currentGamepadPosition.y, this.currentSpeakingObject.id);
         }
     }
 
