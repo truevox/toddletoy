@@ -64,6 +64,7 @@ class GameScene extends Phaser.Scene {
         // Initialize advanced keyboard state
         this.heldKeys = new Set(); // Track currently held keys
         this.keyboardObject = null; // Object controlled by keyboard
+        
     }
 
     update() {
@@ -244,6 +245,11 @@ class GameScene extends Phaser.Scene {
         if (obj.spanishLabel) {
             obj.spanishLabel.setPosition(x, y + 90);
         }
+        
+        // Update Cistercian numeral position
+        if (obj.cistercianNumeral) {
+            obj.cistercianNumeral.setPosition(x, y - 80);
+        }
     }
     
     updateObjectMovements() {
@@ -327,6 +333,15 @@ class GameScene extends Phaser.Scene {
         }).setOrigin(0.5);
         
         obj.sprite = objectText;
+        
+        // Cistercian numerals temporarily disabled (buggy, on hold)
+        // if (type === 'number') {
+        //     const numberValue = parseInt(selectedItem.symbol);
+        //     if (numberValue >= 1 && numberValue <= 9999) {
+        //         const cistercianGraphics = this.renderCistercianNumeral(numberValue, x, y - 80);
+        //         obj.cistercianNumeral = cistercianGraphics;
+        //     }
+        // }
         
         return obj;
     }
@@ -1100,6 +1115,90 @@ class GameScene extends Phaser.Scene {
         const sign = Math.sign(value);
         const scaledValue = (Math.abs(value) - deadzone) / (1 - deadzone);
         return sign * scaledValue;
+    }
+
+    renderCistercianNumeral(number, x, y) {
+        // Create a graphics object for drawing the Cistercian numeral
+        const graphics = this.add.graphics();
+        graphics.lineStyle(3, 0xffffff); // White lines, 3px thick
+        
+        // Draw the central vertical line (always present)
+        const centerX = x;
+        const centerY = y;
+        const height = 60; // Total height of the numeral
+        const extension = height * 0.15; // Extend line by 15% on each end
+        
+        graphics.lineBetween(centerX, centerY - height/2 - extension, centerX, centerY + height/2 + extension);
+        
+        // Parse the number into components
+        const units = number % 10;
+        const tens = Math.floor((number % 100) / 10);
+        const hundreds = Math.floor((number % 1000) / 100);
+        const thousands = Math.floor(number / 1000);
+        
+        // Draw each component
+        if (units > 0) this.drawCistercianDigit(graphics, units, centerX, centerY, 'units');
+        if (tens > 0) this.drawCistercianDigit(graphics, tens, centerX, centerY, 'tens');
+        if (hundreds > 0) this.drawCistercianDigit(graphics, hundreds, centerX, centerY, 'hundreds');
+        if (thousands > 0) this.drawCistercianDigit(graphics, thousands, centerX, centerY, 'thousands');
+        
+        return graphics;
+    }
+    
+    drawCistercianDigit(graphics, digit, centerX, centerY, position) {
+        const halfHeight = 30;
+        const lineLength = 20;
+        
+        // Determine position offsets
+        let xOffset, yOffset;
+        switch(position) {
+            case 'units':    // Upper right
+                xOffset = 1; yOffset = -1; break;
+            case 'tens':     // Upper left  
+                xOffset = -1; yOffset = -1; break;
+            case 'hundreds': // Lower right
+                xOffset = 1; yOffset = 1; break;
+            case 'thousands': // Lower left
+                xOffset = -1; yOffset = 1; break;
+        }
+        
+        const baseX = centerX + (xOffset * 0);
+        const baseY = centerY + (yOffset * halfHeight / 2);
+        
+        // Draw the digit pattern based on traditional Cistercian numerals
+        switch(digit) {
+            case 1: // Horizontal line
+                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY);
+                break;
+            case 2: // Angled down line
+                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY + (yOffset * 8));
+                break;
+            case 3: // Angled up line
+                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY - (yOffset * 8));
+                break;
+            case 4: // Vertical line
+                graphics.lineBetween(baseX, baseY, baseX, baseY + (yOffset * lineLength));
+                break;
+            case 5: // Diagonal to corner
+                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY + (yOffset * halfHeight));
+                break;
+            case 6: // Diagonal + horizontal
+                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY + (yOffset * halfHeight));
+                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY);
+                break;
+            case 7: // Diagonal + angled down
+                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY + (yOffset * halfHeight));
+                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY + (yOffset * 8));
+                break;
+            case 8: // Diagonal + angled up
+                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY + (yOffset * halfHeight));
+                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY - (yOffset * 8));
+                break;
+            case 9: // Diagonal + vertical
+                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY + (yOffset * halfHeight));
+                graphics.lineBetween(baseX, baseY, baseX, baseY + (yOffset * lineLength));
+                break;
+        }
     }
 }
 
