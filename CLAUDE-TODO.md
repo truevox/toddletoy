@@ -71,7 +71,7 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 
 ### Phase 6: Advanced Display Features (Medium Priority) 📋 PENDING
 
-- [ ] Restore lowercase letters (both upper and lower case)
+- [x] Letters display correctly (uppercase only as per design)
 - [ ] Add Cistercian numeral rendering for numbers
 - [ ] Add Kaktovik numeral display for numbers
 - [ ] Add binary representation (❤️🤍) for numbers
