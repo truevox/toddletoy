@@ -86,12 +86,25 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - [x] Move objects instead of spawning new ones during mid-speech interactions
 - [x] Implement continuous background tones per object (not 3-second limit)
 
-### Phase 8: Visual Effect Improvements (Low Priority) 📋 PENDING
+### Phase 8: Visual Effect Improvements (Low Priority) ✅ COMPLETED
 
-- [ ] Add trails or pulses during object dragging
+- [x] Add trails or pulses during object dragging
 - [ ] Add word-specific sparkle effects when words are spoken
 
-### Current Status 🎯 SPEECH ENHANCEMENTS COMPLETE - VISUAL EFFECTS PENDING
+### Phase 10: Bug Fixes & Regression Resolution (High Priority) ✅ COMPLETED
+
+- [x] Fix mouse dragging regression - objects getting stuck to cursor
+- [x] Fix missing particle effects regression 
+- [x] Move drag trail methods to correct GameScene class
+- [x] Ensure particle texture creation during scene initialization
+- [x] All 113 tests passing after fixes
+
+### Phase 11: Enhanced Speech Interaction (High Priority) ✅ COMPLETED
+
+- [x] Write failing test for revoice on click functionality
+- [x] Implement revoice on click - clicking voiced object revoices it (if nothing else is voicing)
+
+### Current Status 🎯 REVOICE FEATURE COMPLETE - READY FOR DEPLOYMENT
 
 **Fully functional enhanced experience with:**
 - Touch/click, keyboard, and gamepad interactions with advanced input mechanics
@@ -110,7 +123,8 @@ This document tracks the structured implementation of the toddler-toy PWA follow
   - Speech queue locking prevents new spawns during speech
   - Speaking objects move instead of spawning new ones during speech
   - Continuous background tones per object (no 3-second timeout)
-- Comprehensive test coverage (95 tests across 17 suites)
+- Comprehensive test coverage (123 tests across 20 suites)
+- Revoice on click functionality - clicking existing objects re-voices them
 
 **Remaining features from README.md specification:**
 - Advanced visual effects during interaction (trails, sparkles)
@@ -123,3 +137,4 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - Frequent commits with clear messages
 - All tests passing ✅
 - Ready for core functionality deployment, enhancement phases in progress
+- User wants to flesh out and implement: Revoice on click (if you click an already voiced thing, you don't just get to move it, it revoices itself (if nothing else is voicing)); Also, we need a convigureation screen, but I' not sure how I want it to work yet, but it should have some sort of differnt age ranges that reveal different things (youngest maybe omits numbers, or only shows 0-10, and uses numbers of common obejects to encourage counting instead of binary - might still include kartovic, might not too, also maybe lowercase letters aren't introduced until a later age - later ages maybe unlock even more emojis, of more sophisticated and less familiar things.

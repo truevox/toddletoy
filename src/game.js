@@ -6,10 +6,26 @@ class GameScene extends Phaser.Scene {
     }
 
     preload() {
-        // Load any assets here
+        // Create particle texture programmatically immediately
+        this.load.once('complete', () => {
+            this.createParticleTexture();
+        });
+    }
+    
+    createParticleTexture() {
+        // Create a simple white circle texture for particles
+        const graphics = this.add.graphics();
+        graphics.fillStyle(0xffffff);
+        graphics.fillCircle(8, 8, 8);
+        graphics.generateTexture('particle', 16, 16);
+        graphics.destroy();
+        console.log('Particle texture created');
     }
 
     create() {
+        // Create particle texture first
+        this.createParticleTexture();
+        
         // Set up input handlers
         this.input.on('pointerdown', this.onPointerDown, this);
         this.input.on('pointermove', this.onPointerMove, this);
@@ -46,6 +62,9 @@ class GameScene extends Phaser.Scene {
         // Initialize dragging state
         this.isDragging = false;
         this.draggedObject = null;
+        
+        // Initialize drag trail state
+        this.dragTrails = new Map(); // Map of object IDs to trail emitters
         
         // Initialize speech queue state
         this.isSpeaking = false;
@@ -141,10 +160,20 @@ class GameScene extends Phaser.Scene {
         // Check if we hit an existing object
         const hitObject = this.getObjectUnderPointer(pointer.x, pointer.y);
         
-        if (hitObject) {
-            // Start dragging the existing object
+        if (hitObject && !this.isSpeaking) {
+            // Revoice the object if nothing is currently speaking
+            this.speakObjectLabel(hitObject, 'both');
+            this.generateTone(pointer.x, pointer.y, hitObject.id);
+            // Also start dragging the existing object
             this.isDragging = true;
             this.draggedObject = hitObject;
+            this.startDragTrail(hitObject);
+            this.startHoldTimer(hitObject);
+        } else if (hitObject && this.isSpeaking) {
+            // Currently speaking - just start dragging without revoicing
+            this.isDragging = true;
+            this.draggedObject = hitObject;
+            this.startDragTrail(hitObject);
             this.startHoldTimer(hitObject);
         } else if (!this.isDragging && !this.isSpeaking) {
             // Spawn new object only if not currently dragging AND not speaking
@@ -161,6 +190,7 @@ class GameScene extends Phaser.Scene {
             // Set up dragging state for the speaking object to follow mouse
             this.isDragging = true;
             this.draggedObject = this.currentSpeakingObject;
+            this.startDragTrail(this.currentSpeakingObject);
             this.startHoldTimer(this.currentSpeakingObject);
         } else if (this.isDragging) {
             // Move dragged object to new position (immediate for dragging)
@@ -172,13 +202,16 @@ class GameScene extends Phaser.Scene {
         if (this.isDragging && this.draggedObject) {
             // Immediate movement during active dragging
             this.moveObjectTo(this.draggedObject, pointer.x, pointer.y, false);
+            this.updateDragTrail(this.draggedObject, pointer.x, pointer.y);
         } else if (this.isHolding && this.draggedObject) {
             // Smooth movement during auto-drag mode
             this.moveObjectTo(this.draggedObject, pointer.x, pointer.y, true);
+            this.updateDragTrail(this.draggedObject, pointer.x, pointer.y);
         } else if (this.pointerIsDown && this.isSpeaking && this.currentSpeakingObject) {
             // Speaking object follows mouse when pointer is held down during speech
             this.moveObjectTo(this.currentSpeakingObject, pointer.x, pointer.y, true);
             this.updateTonePosition(pointer.x, pointer.y, this.currentSpeakingObject.id);
+            this.updateDragTrail(this.currentSpeakingObject, pointer.x, pointer.y);
         }
     }
     
@@ -189,6 +222,7 @@ class GameScene extends Phaser.Scene {
         this.clearHoldTimer();
         
         if (this.isDragging) {
+            this.stopDragTrail(this.draggedObject);
             this.isDragging = false;
             this.draggedObject = null;
         }
@@ -1531,6 +1565,90 @@ class GameScene extends Phaser.Scene {
         }, 100);
         
         console.log('Kaktovik font preloaded with sample characters');
+    }
+
+    // Drag Trail Visual Effects
+    startDragTrail(object) {
+        if (!object || this.dragTrails.has(object.id)) {
+            // Reuse existing trail if available
+            const existingTrail = this.dragTrails.get(object.id);
+            if (existingTrail) {
+                existingTrail.setPosition(object.x, object.y);
+                existingTrail.start();
+                object.trailActive = true;
+                object.isBeingDragged = true;
+                return;
+            }
+        }
+        
+        try {
+            // Create trail particle emitter using the particle texture
+            const trailEmitter = this.add.particles(0, 0, 'particle', {
+                scale: { start: 0.3, end: 0 },
+                speed: { min: 20, max: 40 },
+                lifespan: 300,
+                blendMode: 'ADD',
+                tint: [0xff6b6b, 0x4ecdc4, 0x45b7d1, 0xf7b731, 0x5f27cd]
+            });
+            
+            trailEmitter.setPosition(object.x, object.y);
+            trailEmitter.start();
+            
+            // Store trail emitter
+            this.dragTrails.set(object.id, trailEmitter);
+            object.trailEmitter = trailEmitter;
+            object.trailActive = true;
+            object.isBeingDragged = true;
+        } catch (error) {
+            console.warn('Error creating drag trail:', error);
+            // Fallback to simple graphics trail
+            this.createFallbackTrail(object);
+        }
+    }
+    
+    createFallbackTrail(object) {
+        const graphics = this.add.graphics();
+        graphics.fillStyle(0xff6b6b);
+        graphics.fillCircle(object.x, object.y, 3);
+        
+        this.tweens.add({
+            targets: graphics,
+            alpha: 0,
+            duration: 200,
+            onComplete: () => graphics.destroy()
+        });
+    }
+    
+    updateDragTrail(object, x, y) {
+        if (!object || !object.trailActive) return;
+        
+        const trailEmitter = this.dragTrails.get(object.id);
+        if (trailEmitter) {
+            trailEmitter.setPosition(x, y);
+        }
+    }
+    
+    stopDragTrail(object) {
+        if (!object) return;
+        
+        const trailEmitter = this.dragTrails.get(object.id);
+        if (trailEmitter && object.trailActive) {
+            trailEmitter.stop();
+            object.trailActive = false;
+            object.isBeingDragged = false;
+            
+            // Schedule destruction after fade-out
+            this.time.addEvent({
+                delay: 500,
+                callback: () => {
+                    if (trailEmitter) {
+                        trailEmitter.destroy();
+                        this.dragTrails.delete(object.id);
+                        object.trailEmitter = null;
+                    }
+                }
+            });
+        }
     }
 }
 
