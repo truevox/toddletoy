@@ -75,9 +75,14 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - [x] Add Kaktovik numeral display for numbers (Unicode font-based, base-20 system)
 - [x] Add binary representation (❤️🤍) for numbers
 
-### Phase 9: Deferred Features (Low Priority) 🔄 ON HOLD
+### Phase 9: Cistercian Numerals Implementation (Medium Priority) ✅ COMPLETED
 
-- [ ] Cistercian numeral rendering for numbers (implemented but buggy, disabled for now)
+- [x] ~~Cistercian numeral rendering for numbers (implemented but buggy, disabled for now)~~
+- [x] Implement Cistercian numerals using Cistercian QWERTY font
+- [x] Create number-to-QWERTY mapping for font-based rendering  
+- [x] Test and re-enable Cistercian numerals in display system
+- [x] Font-based rendering with Creative Commons licensed Cistercian QWERTY font
+- [x] Comprehensive test coverage (18 new tests) for font-based implementation
 
 ### Phase 7: Speech & Animation Enhancements (Medium Priority) ✅ COMPLETED
 
@@ -163,14 +168,14 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - Multi-modal number displays:
   - Kaktovik numerals (Unicode font-based, base-20 system)
   - Binary representation with heart emojis (❤️🤍)
-  - Cistercian numerals (implemented but on hold due to bugs)
+  - Cistercian numerals (font-based with Creative Commons licensed font)
 - Enhanced speech features:
   - Word highlighting animation with yellow tints during speech
   - Speech queue locking prevents new spawns during speech
   - Speaking objects move instead of spawning new ones during speech
   - Continuous background tones per object (no 3-second timeout)
   - Word-specific sparkle effects during speech highlighting
-- Comprehensive test coverage (147 unit tests + 27 browser tests across 27 suites)
+- Comprehensive test coverage (165 unit tests + 27 browser tests across 28 suites)
 - Revoice on click functionality - clicking existing objects re-voices them  
 - **FIXED**: Perfect layout preservation - moving objects maintains exact word spacing and alignment
 - **FIXED**: Center-based offset storage system prevents word overlaps during movement

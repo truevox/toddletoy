@@ -87,8 +87,9 @@ class GameScene extends Phaser.Scene {
         this.heldKeys = new Set(); // Track currently held keys
         this.keyboardObject = null; // Object controlled by keyboard
         
-        // Preload Kaktovik font by rendering invisible characters
+        // Preload fonts by rendering invisible characters
         this.preloadKaktovikFont();
+        this.preloadCistercianFont();
         
         // Initialization complete - ready for user interaction
         
@@ -528,14 +529,14 @@ class GameScene extends Phaser.Scene {
             }
         }
         
-        // Cistercian numerals temporarily disabled (buggy, on hold)
-        // if (type === 'number') {
-        //     const numberValue = parseInt(selectedItem.symbol);
-        //     if (numberValue >= 1 && numberValue <= 9999) {
-        //         const cistercianGraphics = this.renderCistercianNumeral(numberValue, x, y - 80);
-        //         obj.cistercianNumeral = cistercianGraphics;
-        //     }
-        // }
+        // Cistercian numerals using font-based rendering
+        if (type === 'number') {
+            const numberValue = parseInt(selectedItem.symbol);
+            if (numberValue >= 0 && numberValue <= 9999) {
+                const cistercianText = this.renderCistercianNumeral(numberValue, x, y - 80);
+                obj.cistercianNumeral = cistercianText;
+            }
+        }
         
         // CRITICAL: Create text labels and store componentLayout at spawn position
         // This must happen before any movement to ensure correct relative positioning
@@ -1394,88 +1395,53 @@ class GameScene extends Phaser.Scene {
         return sign * scaledValue;
     }
 
+    getCistercianKeyMapping(digit) {
+        // Maps digits 1-9 to QWERTY keyboard characters for Cistercian font
+        // Based on font documentation: 1-0, q-[, a-[, z-/ represent the 4 corners
+        const mapping = {
+            1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9',
+            0: '0'  // 0 maps to the blank/central line
+        };
+        return mapping[digit] || '0';
+    }
+    
     renderCistercianNumeral(number, x, y) {
-        // Create a graphics object for drawing the Cistercian numeral
-        const graphics = this.add.graphics();
-        graphics.lineStyle(3, 0xffffff); // White lines, 3px thick
+        // Font-based Cistercian numeral rendering using Cistercian QWERTY font
+        if (number === 0) {
+            // For zero, just show the central vertical line character
+            return this.add.text(x, y, '0', {
+                fontSize: '32px',
+                fontFamily: 'Cistercian, monospace',
+                fill: '#ffffff',
+                align: 'center'
+            }).setOrigin(0.5, 0.5);
+        }
         
-        // Draw the central vertical line (always present)
-        const centerX = x;
-        const centerY = y;
-        const height = 60; // Total height of the numeral
-        const extension = height * 0.15; // Extend line by 15% on each end
-        
-        graphics.lineBetween(centerX, centerY - height/2 - extension, centerX, centerY + height/2 + extension);
-        
-        // Parse the number into components
+        // Parse the number into components (supporting up to 9999)
         const units = number % 10;
         const tens = Math.floor((number % 100) / 10);
         const hundreds = Math.floor((number % 1000) / 100);
         const thousands = Math.floor(number / 1000);
         
-        // Draw each component
-        if (units > 0) this.drawCistercianDigit(graphics, units, centerX, centerY, 'units');
-        if (tens > 0) this.drawCistercianDigit(graphics, tens, centerX, centerY, 'tens');
-        if (hundreds > 0) this.drawCistercianDigit(graphics, hundreds, centerX, centerY, 'hundreds');
-        if (thousands > 0) this.drawCistercianDigit(graphics, thousands, centerX, centerY, 'thousands');
+        // Build the Cistercian character combination
+        let cistercianChars = '';
         
-        return graphics;
-    }
-    
-    drawCistercianDigit(graphics, digit, centerX, centerY, position) {
-        const halfHeight = 30;
-        const lineLength = 20;
+        // Add characters for each position that has a non-zero value
+        // The font combines characters to create the full numeral
+        if (thousands > 0) cistercianChars += this.getCistercianKeyMapping(thousands);
+        if (hundreds > 0) cistercianChars += this.getCistercianKeyMapping(hundreds);
+        if (tens > 0) cistercianChars += this.getCistercianKeyMapping(tens);
+        if (units > 0) cistercianChars += this.getCistercianKeyMapping(units);
         
-        // Determine position offsets
-        let xOffset, yOffset;
-        switch(position) {
-            case 'units':    // Upper right
-                xOffset = 1; yOffset = -1; break;
-            case 'tens':     // Upper left  
-                xOffset = -1; yOffset = -1; break;
-            case 'hundreds': // Lower right
-                xOffset = 1; yOffset = 1; break;
-            case 'thousands': // Lower left
-                xOffset = -1; yOffset = 1; break;
-        }
+        // If no digits, show the base character (central line)
+        if (cistercianChars === '') cistercianChars = '0';
         
-        const baseX = centerX + (xOffset * 0);
-        const baseY = centerY + (yOffset * halfHeight / 2);
-        
-        // Draw the digit pattern based on traditional Cistercian numerals
-        switch(digit) {
-            case 1: // Horizontal line
-                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY);
-                break;
-            case 2: // Angled down line
-                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY + (yOffset * 8));
-                break;
-            case 3: // Angled up line
-                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY - (yOffset * 8));
-                break;
-            case 4: // Vertical line
-                graphics.lineBetween(baseX, baseY, baseX, baseY + (yOffset * lineLength));
-                break;
-            case 5: // Diagonal to corner
-                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY + (yOffset * halfHeight));
-                break;
-            case 6: // Diagonal + horizontal
-                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY + (yOffset * halfHeight));
-                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY);
-                break;
-            case 7: // Diagonal + angled down
-                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY + (yOffset * halfHeight));
-                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY + (yOffset * 8));
-                break;
-            case 8: // Diagonal + angled up
-                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY + (yOffset * halfHeight));
-                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY - (yOffset * 8));
-                break;
-            case 9: // Diagonal + vertical
-                graphics.lineBetween(baseX, baseY, baseX + (xOffset * lineLength), baseY + (yOffset * halfHeight));
-                graphics.lineBetween(baseX, baseY, baseX, baseY + (yOffset * lineLength));
-                break;
-        }
+        return this.add.text(x, y, cistercianChars, {
+            fontSize: '32px',
+            fontFamily: 'Cistercian, monospace',
+            fill: '#ffffff',
+            align: 'center'
+        }).setOrigin(0.5, 0.5);
     }
 
     renderKaktovikNumeral(number, x, y) {
@@ -1765,6 +1731,42 @@ class GameScene extends Phaser.Scene {
         }, 100);
         
         console.log('Kaktovik font preloaded with sample characters');
+    }
+    
+    preloadCistercianFont() {
+        // Try to use the Font Loading API if available
+        if (document.fonts && document.fonts.load) {
+            document.fonts.load('32px Cistercian').then(() => {
+                console.log('Cistercian font loaded via Font Loading API');
+            }).catch(() => {
+                console.log('Cistercian Font Loading API failed, using fallback method');
+            });
+        }
+        
+        // Fallback: Create invisible text objects with sample Cistercian characters
+        const cistercianSamples = ['1', '2', '5', '9', '0']; // Sample keyboard chars for font
+        const preloadTexts = [];
+        
+        for (const sample of cistercianSamples) {
+            const preloadText = this.add.text(-1000, -1000, sample, {
+                fontSize: '32px',
+                fontFamily: 'Cistercian, monospace',
+                fill: '#ffffff',
+                alpha: 0 // Make completely invisible
+            });
+            preloadTexts.push(preloadText);
+        }
+        
+        // Clean up preload texts after a short delay
+        setTimeout(() => {
+            for (const text of preloadTexts) {
+                if (text && text.destroy) {
+                    text.destroy();
+                }
+            }
+        }, 100);
+        
+        console.log('Cistercian font preloaded with sample characters');
     }
 
     // Drag Trail Visual Effects
