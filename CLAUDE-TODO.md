@@ -89,7 +89,7 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 ### Phase 8: Visual Effect Improvements (Low Priority) ✅ COMPLETED
 
 - [x] Add trails or pulses during object dragging
-- [ ] Add word-specific sparkle effects when words are spoken
+- [x] Add word-specific sparkle effects when words are spoken
 
 ### Phase 10: Bug Fixes & Regression Resolution (High Priority) ✅ COMPLETED
 
@@ -169,7 +169,8 @@ This document tracks the structured implementation of the toddler-toy PWA follow
   - Speech queue locking prevents new spawns during speech
   - Speaking objects move instead of spawning new ones during speech
   - Continuous background tones per object (no 3-second timeout)
-- Comprehensive test coverage (136 tests across 23 suites)
+  - Word-specific sparkle effects during speech highlighting
+- Comprehensive test coverage (147 tests across 24 suites)
 - Revoice on click functionality - clicking existing objects re-voices them  
 - **FIXED**: Perfect layout preservation - moving objects maintains exact word spacing and alignment
 - **FIXED**: Center-based offset storage system prevents word overlaps during movement
@@ -179,8 +180,9 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - Solution: Disable legacy englishLabel/spanishLabel positioning when componentLayout exists
 - Result: Perfect layout preservation across all object movements and interactions
 
-**Remaining features from README.md specification:**
-- Advanced visual effects during interaction (trails, sparkles)
+**All core features completed!** ✅
+
+- Advanced visual effects during interaction (trails ✅, sparkles ✅)
 
 ### Notes
 
