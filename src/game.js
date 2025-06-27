@@ -312,28 +312,37 @@ class GameScene extends Phaser.Scene {
     repositionWordObjects(wordObjects, centerX, y) {
         if (!wordObjects || wordObjects.length === 0) return;
         
-        // Calculate total width of all words
-        let totalWidth = 0;
-        wordObjects.forEach((wordObj, index) => {
-            totalWidth += wordObj.width;
-            if (index < wordObjects.length - 1) {
-                // Add space width between words
-                totalWidth += wordObj.style.fontSize ? parseInt(wordObj.style.fontSize) * 0.3 : 8;
-            }
-        });
+        // Use stored layout information for consistent positioning
+        const layoutInfo = wordObjects._layoutInfo;
         
-        // Position words starting from the left edge of the centered group
-        let currentX = centerX - (totalWidth / 2);
-        
-        wordObjects.forEach((wordObj, index) => {
-            wordObj.setPosition(currentX, y);
-            currentX += wordObj.width;
+        if (layoutInfo && layoutInfo.wordOffsets) {
+            // Use stored relative positions for exact layout preservation
+            wordObjects.forEach((wordObj, index) => {
+                const offset = layoutInfo.wordOffsets[index];
+                if (offset) {
+                    wordObj.setPosition(centerX + offset.offsetX, y + offset.offsetY);
+                }
+            });
+        } else {
+            // Fallback to old method if layout info is missing
+            let totalWidth = 0;
+            const spaceWidth = wordObjects[0]?.style?.fontSize ? parseInt(wordObjects[0].style.fontSize) * 0.3 : 8;
             
-            // Add space after word (except for the last word)
-            if (index < wordObjects.length - 1) {
-                currentX += wordObj.style.fontSize ? parseInt(wordObj.style.fontSize) * 0.3 : 8;
-            }
-        });
+            wordObjects.forEach((wordObj, index) => {
+                totalWidth += wordObj.width;
+                if (index < wordObjects.length - 1) {
+                    totalWidth += spaceWidth;
+                }
+            });
+            
+            // Position words starting from the left edge of the centered group
+            let currentX = centerX - (totalWidth / 2);
+            
+            wordObjects.forEach((wordObj, index) => {
+                wordObj.setPosition(currentX, y);
+                currentX += wordObj.width + (index < wordObjects.length - 1 ? spaceWidth : 0);
+            });
+        }
     }
     
     updateObjectMovements() {
@@ -1503,23 +1512,44 @@ class GameScene extends Phaser.Scene {
         const words = text.split(' ');
         const wordObjects = [];
         
-        // Calculate total text width to center the word group
-        const tempText = this.add.text(0, 0, text, labelStyle);
-        const totalWidth = tempText.width;
-        tempText.destroy();
+        // Create all word objects first to measure actual layout
+        const spaceWidth = labelStyle.fontSize ? parseInt(labelStyle.fontSize) * 0.3 : 8;
+        let totalActualWidth = 0;
         
-        let currentX = x - (totalWidth / 2);
-        
+        // Create word objects and calculate actual total width
         words.forEach((word, index) => {
-            // Create individual word text object
-            const wordText = this.add.text(currentX, y, word, labelStyle)
+            const wordText = this.add.text(0, y, word, labelStyle)
                 .setOrigin(0, 0.5);
-            
             wordObjects.push(wordText);
             
-            // Move X position for next word (including space)
-            currentX += wordText.width + (labelStyle.fontSize ? parseInt(labelStyle.fontSize) * 0.3 : 8);
+            totalActualWidth += wordText.width;
+            if (index < words.length - 1) {
+                totalActualWidth += spaceWidth;
+            }
         });
+        
+        // Position words to be centered at x
+        let currentX = x - (totalActualWidth / 2);
+        
+        wordObjects.forEach((wordObj, index) => {
+            wordObj.setPosition(currentX, y);
+            currentX += wordObj.width + (index < words.length - 1 ? spaceWidth : 0);
+        });
+        
+        // Store layout metadata for consistent repositioning
+        if (wordObjects.length > 0) {
+            wordObjects._layoutInfo = {
+                originalText: text,
+                totalWidth: totalActualWidth,
+                spaceWidth: spaceWidth,
+                style: { ...labelStyle },
+                // Store relative positions from center for each word
+                wordOffsets: wordObjects.map(wordObj => ({
+                    offsetX: wordObj.x - x, // Distance from center point
+                    offsetY: wordObj.y - y
+                }))
+            };
+        }
         
         return wordObjects;
     }

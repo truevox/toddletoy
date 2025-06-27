@@ -104,7 +104,15 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - [x] Write failing test for revoice on click functionality
 - [x] Implement revoice on click - clicking voiced object revoices it (if nothing else is voicing)
 
-### Current Status 🎯 REVOICE FEATURE COMPLETE - READY FOR DEPLOYMENT
+### Phase 12: Layout Preservation Fix (High Priority) ✅ COMPLETED
+
+- [x] Investigate layout positioning regression where moving objects breaks internal alignment
+- [x] Write comprehensive layout preservation tests
+- [x] Fix word positioning logic to preserve relative layout during movement
+- [x] Implement offset-based positioning system for consistent centering
+- [x] Verify fix works for all object types (letters, numbers, emojis, shapes)
+
+### Current Status 🎯 LAYOUT REGRESSION FIXED - READY FOR DEPLOYMENT
 
 **Fully functional enhanced experience with:**
 - Touch/click, keyboard, and gamepad interactions with advanced input mechanics
@@ -123,8 +131,9 @@ This document tracks the structured implementation of the toddler-toy PWA follow
   - Speech queue locking prevents new spawns during speech
   - Speaking objects move instead of spawning new ones during speech
   - Continuous background tones per object (no 3-second timeout)
-- Comprehensive test coverage (123 tests across 20 suites)
-- Revoice on click functionality - clicking existing objects re-voices them
+- Comprehensive test coverage (128 tests across 21 suites)
+- Revoice on click functionality - clicking existing objects re-voices them  
+- Fixed layout preservation - moving objects maintains perfect internal alignment
 
 **Remaining features from README.md specification:**
 - Advanced visual effects during interaction (trails, sparkles)
@@ -137,4 +146,4 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - Frequent commits with clear messages
 - All tests passing ✅
 - Ready for core functionality deployment, enhancement phases in progress
-- User wants to flesh out and implement: Revoice on click (if you click an already voiced thing, you don't just get to move it, it revoices itself (if nothing else is voicing)); Also, we need a convigureation screen, but I' not sure how I want it to work yet, but it should have some sort of differnt age ranges that reveal different things (youngest maybe omits numbers, or only shows 0-10, and uses numbers of common obejects to encourage counting instead of binary - might still include kartovic, might not too, also maybe lowercase letters aren't introduced until a later age - later ages maybe unlock even more emojis, of more sophisticated and less familiar things.
+- User wants to flesh out and implement: We need a configureation screen, but I' not sure how I want it to work yet, but it should have some sort of differnt age ranges that reveal different things (youngest maybe omits numbers, or only shows 0-10, and uses numbers of common obejects to encourage counting instead of binary - might still include kartovic, might not too, also maybe lowercase letters aren't introduced until a later age - later ages maybe unlock even more emojis, of more sophisticated and less familiar things.
