@@ -737,7 +737,10 @@ class GameScene extends Phaser.Scene {
     
     speakTextSequence(texts, index) {
         if (index >= texts.length) {
-            // Speech sequence complete - unlock the queue
+            // Speech sequence complete - unlock the queue and cleanup sparkles
+            if (this.currentSpeakingObject) {
+                this.cleanupWordSparkles(this.currentSpeakingObject);
+            }
             this.currentSpeech = null;
             this.isSpeaking = false;
             this.currentSpeakingObject = null;
@@ -1554,8 +1557,86 @@ class GameScene extends Phaser.Scene {
         return number.toString(2);
     }
 
+    createWordSparkleEffect(wordObj, duration = 1000) {
+        if (!wordObj) return null;
+        
+        try {
+            // Create sparkle particle emitter around the word
+            const sparkleEmitter = this.add.particles(wordObj.x, wordObj.y, 'particle', {
+                scale: { start: 0.8, end: 0.1 },
+                speed: { min: 50, max: 100 },
+                lifespan: duration * 0.8, // Sparkles last most of the word duration
+                frequency: 30, // Emit every 30ms for continuous effect
+                quantity: 2, // 2 particles per emission
+                blendMode: 'ADD',
+                tint: [0xFFD700, 0xFFFFAA, 0xFFF8DC, 0xFFFF00, 0xFFFACD], // Gold/yellow sparkle colors
+                emitZone: {
+                    type: 'edge',
+                    source: new Phaser.Geom.Rectangle(
+                        -wordObj.width/2 - 10, 
+                        -wordObj.height/2 - 10, 
+                        wordObj.width + 20, 
+                        wordObj.height + 20
+                    ),
+                    quantity: 8 // 8 points around the word boundary
+                }
+            });
+            
+            // Position the emitter at the word location
+            sparkleEmitter.setPosition(wordObj.x + wordObj.width/2, wordObj.y);
+            
+            // Start the effect
+            sparkleEmitter.start();
+            
+            // Auto-cleanup after duration
+            this.time.delayedCall(duration, () => {
+                if (sparkleEmitter && sparkleEmitter.destroy) {
+                    sparkleEmitter.destroy();
+                }
+            });
+            
+            return sparkleEmitter;
+        } catch (error) {
+            console.error('Error creating word sparkle effect:', error);
+            return null;
+        }
+    }
+
+    triggerWordSparkles(obj, wordIndex) {
+        if (!obj || !obj.englishWords || !obj.englishWords[wordIndex]) {
+            return false;
+        }
+        
+        const wordObj = obj.englishWords[wordIndex];
+        const sparkleEmitter = this.createWordSparkleEffect(wordObj);
+        
+        // Store the emitter for cleanup
+        if (!obj.sparkleEmitters) {
+            obj.sparkleEmitters = new Map();
+        }
+        obj.sparkleEmitters.set(wordIndex, sparkleEmitter);
+        
+        return sparkleEmitter !== null;
+    }
+    
+    cleanupWordSparkles(obj) {
+        if (!obj || !obj.sparkleEmitters) return;
+        
+        obj.sparkleEmitters.forEach((emitter, wordIndex) => {
+            if (emitter && emitter.destroy) {
+                emitter.destroy();
+            }
+        });
+        obj.sparkleEmitters.clear();
+    }
+
     highlightWord(textObject, wordIndex, totalWords) {
         if (!textObject || wordIndex < 0) return;
+        
+        // Create sparkle effects during highlighting
+        if (this.currentSpeakingObject) {
+            this.triggerWordSparkles(this.currentSpeakingObject, wordIndex);
+        }
         
         // Create highlight animation with tint and scale
         const highlightTween = this.tweens.add({
