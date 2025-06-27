@@ -315,19 +315,23 @@ class GameScene extends Phaser.Scene {
         // Use stored layout information for consistent positioning
         const layoutInfo = wordObjects._layoutInfo;
         
-        if (layoutInfo && layoutInfo.wordOffsets) {
+        if (layoutInfo && layoutInfo.wordOffsets && layoutInfo.wordOffsets.length === wordObjects.length) {
             // Use stored relative positions for exact layout preservation
             wordObjects.forEach((wordObj, index) => {
                 const offset = layoutInfo.wordOffsets[index];
                 if (offset) {
-                    wordObj.setPosition(centerX + offset.offsetX, y + offset.offsetY);
+                    const newX = centerX + offset.offsetX;
+                    const newY = y + offset.offsetY;
+                    wordObj.setPosition(newX, newY);
                 }
             });
         } else {
-            // Fallback to old method if layout info is missing
+            // Recalculate proper spacing from scratch
+            // This ensures words don't overlap even if layout info is corrupted
+            const spaceWidth = layoutInfo?.spaceWidth || 8;
             let totalWidth = 0;
-            const spaceWidth = wordObjects[0]?.style?.fontSize ? parseInt(wordObjects[0].style.fontSize) * 0.3 : 8;
             
+            // Calculate total width needed
             wordObjects.forEach((wordObj, index) => {
                 totalWidth += wordObj.width;
                 if (index < wordObjects.length - 1) {
