@@ -21,6 +21,9 @@ build/
 *.swp
 *.swo
 *~
+.fleet/
+.history/
+*.sublime-*
 
 # OS generated files
 .DS_Store
@@ -47,6 +50,10 @@ coverage/
 # Cache directories
 .cache/
 .parcel-cache/
+.vite/
+.next/
+.nuxt/
+.eslintcache
 
 # Temporary folders
 tmp/
@@ -56,3 +63,11 @@ temp/
 /test-results/
 /playwright-report/
 /playwright/.cache/
+
+# Additional build artifacts
+*.tsbuildinfo
+.turbo/
+
+# Debugging and profiling
+*.cpuprofile
+*.heapsnapshot
