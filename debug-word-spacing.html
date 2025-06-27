@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Word Spacing</title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+</head>
+<body>
+    <script>
+        class DebugScene extends Phaser.Scene {
+            constructor() {
+                super({ key: 'DebugScene' });
+            }
+
+            preload() {
+                console.log('Debug scene loaded');
+            }
+
+            create() {
+                // Create a test object similar to what the game creates
+                console.log('=== Testing Word Spacing ===');
+                
+                // Test the problematic case: "Orange Q" and "Q Naranja"
+                const testData = {
+                    en: 'Orange Q',
+                    es: 'Q Naranja'
+                };
+
+                // Create word objects like the game does
+                const labelStyle = {
+                    fontSize: '24px',
+                    fill: '#ffffff',
+                    fontFamily: 'Arial'
+                };
+
+                console.log('Creating English words:', testData.en);
+                const englishWords = this.createWordObjects(testData.en, 400, 300, labelStyle);
+                
+                console.log('Creating Spanish words:', testData.es);
+                const spanishWords = this.createWordObjects(testData.es, 400, 330, labelStyle);
+
+                // Test initial positioning
+                console.log('\n=== Initial Positioning ===');
+                this.logWordPositions('English', englishWords);
+                this.logWordPositions('Spanish', spanishWords);
+
+                // Now simulate moving the object (this is where the bug occurs)
+                console.log('\n=== Moving Object (this is where bug occurs) ===');
+                this.repositionWordObjects(englishWords, 200, 200);
+                this.repositionWordObjects(spanishWords, 200, 230);
+
+                console.log('\n=== After Repositioning ===');
+                this.logWordPositions('English', englishWords);
+                this.logWordPositions('Spanish', spanishWords);
+
+                // Test overlap detection
+                this.checkForOverlaps(englishWords);
+                this.checkForOverlaps(spanishWords);
+            }
+
+            createWordObjects(text, x, y, labelStyle) {
+                if (!text || text.trim() === '') return [];
+                
+                const words = text.split(' ');
+                const wordObjects = [];
+                
+                // Create all word objects first to measure actual layout
+                const spaceWidth = labelStyle.fontSize ? parseInt(labelStyle.fontSize) * 0.3 : 8;
+                let totalActualWidth = 0;
+                
+                console.log(`Creating ${words.length} words with spaceWidth: ${spaceWidth}`);
+                
+                // Create word objects and calculate actual total width
+                words.forEach((word, index) => {
+                    const wordText = this.add.text(0, y, word, labelStyle)
+                        .setOrigin(0, 0.5);
+                    wordObjects.push(wordText);
+                    
+                    console.log(`Word "${word}" width: ${wordText.width}`);
+                    totalActualWidth += wordText.width;
+                    if (index < words.length - 1) {
+                        totalActualWidth += spaceWidth;
+                    }
+                });
+                
+                console.log(`Total width calculated: ${totalActualWidth}`);
+                
+                // Position words to be centered at x
+                let currentX = x - (totalActualWidth / 2);
+                console.log(`Starting position: ${currentX}`);
+                
+                wordObjects.forEach((wordObj, index) => {
+                    console.log(`Positioning "${wordObj.text}" at x: ${currentX}`);
+                    wordObj.setPosition(currentX, y);
+                    currentX += wordObj.width + (index < words.length - 1 ? spaceWidth : 0);
+                });
+                
+                // Store layout metadata for consistent repositioning
+                if (wordObjects.length > 0) {
+                    wordObjects._layoutInfo = {
+                        originalText: text,
+                        totalWidth: totalActualWidth,
+                        spaceWidth: spaceWidth,
+                        style: { ...labelStyle },
+                        // Store relative positions from center for each word
+                        wordOffsets: wordObjects.map(wordObj => ({
+                            offsetX: wordObj.x - x, // Distance from center point
+                            offsetY: wordObj.y - y
+                        }))
+                    };
+                    
+                    console.log('Stored offsets:', wordObjects._layoutInfo.wordOffsets);
+                }
+                
+                return wordObjects;
+            }
+
+            repositionWordObjects(wordObjects, centerX, y) {
+                if (!wordObjects || wordObjects.length === 0) return;
+                
+                // Use stored layout information for consistent positioning
+                const layoutInfo = wordObjects._layoutInfo;
+                
+                console.log(`Repositioning to centerX: ${centerX}, y: ${y}`);
+                console.log('Has layout info:', !!layoutInfo);
+                console.log('Has offsets:', !!(layoutInfo && layoutInfo.wordOffsets));
+                
+                if (layoutInfo && layoutInfo.wordOffsets) {
+                    // Use stored relative positions for exact layout preservation
+                    console.log('Using stored offsets method');
+                    wordObjects.forEach((wordObj, index) => {
+                        const offset = layoutInfo.wordOffsets[index];
+                        if (offset) {
+                            const newX = centerX + offset.offsetX;
+                            const newY = y + offset.offsetY;
+                            console.log(`Repositioning "${wordObj.text}" to (${newX}, ${newY}) using offset (${offset.offsetX}, ${offset.offsetY})`);
+                            wordObj.setPosition(newX, newY);
+                        }
+                    });
+                } else {
+                    console.log('Using fallback method (this shouldnt happen)');
+                }
+            }
+
+            logWordPositions(label, wordObjects) {
+                console.log(`${label} word positions:`);
+                wordObjects.forEach((wordObj, index) => {
+                    console.log(`  "${wordObj.text}": x=${wordObj.x}, y=${wordObj.y}, width=${wordObj.width}`);
+                });
+            }
+
+            checkForOverlaps(wordObjects) {
+                console.log('Checking for overlaps...');
+                for (let i = 0; i < wordObjects.length - 1; i++) {
+                    const word1 = wordObjects[i];
+                    const word2 = wordObjects[i + 1];
+                    const word1End = word1.x + word1.width;
+                    const word2Start = word2.x;
+                    
+                    if (word1End > word2Start) {
+                        console.error(`OVERLAP DETECTED: "${word1.text}" ends at ${word1End}, "${word2.text}" starts at ${word2Start}`);
+                        console.error(`Overlap amount: ${word1End - word2Start} pixels`);
+                    } else {
+                        const gap = word2Start - word1End;
+                        console.log(`Gap between "${word1.text}" and "${word2.text}": ${gap} pixels`);
+                    }
+                }
+            }
+        }
+
+        const config = {
+            type: Phaser.AUTO,
+            width: 800,
+            height: 600,
+            scene: DebugScene
+        };
+
+        const game = new Phaser.Game(config);
+    </script>
+</body>
+</html>

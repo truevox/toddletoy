@@ -23,6 +23,9 @@ class GameScene extends Phaser.Scene {
     }
 
     create() {
+        // Version logging for troubleshooting  
+        console.log('🎯 TODDLER TOY v2.1.2 - Layout Fix Complete - Build:', new Date().toISOString());
+        
         // Create particle texture first
         this.createParticleTexture();
         
@@ -137,7 +140,6 @@ class GameScene extends Phaser.Scene {
                     const position = this.getKeyPosition(firstKey);
                     if (position) {
                         const obj = this.spawnObjectAt(position.x, position.y, 'random');
-                        this.displayTextLabels(obj);
                         this.speakObjectLabel(obj, 'both');
                         this.generateTone(position.x, position.y, obj.id);
                         this.createSpawnBurst(position.x, position.y);
@@ -178,7 +180,6 @@ class GameScene extends Phaser.Scene {
         } else if (!this.isDragging && !this.isSpeaking) {
             // Spawn new object only if not currently dragging AND not speaking
             const obj = this.spawnObjectAt(pointer.x, pointer.y, 'random');
-            this.displayTextLabels(obj);
             this.speakObjectLabel(obj, 'both');
             this.generateTone(pointer.x, pointer.y, obj.id);
             this.createSpawnBurst(pointer.x, pointer.y);
@@ -268,85 +269,121 @@ class GameScene extends Phaser.Scene {
     setObjectPosition(obj, x, y) {
         if (!obj) return;
         
+        // CRITICAL: Save the target position BEFORE any modifications
+        const targetX = x;
+        const targetY = y;
+        
         // Update object position
-        obj.x = x;
-        obj.y = y;
+        obj.x = targetX;
+        obj.y = targetY;
         
         // Update sprite position
         if (obj.sprite) {
-            obj.sprite.setPosition(x, y);
+            obj.sprite.setPosition(targetX, targetY);
         }
         
-        // Update word object positions
-        if (obj.englishWords && obj.englishWords.length > 0) {
-            this.repositionWordObjects(obj.englishWords, x, y + 60);
-        }
-        if (obj.spanishWords && obj.spanishWords.length > 0) {
-            this.repositionWordObjects(obj.spanishWords, x, y + 90);
+        // CRITICAL FIX: Use stored component layout instead of hardcoded offsets
+        // This preserves the exact relative positioning from spawn time
+        if (obj.componentLayout) {
+            // Update English words using stored relative positions
+            if (obj.englishWords && obj.componentLayout.englishWords) {
+                obj.englishWords.forEach((wordObj, index) => {
+                    const storedOffset = obj.componentLayout.englishWords[index];
+                    if (storedOffset && wordObj) {
+                        // Convert from center-based offset to left-edge position
+                        const newWordCenterX = targetX + storedOffset.offsetX;
+                        const newWordLeftX = newWordCenterX - (wordObj.width / 2);
+                        const newWordY = targetY + storedOffset.offsetY;
+                        wordObj.setPosition(newWordLeftX, newWordY);
+                    }
+                });
+            }
+            
+            // Update Spanish words using stored relative positions
+            if (obj.spanishWords && obj.componentLayout.spanishWords) {
+                obj.spanishWords.forEach((wordObj, index) => {
+                    const storedOffset = obj.componentLayout.spanishWords[index];
+                    if (storedOffset && wordObj) {
+                        // Convert from center-based offset to left-edge position
+                        const newWordCenterX = targetX + storedOffset.offsetX;
+                        const newWordLeftX = newWordCenterX - (wordObj.width / 2);
+                        const newWordY = targetY + storedOffset.offsetY;
+                        wordObj.setPosition(newWordLeftX, newWordY);
+                    }
+                });
+            }
+            
+            // Update Kaktovik numeral using stored relative position
+            if (obj.kaktovikNumeral && obj.componentLayout.kaktovikNumeral) {
+                const offset = obj.componentLayout.kaktovikNumeral;
+                obj.kaktovikNumeral.setPosition(targetX + offset.offsetX, targetY + offset.offsetY);
+            }
+            
+            // Update binary hearts using stored relative position
+            if (obj.binaryHearts && obj.componentLayout.binaryHearts) {
+                const offset = obj.componentLayout.binaryHearts;
+                obj.binaryHearts.setPosition(targetX + offset.offsetX, targetY + offset.offsetY);
+            }
+        } else {
+            // FALLBACK: Use old hardcoded method if no component layout stored
+            // This ensures backward compatibility with objects created before the fix
+            if (obj.englishWords && obj.englishWords.length > 0) {
+                this.repositionWordObjects(obj.englishWords, targetX, targetY + 60);
+            }
+            if (obj.spanishWords && obj.spanishWords.length > 0) {
+                this.repositionWordObjects(obj.spanishWords, targetX, targetY + 90);
+            }
+            
+            if (obj.kaktovikNumeral) {
+                obj.kaktovikNumeral.setPosition(targetX, targetY - 60);
+            }
+            
+            if (obj.binaryHearts) {
+                obj.binaryHearts.setPosition(targetX, targetY - 30);
+            }
         }
         
         // Update legacy label positions (for backward compatibility)
-        if (obj.englishLabel) {
-            obj.englishLabel.setPosition(x, y + 60);
-        }
-        if (obj.spanishLabel) {
-            obj.spanishLabel.setPosition(x, y + 90);
-        }
-        
-        // Update Kaktovik numeral position
-        if (obj.kaktovikNumeral) {
-            obj.kaktovikNumeral.setPosition(x, y - 60);
-        }
-        
-        // Update binary hearts position
-        if (obj.binaryHearts) {
-            obj.binaryHearts.setPosition(x, y - 30);
+        // DISABLED: Skip legacy positioning when componentLayout exists to prevent conflicts
+        if (!obj.componentLayout) {
+            if (obj.englishLabel) {
+                obj.englishLabel.setPosition(targetX, targetY + 60);
+            }
+            if (obj.spanishLabel) {
+                obj.spanishLabel.setPosition(targetX, targetY + 90);
+            }
         }
         
         // Update Cistercian numeral position (currently disabled)
         if (obj.cistercianNumeral) {
-            obj.cistercianNumeral.setPosition(x, y - 80);
+            obj.cistercianNumeral.setPosition(targetX, targetY - 80);
         }
     }
 
     repositionWordObjects(wordObjects, centerX, y) {
         if (!wordObjects || wordObjects.length === 0) return;
         
-        // Use stored layout information for consistent positioning
+        // Always recalculate spacing from scratch to ensure proper positioning
+        // This prevents any corruption from offset-based positioning
         const layoutInfo = wordObjects._layoutInfo;
+        const spaceWidth = layoutInfo?.spaceWidth || 8;
+        let totalWidth = 0;
         
-        if (layoutInfo && layoutInfo.wordOffsets && layoutInfo.wordOffsets.length === wordObjects.length) {
-            // Use stored relative positions for exact layout preservation
-            wordObjects.forEach((wordObj, index) => {
-                const offset = layoutInfo.wordOffsets[index];
-                if (offset) {
-                    const newX = centerX + offset.offsetX;
-                    const newY = y + offset.offsetY;
-                    wordObj.setPosition(newX, newY);
-                }
-            });
-        } else {
-            // Recalculate proper spacing from scratch
-            // This ensures words don't overlap even if layout info is corrupted
-            const spaceWidth = layoutInfo?.spaceWidth || 8;
-            let totalWidth = 0;
-            
-            // Calculate total width needed
-            wordObjects.forEach((wordObj, index) => {
-                totalWidth += wordObj.width;
-                if (index < wordObjects.length - 1) {
-                    totalWidth += spaceWidth;
-                }
-            });
-            
-            // Position words starting from the left edge of the centered group
-            let currentX = centerX - (totalWidth / 2);
-            
-            wordObjects.forEach((wordObj, index) => {
-                wordObj.setPosition(currentX, y);
-                currentX += wordObj.width + (index < wordObjects.length - 1 ? spaceWidth : 0);
-            });
-        }
+        // Calculate total width needed
+        wordObjects.forEach((wordObj, index) => {
+            totalWidth += wordObj.width;
+            if (index < wordObjects.length - 1) {
+                totalWidth += spaceWidth;
+            }
+        });
+        
+        // Position words starting from the left edge of the centered group
+        let currentX = centerX - (totalWidth / 2);
+        
+        wordObjects.forEach((wordObj, index) => {
+            wordObj.setPosition(currentX, y);
+            currentX += wordObj.width + (index < wordObjects.length - 1 ? spaceWidth : 0);
+        });
     }
     
     updateObjectMovements() {
@@ -467,6 +504,30 @@ class GameScene extends Phaser.Scene {
             }
         }
         
+        // CRITICAL: Store number display component layout for locked relative positioning
+        // This prevents misalignment when number objects are moved after spawn
+        if (type === 'number') {
+            if (!obj.componentLayout) {
+                obj.componentLayout = {};
+            }
+            
+            // Store Kaktovik numeral relative position if it exists
+            if (obj.kaktovikNumeral) {
+                obj.componentLayout.kaktovikNumeral = {
+                    offsetX: obj.kaktovikNumeral.x - safeX,
+                    offsetY: obj.kaktovikNumeral.y - safeY
+                };
+            }
+            
+            // Store binary hearts relative position if it exists
+            if (obj.binaryHearts) {
+                obj.componentLayout.binaryHearts = {
+                    offsetX: obj.binaryHearts.x - safeX,
+                    offsetY: obj.binaryHearts.y - safeY
+                };
+            }
+        }
+        
         // Cistercian numerals temporarily disabled (buggy, on hold)
         // if (type === 'number') {
         //     const numberValue = parseInt(selectedItem.symbol);
@@ -475,6 +536,12 @@ class GameScene extends Phaser.Scene {
         //         obj.cistercianNumeral = cistercianGraphics;
         //     }
         // }
+        
+        // CRITICAL: Create text labels and store componentLayout at spawn position
+        // This must happen before any movement to ensure correct relative positioning
+        console.log(`About to call displayTextLabels for object at spawn position (${x}, ${y})`);
+        this.displayTextLabels(obj);
+        console.log(`ComponentLayout stored:`, obj.componentLayout);
         
         return obj;
     }
@@ -754,6 +821,31 @@ class GameScene extends Phaser.Scene {
         obj.englishLabel = englishWords.length > 0 ? englishWords[0] : null;
         obj.spanishLabel = spanishWords.length > 0 ? spanishWords[0] : null;
         
+        // CRITICAL: Store component layout for locked relative positioning
+        // This prevents word overlap when objects are moved after spawn
+        if (!obj.componentLayout) {
+            obj.componentLayout = {};
+        }
+        
+        // Store English words relative positions FROM WORD CENTER, not left edge
+        obj.componentLayout.englishWords = englishWords.map((wordObj, index) => {
+            // Calculate offset from word center to object center
+            const wordCenterX = wordObj.x + (wordObj.width / 2);
+            const offsetX = wordCenterX - x;
+            const offsetY = wordObj.y - y;
+            return { offsetX, offsetY };
+        });
+        
+        // Store Spanish words relative positions FROM WORD CENTER, not left edge
+        obj.componentLayout.spanishWords = spanishWords.map((wordObj, index) => {
+            // Calculate offset from word center to object center
+            const wordCenterX = wordObj.x + (wordObj.width / 2);
+            const offsetX = wordCenterX - x;
+            const offsetY = wordObj.y - y;
+            return { offsetX, offsetY };
+        });
+        
+        
         return {
             englishWords: englishWords,
             spanishWords: spanishWords,
@@ -933,7 +1025,6 @@ class GameScene extends Phaser.Scene {
             if (!this.isSpeaking) {
                 // Spawn new object only if not speaking
                 const obj = this.spawnObjectAt(position.x, position.y, 'random');
-                this.displayTextLabels(obj);
                 this.speakObjectLabel(obj, 'both');
                 this.generateTone(position.x, position.y, obj.id);
                 this.createSpawnBurst(position.x, position.y);
@@ -1256,7 +1347,6 @@ class GameScene extends Phaser.Scene {
                 'random'
             );
             
-            this.displayTextLabels(obj);
             this.speakObjectLabel(obj, 'both');
             this.generateTone(this.currentGamepadPosition.x, this.currentGamepadPosition.y, obj.id);
             this.createSpawnBurst(this.currentGamepadPosition.x, this.currentGamepadPosition.y);
@@ -1540,18 +1630,13 @@ class GameScene extends Phaser.Scene {
             currentX += wordObj.width + (index < words.length - 1 ? spaceWidth : 0);
         });
         
-        // Store layout metadata for consistent repositioning
+        // Store layout metadata for spacing calculations
         if (wordObjects.length > 0) {
             wordObjects._layoutInfo = {
                 originalText: text,
                 totalWidth: totalActualWidth,
                 spaceWidth: spaceWidth,
-                style: { ...labelStyle },
-                // Store relative positions from center for each word
-                wordOffsets: wordObjects.map(wordObj => ({
-                    offsetX: wordObj.x - x, // Distance from center point
-                    offsetY: wordObj.y - y
-                }))
+                style: { ...labelStyle }
             };
         }
         
