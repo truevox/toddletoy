@@ -18,14 +18,27 @@ export class AppRoutes {
     }
 
     setupRoutes() {
+        console.log('Setting up routes...');
+        
         // Default route: Configuration screen
-        this.router.addRoute('/', () => this.showConfigScreen());
+        this.router.addRoute('/', () => {
+            console.log('Handling root route /');
+            this.showConfigScreen();
+        });
         
         // Main toy route
-        this.router.addRoute('/toy', () => this.showToyScreen());
+        this.router.addRoute('/toy', () => {
+            console.log('Handling toy route /toy');
+            this.showToyScreen();
+        });
         
         // Admin route: Always show config (bypass skip setting)
-        this.router.addRoute('/admin', () => this.showConfigScreen(true));
+        this.router.addRoute('/admin', () => {
+            console.log('Handling admin route /admin');
+            this.showConfigScreen(true);
+        });
+        
+        console.log('Routes setup complete. Registered routes:', Array.from(this.router.routes.keys()));
     }
 
     /**
@@ -33,15 +46,20 @@ export class AppRoutes {
      * @param {boolean} forceShow - Force show config even if skip is enabled
      */
     showConfigScreen(forceShow = false) {
+        console.log('showConfigScreen called, forceShow:', forceShow);
+        
         // Check if we should skip config and go straight to toy
         if (!forceShow && this.configManager.shouldSkipConfig()) {
+            console.log('Skipping config, redirecting to toy');
             this.router.replace('/toy');
             return;
         }
 
+        console.log('Showing config screen');
         this.hideCurrentScreen();
         
         if (!this.configScreen) {
+            console.log('Creating new ConfigScreen instance');
             this.configScreen = new ConfigScreen(this.configManager, this.router);
         }
         
@@ -50,6 +68,7 @@ export class AppRoutes {
         
         // Update page title
         document.title = 'ToddleToy - Configure';
+        console.log('Config screen should now be visible');
     }
 
     /**
