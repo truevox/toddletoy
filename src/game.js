@@ -47,11 +47,11 @@ class GameScene extends Phaser.Scene {
         // Initialize gamepad input
         this.initGamepadInput();
         
-        // Create text style
+        // Create text style with emoji support
         this.textStyle = {
             fontSize: '32px',
             fill: '#ffffff',
-            fontFamily: 'Arial',
+            fontFamily: 'Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
             align: 'center'
         };
         
@@ -489,7 +489,10 @@ class GameScene extends Phaser.Scene {
         const objectText = this.add.text(safeX, safeY, displayText, {
             fontSize: `${fontSize}px`,
             align: 'center',
-            fill: selectedItem.color || '#ffffff'
+            fill: selectedItem.color || '#ffffff',
+            // Add font properties to support emoji rendering
+            fontFamily: 'Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
+            fontStyle: 'normal'
         }).setOrigin(0.5);
         
         // Update object position to match safe position

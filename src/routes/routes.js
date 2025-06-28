@@ -78,6 +78,17 @@ export class AppRoutes {
      * Show toy/game screen
      */
     showToyScreen() {
+        console.log('showToyScreen called');
+        
+        // Check if user has been through config - if not, redirect them
+        const hasVisitedConfig = localStorage.getItem('toddletoy-config') !== null;
+        if (!hasVisitedConfig) {
+            console.log('No config found, redirecting to config screen');
+            this.router.replace('/');
+            return;
+        }
+        
+        console.log('Config found, proceeding to toy screen');
         this.hideCurrentScreen();
         
         // Create game instance if it doesn't exist
