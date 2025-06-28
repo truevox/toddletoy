@@ -890,7 +890,13 @@ export class ConfigScreen {
      * Start playing - navigate to toy
      */
     startPlaying() {
+        console.log('startPlaying called - saving config and navigating to toy');
         this.saveCurrentConfig();
+        
+        // Verify config was saved
+        const savedConfig = localStorage.getItem('toddleToyConfig');
+        console.log('Config saved to localStorage:', !!savedConfig);
+        
         this.router.navigate('/toy');
     }
 

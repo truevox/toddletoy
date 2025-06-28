@@ -81,7 +81,7 @@ export class AppRoutes {
         console.log('showToyScreen called');
         
         // Check if user has been through config - if not, redirect them
-        const hasVisitedConfig = localStorage.getItem('toddletoy-config') !== null;
+        const hasVisitedConfig = localStorage.getItem('toddleToyConfig') !== null;
         if (!hasVisitedConfig) {
             console.log('No config found, redirecting to config screen');
             this.router.replace('/');
