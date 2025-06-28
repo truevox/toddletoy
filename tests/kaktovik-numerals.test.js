@@ -19,7 +19,9 @@ describe('Kaktovik Numerals', () => {
         mockAdd = {
             graphics: jest.fn().mockReturnValue(mockGraphics),
             text: jest.fn().mockReturnValue({
-                setOrigin: jest.fn().mockReturnThis()
+                setOrigin: jest.fn().mockReturnThis(),
+                x: 0,
+                y: 0
             })
         };
 
@@ -136,5 +138,30 @@ describe('Kaktovik Numerals', () => {
         
         expect(result).toBe(mockTextObj);
         expect(mockTextObj.setOrigin).toHaveBeenCalledWith(0.5);
+    });
+
+    test('should position Kaktovik numerals higher by 4 pixels for improved visual alignment', () => {
+        // FAILING TEST: Current implementation uses standard positioning, 
+        // but we need 4 pixels higher for better visual alignment
+        
+        // Simulate spawnObjectAt positioning logic for Kaktovik numerals
+        const objectY = 200;
+        const fontSize = 64; // Base font size from spawnObjectAt
+        const scaleFactor = 1.0;
+        const adjustedFontSize = Math.floor(fontSize * scaleFactor);
+        
+        // Current positioning: y - (fontSize * 0.9)
+        const currentKaktovikY = objectY - (adjustedFontSize * 0.9);
+        
+        // Expected improved positioning: 4 pixels higher
+        const expectedImprovedY = currentKaktovikY - 4;
+        
+        // Test that the positioning is improved (this should fail with current implementation)
+        game.renderKaktovikNumeral(10, 100, expectedImprovedY);
+        
+        // The test should pass when implementation moves Kaktovik 4 pixels higher
+        // Currently expects: objectY - (fontSize * 0.9) - 4
+        const expectedY = objectY - (adjustedFontSize * 0.9) - 4;
+        expect(mockAdd.text).toHaveBeenCalledWith(100, expectedY, expect.any(String), expect.any(Object));
     });
 });

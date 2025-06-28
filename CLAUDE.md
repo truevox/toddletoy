@@ -15,16 +15,18 @@ This file configures Claude Code to follow a structured, TDD-first workflow tail
 - Ask Claude to list testable increments (e.g., "spawn object at touch point", "speech Synthesis label output").
 - Use @CLAUDE-TODO.md as your personal todo list. It must be kept up to date.
 - Populate and update /CLAUDE-TODO.md with a structured plan to implement this project, and refer to it reguarlly. Update it indicating what parts are complete as you complete them.
+- Create or update .gitignore as approprate to avoid uploading secrets, test results, dist, libraries/frameworks, etc.
 
 ### 2. TDD Cycle
 Repeat for each feature:
   1. **"Write a failing test"**: Known input → expected behavior.
   2. **Run tests**: Confirm failure.
   3. **Commit tests**.
-  4. **Implement code**: Only what’s needed to pass tests.
-  5. Run tests to confirm **green**.
-  6. **Commit implementation**.
-  7. **Refactor** as needed; repeat cycle :contentReference[oaicite:7]{index=7}.
+  4. **Implement code**: Only what’s needed to pass tests. Do not cheat and edit the tests to make them pass. The only reason to change a test is if it's effectively not testing the right thing (and, for the record, a broken test is absolutely an example of a test not testing the right thing (as it's effectively testing nothing!)).
+  5. **Wide and shallow** - Code files roughly kept under 300 lines, refactor when they grow too large - seperateion of concerns, nice and modular and modern.
+  6. Run tests to confirm **green**.
+  7. **Commit implementation**.
+  8. **Refactor** as needed; repeat cycle :contentReference[oaicite:7]{index=7}.
 
 ### 3. Visual/UI Iteration
 - After basic behavior works, ask Claude to provide screenshots or visual mockups.
@@ -56,6 +58,9 @@ Examples:
 - **/ci:run-all**  
   Run full test + lint suite + build.
 
+- **/wakeup**
+  Refamiliarize yourself with this document (CLAUDE.md) and your todo document, CLAUDE-TODO.md.
+
 Each command uses `$ARGUMENTS` for flexibility :contentReference[oaicite:10]{index=10}.
 
 ---
@@ -75,4 +80,4 @@ Each command uses `$ARGUMENTS` for flexibility :contentReference[oaicite:10]{ind
 4. Use visual iteration for UI polish  
 5. Create PR with small, verified changes  
 
-Let's build out this project step-by-step.
+Let's build out this project step-by-step. When you're done reading this, please reference CLAUDE-TODO.md.

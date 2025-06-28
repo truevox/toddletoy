@@ -155,9 +155,90 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - [x] Update test coverage documentation in todo list
 - [x] Remove debug logging after successful fix verification
 
-### Current Status 🎯 LAYOUT PRESERVATION COMPLETED - CORE FUNCTIONALITY STABLE
+### Phase 14: Numeral Positioning & Base System Fixes (High Priority) 
 
-**Fully functional enhanced experience with:**
+**Problem**: 
+- Kaktovik numerals need to be positioned a few pixels higher (3-5 pixels above current position)
+- Cistercian numerals need to be positioned even higher (5-10 pixels above current position) 
+- Cistercian font system is incorrectly treating it as base-10 when it should be base-1000 (glyphs combine to form compound numerals)
+
+**Tasks**:
+- [ ] Write failing test for improved Kaktovik numeral vertical positioning
+- [ ] Adjust Kaktovik numeral Y offset in renderKaktovikNumeral function
+- [ ] Write failing test for improved Cistercian numeral vertical positioning  
+- [ ] Adjust Cistercian numeral Y offset in renderCistercianNumeral function
+- [ ] Write failing test for proper Cistercian base-1000 glyph combination
+- [ ] Fix Cistercian numeral rendering to use proper base-1000 character combination logic
+- [ ] Update component layout system to handle new positioning offsets
+- [ ] Run tests to ensure positioning fixes work correctly
+- [ ] Test visual alignment with browser testing
+
+**Expected Outcome**: 
+- Kaktovik numerals appear 3-5 pixels higher than current position
+- Cistercian numerals appear 5-10 pixels higher than current position  
+- Cistercian numerals properly combine glyphs for compound numbers (e.g., "1qdb 2grm" creates two combined glyphs with space between)
+
+### Phase 15: Configuration Page System (High Priority) 🎯 IN PROGRESS
+
+**Goal**: Create an intuitive configuration interface that loads by default and allows customization of toy content and complexity.
+
+#### Phase 15.1: Core Infrastructure ✅ COMPLETED
+- [x] Create routing system with Router.js and routes.js
+- [x] Build basic ConfigScreen component structure
+- [x] Implement ConfigManager with localStorage persistence  
+- [x] Update main.js to load config first (default route)
+- [x] Add admin route (/admin) for config access
+
+#### Phase 15.2: Configuration Interface (High Priority)
+- [ ] Build content category controls with clear annotations
+- [ ] Implement number range validation with smart auto-adjustment
+- [ ] Add emoji subcategory selection with up to 3 categories per item
+- [ ] Create color category system (primary/secondary/neutral)
+- [ ] Add language selection interface
+- [ ] Implement weight sliders with "How often?" labels
+
+#### Phase 15.3: Enhanced Data Structure ✅ COMPLETED
+- [x] Update emojis.json with categories and colors (up to 3 categories, up to 2 colors)
+- [x] Update things.json with color categorization system
+- [x] Create comprehensive category mapping for all content types
+- [x] Implement multi-category support in data structure
+- [x] Add language support structure for future translations
+
+#### Phase 15.4: Game Integration (High Priority)
+- [ ] Modify spawnObjectAt() to use config-based weighted selection
+- [ ] Implement selectSpawnType() method using configuration weights
+- [ ] Update content filtering based on enabled categories and colors
+- [ ] Test configuration → game engine communication
+
+#### Phase 15.5: User Experience Polish (Medium Priority)
+- [ ] Add responsive design for mobile/tablet/desktop
+- [ ] Implement accessibility features (ARIA labels, keyboard nav)
+- [ ] Create helpful annotations and examples for each section
+- [ ] Add preview functionality and hover effects
+- [ ] Implement skip-config functionality
+
+#### Phase 15.6: Testing & Documentation (Medium Priority)
+- [ ] Write unit tests for configuration validation logic
+- [ ] Create browser tests for configuration interface
+- [ ] Update README.md with configuration system documentation
+- [ ] Test cross-device compatibility
+
+#### Phase 15.7: Future Language Support (Low Priority)
+- [ ] Add translations for Mandarin Chinese (中文)
+- [ ] Add translations for Hindi (हिन्दी)
+- [ ] Add translations for Modern Standard Arabic (العربية)
+- [ ] Add translations for French (Français)
+- [ ] Add translations for Bengali (বাংলা)
+- [ ] Add translations for Portuguese (Português)
+- [ ] Add translations for Russian (Русский)
+- [ ] Add translations for Indonesian (Bahasa Indonesia)
+- [ ] Add translations for Klingon (tlhIngan Hol) - fun language
+- [ ] Add translations for Lojban (la .lojban.) - fun language
+- [ ] Add translations for Esperanto (Esperanto) - fun language
+
+### Current Status 🎯 CONFIGURATION SYSTEM DEVELOPMENT
+
+**Previously completed enhanced experience with:**
 - Touch/click, keyboard, and gamepad interactions with advanced input mechanics
 - Object dragging with click-during-speech support and smooth lerp movement
 - Multi-key keyboard interpolation and hold/release handling
@@ -197,6 +278,7 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - Following TDD: Write failing test first, implement minimal code to pass, commit, repeat
 - Each feature tested independently
 - Code files kept under 300 lines
+- Need to develop an optional "Grid" mode that makes a grid (larger or smaller depending on screen size) with an array of things for the baby to poke and make voice. Things don't move in grid mode.Must discuss.
 - Frequent commits with clear messages
 - All tests passing ✅
 - Ready for core functionality deployment, enhancement phases in progress

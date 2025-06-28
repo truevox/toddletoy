@@ -1,4 +1,5 @@
 import Phaser from 'phaser'
+import { ConfigManager } from './config/ConfigManager.js'
 
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -25,6 +26,9 @@ class GameScene extends Phaser.Scene {
     create() {
         // Version logging for troubleshooting  
         console.log('🎯 TODDLER TOY v2.1.2 - Layout Fix Complete - Build:', new Date().toISOString());
+        
+        // Initialize configuration manager
+        this.configManager = new ConfigManager();
         
         // Create particle texture first
         this.createParticleTexture();
@@ -108,7 +112,7 @@ class GameScene extends Phaser.Scene {
         }
     }
     
-    checkKeyboardInput() {
+    async checkKeyboardInput() {
         // Check if any of our mapped keys are currently down
         const keyMapping = {
             'Q': 'KeyQ', 'W': 'KeyW', 'E': 'KeyE',
@@ -140,7 +144,7 @@ class GameScene extends Phaser.Scene {
                     const firstKey = Array.from(this.heldKeys)[0];
                     const position = this.getKeyPosition(firstKey);
                     if (position) {
-                        const obj = this.spawnObjectAt(position.x, position.y, 'random');
+                        const obj = await this.spawnObjectAt(position.x, position.y, 'random');
                         this.speakObjectLabel(obj, 'both');
                         this.generateTone(position.x, position.y, obj.id);
                         this.createSpawnBurst(position.x, position.y);
@@ -157,7 +161,7 @@ class GameScene extends Phaser.Scene {
         }
     }
 
-    onPointerDown(pointer) {
+    async onPointerDown(pointer) {
         this.pointerIsDown = true;
         
         // Check if we hit an existing object
@@ -180,7 +184,7 @@ class GameScene extends Phaser.Scene {
             this.startHoldTimer(hitObject);
         } else if (!this.isDragging && !this.isSpeaking) {
             // Spawn new object only if not currently dragging AND not speaking
-            const obj = this.spawnObjectAt(pointer.x, pointer.y, 'random');
+            const obj = await this.spawnObjectAt(pointer.x, pointer.y, 'random');
             this.speakObjectLabel(obj, 'both');
             this.generateTone(pointer.x, pointer.y, obj.id);
             this.createSpawnBurst(pointer.x, pointer.y);
@@ -325,6 +329,12 @@ class GameScene extends Phaser.Scene {
                 const offset = obj.componentLayout.binaryHearts;
                 obj.binaryHearts.setPosition(targetX + offset.offsetX, targetY + offset.offsetY);
             }
+            
+            // Update Cistercian numeral using stored relative position
+            if (obj.cistercianNumeral && obj.componentLayout.cistercianNumeral) {
+                const offset = obj.componentLayout.cistercianNumeral;
+                obj.cistercianNumeral.setPosition(targetX + offset.offsetX, targetY + offset.offsetY);
+            }
         } else {
             // FALLBACK: Use old hardcoded method if no component layout stored
             // This ensures backward compatibility with objects created before the fix
@@ -336,11 +346,17 @@ class GameScene extends Phaser.Scene {
             }
             
             if (obj.kaktovikNumeral) {
-                obj.kaktovikNumeral.setPosition(targetX, targetY - 60);
+                // Use new improved positioning: original was targetY - 60, now 4 pixels higher
+                obj.kaktovikNumeral.setPosition(targetX, targetY - 64);
             }
             
             if (obj.binaryHearts) {
                 obj.binaryHearts.setPosition(targetX, targetY - 30);
+            }
+            
+            if (obj.cistercianNumeral) {
+                // Use new improved positioning: 100 pixels higher (was 80, now 100)
+                obj.cistercianNumeral.setPosition(targetX, targetY - 100);
             }
         }
         
@@ -355,10 +371,6 @@ class GameScene extends Phaser.Scene {
             }
         }
         
-        // Update Cistercian numeral position (currently disabled)
-        if (obj.cistercianNumeral) {
-            obj.cistercianNumeral.setPosition(targetX, targetY - 80);
-        }
     }
 
     repositionWordObjects(wordObjects, centerX, y) {
@@ -425,17 +437,16 @@ class GameScene extends Phaser.Scene {
         }
     }
 
-    spawnObjectAt(x, y, type = 'random') {
+    async spawnObjectAt(x, y, type = 'random') {
         let selectedItem;
         
         if (type === 'random') {
-            // Randomly choose between emoji, shape, letter, or number
-            const types = ['emoji', 'shape', 'letter', 'number'];
-            type = types[Math.floor(Math.random() * types.length)];
+            // Use configuration-based weighted selection
+            type = this.selectSpawnType();
         }
         
         if (type === 'emoji') {
-            selectedItem = this.getRandomEmoji();
+            selectedItem = await this.getRandomEmoji();
         } else if (type === 'shape') {
             selectedItem = this.getRandomShape();
         } else if (type === 'letter') {
@@ -444,7 +455,7 @@ class GameScene extends Phaser.Scene {
             selectedItem = this.getRandomNumber();
         } else {
             // Fallback to emoji
-            selectedItem = this.getRandomEmoji();
+            selectedItem = await this.getRandomEmoji();
         }
         
         // Create visual object
@@ -488,10 +499,11 @@ class GameScene extends Phaser.Scene {
         obj.sprite = objectText;
         
         // Add Kaktovik numeral above numbers as per design specification (using safe position)
+        // Positioning improved: moved 4 pixels higher for better visual alignment
         if (type === 'number') {
             const numberValue = parseInt(selectedItem.symbol);
             if (numberValue >= 0) {
-                const kaktovikText = this.renderKaktovikNumeral(numberValue, safeX, safeY - (fontSize * 0.9));
+                const kaktovikText = this.renderKaktovikNumeral(numberValue, safeX, safeY - (fontSize * 0.9) - 4);
                 obj.kaktovikNumeral = kaktovikText;
             }
         }
@@ -527,14 +539,25 @@ class GameScene extends Phaser.Scene {
                     offsetY: obj.binaryHearts.y - safeY
                 };
             }
+            
         }
-        
+
         // Cistercian numerals using font-based rendering
+        // Positioning improved: moved 20 pixels higher for better visual alignment
         if (type === 'number') {
             const numberValue = parseInt(selectedItem.symbol);
             if (numberValue >= 0 && numberValue <= 9999) {
-                const cistercianText = this.renderCistercianNumeral(numberValue, x, y - 80);
+                const cistercianText = this.renderCistercianNumeral(numberValue, safeX, safeY - 100);
                 obj.cistercianNumeral = cistercianText;
+                
+                // Store Cistercian numeral in component layout for this object
+                if (!obj.componentLayout) {
+                    obj.componentLayout = {};
+                }
+                obj.componentLayout.cistercianNumeral = {
+                    offsetX: obj.cistercianNumeral.x - safeX,
+                    offsetY: obj.cistercianNumeral.y - safeY
+                };
             }
         }
         
@@ -547,68 +570,66 @@ class GameScene extends Phaser.Scene {
         return obj;
     }
 
-    getRandomEmoji() {
-        // Load from emojis.json data
-        const emojis = [
-            {"emoji":"🐶","en":"Dog","es":"Perro","type":"emoji"},
-            {"emoji":"🐱","en":"Cat","es":"Gato","type":"emoji"},
-            {"emoji":"🐭","en":"Mouse","es":"Ratón","type":"emoji"},
-            {"emoji":"🐹","en":"Hamster","es":"Hámster","type":"emoji"},
-            {"emoji":"🐰","en":"Rabbit","es":"Conejo","type":"emoji"},
-            {"emoji":"🦊","en":"Fox","es":"Zorro","type":"emoji"},
-            {"emoji":"🐻","en":"Bear","es":"Oso","type":"emoji"},
-            {"emoji":"🐼","en":"Panda","es":"Panda","type":"emoji"},
-            {"emoji":"🐨","en":"Koala","es":"Koala","type":"emoji"},
-            {"emoji":"🐯","en":"Tiger","es":"Tigre","type":"emoji"},
-            {"emoji":"🦁","en":"Lion","es":"León","type":"emoji"},
-            {"emoji":"🐮","en":"Cow","es":"Vaca","type":"emoji"},
-            {"emoji":"🐷","en":"Pig","es":"Cerdo","type":"emoji"},
-            {"emoji":"🐸","en":"Frog","es":"Rana","type":"emoji"},
-            {"emoji":"🐵","en":"Monkey","es":"Mono","type":"emoji"},
-            {"emoji":"🐔","en":"Chicken","es":"Gallina","type":"emoji"},
-            {"emoji":"🐤","en":"Chick","es":"Pollito","type":"emoji"},
-            {"emoji":"🦆","en":"Duck","es":"Pato","type":"emoji"},
-            {"emoji":"🐴","en":"Horse","es":"Caballo","type":"emoji"},
-            {"emoji":"🦄","en":"Unicorn","es":"Unicornio","type":"emoji"},
-            {"emoji":"🐢","en":"Turtle","es":"Tortuga","type":"emoji"},
-            {"emoji":"🐛","en":"Caterpillar","es":"Oruga","type":"emoji"},
-            {"emoji":"🦋","en":"Butterfly","es":"Mariposa","type":"emoji"},
-            {"emoji":"🐝","en":"Bee","es":"Abeja","type":"emoji"},
-            {"emoji":"🐞","en":"Ladybug","es":"Mariquita","type":"emoji"},
-            {"emoji":"🐠","en":"Fish","es":"Pez","type":"emoji"},
-            {"emoji":"🐳","en":"Whale","es":"Ballena","type":"emoji"},
-            {"emoji":"🐬","en":"Dolphin","es":"Delfín","type":"emoji"},
-            {"emoji":"🦀","en":"Crab","es":"Cangrejo","type":"emoji"},
-            {"emoji":"🐙","en":"Octopus","es":"Pulpo","type":"emoji"},
-            {"emoji":"🚗","en":"Car","es":"Coche","type":"emoji"},
-            {"emoji":"🚂","en":"Train","es":"Tren","type":"emoji"},
-            {"emoji":"✈️","en":"Airplane","es":"Avión","type":"emoji"},
-            {"emoji":"🚀","en":"Rocket","es":"Cohete","type":"emoji"},
-            {"emoji":"🍎","en":"Apple","es":"Manzana","type":"emoji"},
-            {"emoji":"🍌","en":"Banana","es":"Banana","type":"emoji"},
-            {"emoji":"🍓","en":"Strawberry","es":"Fresa","type":"emoji"},
-            {"emoji":"🍇","en":"Grapes","es":"Uvas","type":"emoji"},
-            {"emoji":"🍉","en":"Watermelon","es":"Sandía","type":"emoji"},
-            {"emoji":"🍕","en":"Pizza","es":"Pizza","type":"emoji"},
-            {"emoji":"🍦","en":"Ice Cream","es":"Helado","type":"emoji"},
-            {"emoji":"🍪","en":"Cookie","es":"Galleta","type":"emoji"},
-            {"emoji":"🍼","en":"Bottle","es":"Biberón","type":"emoji"},
-            {"emoji":"🎈","en":"Balloon","es":"Globo","type":"emoji"},
-            {"emoji":"🎁","en":"Gift","es":"Regalo","type":"emoji"},
-            {"emoji":"🧸","en":"Teddy Bear","es":"Osito","type":"emoji"},
-            {"emoji":"🎵","en":"Music Note","es":"Nota","type":"emoji"},
-            {"emoji":"🎶","en":"Music Notes","es":"Notas","type":"emoji"},
-            {"emoji":"😀","en":"Happy Face","es":"Cara Feliz","type":"emoji"},
-            {"emoji":"😃","en":"Big Eyes","es":"Ojos Grandes","type":"emoji"},
-            {"emoji":"😊","en":"Smiling Eyes","es":"Ojos Felices","type":"emoji"},
-            {"emoji":"😎","en":"Cool Face","es":"Cara Cool","type":"emoji"},
-            {"emoji":"😍","en":"Heart Eyes","es":"Ojos Corazón","type":"emoji"},
-            {"emoji":"😢","en":"Sad Face","es":"Cara Triste","type":"emoji"},
-            {"emoji":"😡","en":"Angry Face","es":"Cara Enfadada","type":"emoji"},
-            {"emoji":"😂","en":"Laughing Face","es":"Cara Riendo","type":"emoji"},
-            {"emoji":"❤️","en":"Red Heart","es":"Corazón Rojo","type":"emoji"}
-        ];
-        return emojis[Math.floor(Math.random() * emojis.length)];
+    /**
+     * Select object type based on configuration weights
+     * Returns: 'emoji', 'shape', 'letter', or 'number'
+     */
+    selectSpawnType() {
+        const contentWeights = this.configManager.getContentWeights();
+        
+        // Build weighted selection array
+        const weightedTypes = [];
+        contentWeights.forEach(item => {
+            // Add type to array based on its probability (0-1)
+            const count = Math.floor(item.probability * 1000); // Scale to integer for selection
+            for (let i = 0; i < count; i++) {
+                weightedTypes.push(item.type);
+            }
+        });
+        
+        // Fallback if no weights configured
+        if (weightedTypes.length === 0) {
+            const fallbackTypes = ['emoji', 'shape', 'letter', 'number'];
+            return fallbackTypes[Math.floor(Math.random() * fallbackTypes.length)];
+        }
+        
+        // Select weighted random type
+        const randomIndex = Math.floor(Math.random() * weightedTypes.length);
+        return weightedTypes[randomIndex];
+    }
+
+    async getRandomEmoji() {
+        // Load filtered emojis based on configuration
+        try {
+            const response = await fetch('/src/emojis.json');
+            const emojiData = await response.json();
+            
+            // Filter emojis based on enabled categories
+            const config = this.configManager.getConfig();
+            const enabledCategories = Object.keys(config.emojiCategories)
+                .filter(category => config.emojiCategories[category].enabled);
+            
+            const filteredEmojis = emojiData.filter(emoji => {
+                // Include emoji if it has at least one enabled category
+                return emoji.categories && emoji.categories.some(cat => enabledCategories.includes(cat));
+            });
+            
+            // Fallback to all emojis if none match filters
+            const availableEmojis = filteredEmojis.length > 0 ? filteredEmojis : emojiData;
+            
+            // Select weighted random emoji based on category weights
+            if (availableEmojis.length === 0) {
+                // Ultimate fallback
+                return {"emoji":"🐶","en":"Dog","es":"Perro","type":"emoji"};
+            }
+            
+            // For now, simple random selection (can be enhanced with category weighting later)
+            return availableEmojis[Math.floor(Math.random() * availableEmojis.length)];
+            
+        } catch (error) {
+            console.warn('Failed to load emojis.json, using fallback:', error);
+            return {"emoji":"🐶","en":"Dog","es":"Perro","type":"emoji"};
+        }
     }
 
     getRandomShape() {
@@ -1395,18 +1416,30 @@ class GameScene extends Phaser.Scene {
         return sign * scaledValue;
     }
 
-    getCistercianKeyMapping(digit) {
-        // Maps digits 1-9 to QWERTY keyboard characters for Cistercian font
-        // Based on font documentation: 1-0, q-[, a-[, z-/ represent the 4 corners
-        const mapping = {
-            1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9',
-            0: '0'  // 0 maps to the blank/central line
-        };
-        return mapping[digit] || '0';
+    getCistercianKeyMapping(digit, position) {
+        // Cistercian font uses different key sections for different positions
+        // Position: 'units' (1-9,0), 'tens' (q-p), 'hundreds' (a-;), 'thousands' (z-/)
+        // Based on keyboard layout in the font documentation
+        
+        if (position === 'units') {
+            const mapping = { 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9', 0: '0' };
+            return mapping[digit] || '0';
+        } else if (position === 'tens') {
+            const mapping = { 1: 'q', 2: 'w', 3: 'e', 4: 'r', 5: 't', 6: 'y', 7: 'u', 8: 'i', 9: 'o', 0: 'p' };
+            return mapping[digit] || 'p';
+        } else if (position === 'hundreds') {
+            const mapping = { 1: 'a', 2: 's', 3: 'd', 4: 'f', 5: 'g', 6: 'h', 7: 'j', 8: 'k', 9: 'l', 0: ';' };
+            return mapping[digit] || ';';
+        } else if (position === 'thousands') {
+            const mapping = { 1: 'z', 2: 'x', 3: 'c', 4: 'v', 5: 'b', 6: 'n', 7: 'm', 8: ',', 9: '.', 0: '/' };
+            return mapping[digit] || '/';
+        }
+        return '0';
     }
     
     renderCistercianNumeral(number, x, y) {
         // Font-based Cistercian numeral rendering using Cistercian QWERTY font
+        // Cistercian numerals are base-1000 with compound glyph formation
         if (number === 0) {
             // For zero, just show the central vertical line character
             return this.add.text(x, y, '0', {
@@ -1423,18 +1456,18 @@ class GameScene extends Phaser.Scene {
         const hundreds = Math.floor((number % 1000) / 100);
         const thousands = Math.floor(number / 1000);
         
-        // Build the Cistercian character combination
+        // Build the Cistercian compound glyph using position-aware character mapping
+        // CRITICAL: Order must be units→tens→hundreds→thousands (least to most significant)
+        // CRITICAL: Always start with units (from number row), omit zeros except for units
         let cistercianChars = '';
         
-        // Add characters for each position that has a non-zero value
-        // The font combines characters to create the full numeral
-        if (thousands > 0) cistercianChars += this.getCistercianKeyMapping(thousands);
-        if (hundreds > 0) cistercianChars += this.getCistercianKeyMapping(hundreds);
-        if (tens > 0) cistercianChars += this.getCistercianKeyMapping(tens);
-        if (units > 0) cistercianChars += this.getCistercianKeyMapping(units);
+        // Always include units digit (from number row 0-9)
+        cistercianChars += this.getCistercianKeyMapping(units, 'units');
         
-        // If no digits, show the base character (central line)
-        if (cistercianChars === '') cistercianChars = '0';
+        // Add tens, hundreds, thousands only if non-zero (omit zero positions)
+        if (tens > 0) cistercianChars += this.getCistercianKeyMapping(tens, 'tens');
+        if (hundreds > 0) cistercianChars += this.getCistercianKeyMapping(hundreds, 'hundreds');
+        if (thousands > 0) cistercianChars += this.getCistercianKeyMapping(thousands, 'thousands');
         
         return this.add.text(x, y, cistercianChars, {
             fontSize: '32px',

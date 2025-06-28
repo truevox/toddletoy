@@ -1,5 +1,5 @@
 import Phaser from 'phaser'
-import { ToddlerToyGame } from './game.js'
+import { AppRoutes } from './routes/routes.js'
 
 // Register service worker for PWA functionality
 if ('serviceWorker' in navigator) {
@@ -25,8 +25,15 @@ if ('serviceWorker' in navigator) {
     });
 }
 
-// Start the game when DOM is loaded
+// Start the application with routing when DOM is loaded
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('Starting Toddler Toy Game v3 with full keyboard support');
-    new ToddlerToyGame();
+    console.log('Starting ToddleToy v4.0 with Configuration System - Build:', new Date().toISOString());
+    
+    // Initialize routing system
+    window.appRoutes = new AppRoutes();
+    
+    // Expose for debugging
+    window.configManager = window.appRoutes.getConfigManager();
+    
+    console.log('✅ Application initialized with routing and configuration system');
 });

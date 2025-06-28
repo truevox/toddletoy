@@ -63,6 +63,13 @@ temp/
 /test-results/
 /playwright-report/
 /playwright/.cache/
+# Playwright visual test snapshots and diffs
+tests/**/*-snapshots/
+tests/**/*-actual.png
+tests/**/*-diff.png
+tests/**/*-expected.png
+# Browser test screenshots
+tests/browser/screenshots/
 
 # Additional build artifacts
 *.tsbuildinfo
