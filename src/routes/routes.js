@@ -58,17 +58,29 @@ export class AppRoutes {
         console.log('Showing config screen');
         this.hideCurrentScreen();
         
-        if (!this.configScreen) {
-            console.log('Creating new ConfigScreen instance');
-            this.configScreen = new ConfigScreen(this.configManager, this.router);
-        }
+        // Test: Add a simple visible element first to debug
+        const testDiv = document.createElement('div');
+        testDiv.id = 'debug-test';
+        testDiv.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: red; z-index: 10000; color: white; padding: 20px; font-size: 24px;';
+        testDiv.innerHTML = 'DEBUG: This proves routing works! Config screen should load here.';
+        document.body.appendChild(testDiv);
         
-        this.configScreen.show();
-        this.currentScreen = 'config';
-        
-        // Update page title
-        document.title = 'ToddleToy - Configure';
-        console.log('Config screen should now be visible');
+        // Remove test div after 2 seconds and show real config
+        setTimeout(() => {
+            document.body.removeChild(testDiv);
+            
+            if (!this.configScreen) {
+                console.log('Creating new ConfigScreen instance');
+                this.configScreen = new ConfigScreen(this.configManager, this.router);
+            }
+            
+            this.configScreen.show();
+            this.currentScreen = 'config';
+            
+            // Update page title
+            document.title = 'ToddleToy - Configure';
+            console.log('Config screen should now be visible');
+        }, 2000);
     }
 
     /**
