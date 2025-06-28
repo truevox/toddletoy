@@ -34,7 +34,7 @@ export class ConfigManager {
                 secondary: { enabled: true, weight: 35 },  // Green, Orange, Purple  
                 neutral: { enabled: false, weight: 15 }    // Black, White, Brown, Gray
             },
-            language: 'bilingual', // 'en', 'es', 'bilingual'
+            language: 'bilingual', // 'en', 'es', 'bilingual', 'zh', 'hi', 'ar', 'fr', 'bn', 'pt', 'ru', 'id', 'tlh', 'jbo', 'eo'
             advanced: {
                 skipConfig: false,
                 numberModes: { 

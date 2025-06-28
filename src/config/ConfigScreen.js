@@ -310,19 +310,77 @@ export class ConfigScreen {
                 <p class="section-help">Choose how words are spoken and displayed.</p>
                 
                 <div class="language-options">
-                    <label class="language-option">
-                        <input type="radio" name="language" value="en" id="language-en">
-                        🇺🇸 English Only
-                    </label>
-                    <label class="language-option">
-                        <input type="radio" name="language" value="es" id="language-es">
-                        🇪🇸 Spanish Only
-                    </label>
-                    <label class="language-option">
-                        <input type="radio" name="language" value="bilingual" id="language-bilingual" checked>
-                        🌍 Both Languages
-                        <span class="language-note">Child hears words in both English and Spanish</span>
-                    </label>
+                    <div class="language-group">
+                        <h3 class="language-group-title">Primary Languages</h3>
+                        <label class="language-option">
+                            <input type="radio" name="language" value="en" id="language-en">
+                            🇺🇸 English Only
+                        </label>
+                        <label class="language-option">
+                            <input type="radio" name="language" value="es" id="language-es">
+                            🇪🇸 Spanish Only
+                        </label>
+                        <label class="language-option">
+                            <input type="radio" name="language" value="bilingual" id="language-bilingual" checked>
+                            🌍 Both English & Spanish
+                            <span class="language-note">Child hears words in both English and Spanish</span>
+                        </label>
+                    </div>
+
+                    <div class="language-group">
+                        <h3 class="language-group-title">World Languages</h3>
+                        <label class="language-option">
+                            <input type="radio" name="language" value="zh" id="language-zh">
+                            🇨🇳 Mandarin Chinese (中文)
+                        </label>
+                        <label class="language-option">
+                            <input type="radio" name="language" value="hi" id="language-hi">
+                            🇮🇳 Hindi (हिन्दी)
+                        </label>
+                        <label class="language-option">
+                            <input type="radio" name="language" value="ar" id="language-ar">
+                            🇸🇦 Arabic (العربية)
+                        </label>
+                        <label class="language-option">
+                            <input type="radio" name="language" value="fr" id="language-fr">
+                            🇫🇷 French (Français)
+                        </label>
+                        <label class="language-option">
+                            <input type="radio" name="language" value="bn" id="language-bn">
+                            🇧🇩 Bengali (বাংলা)
+                        </label>
+                        <label class="language-option">
+                            <input type="radio" name="language" value="pt" id="language-pt">
+                            🇵🇹 Portuguese (Português)
+                        </label>
+                        <label class="language-option">
+                            <input type="radio" name="language" value="ru" id="language-ru">
+                            🇷🇺 Russian (Русский)
+                        </label>
+                        <label class="language-option">
+                            <input type="radio" name="language" value="id" id="language-id">
+                            🇮🇩 Indonesian (Bahasa Indonesia)
+                        </label>
+                    </div>
+
+                    <div class="language-group">
+                        <h3 class="language-group-title">Fun Languages</h3>
+                        <label class="language-option">
+                            <input type="radio" name="language" value="tlh" id="language-tlh">
+                            🖖 Klingon (tlhIngan Hol)
+                            <span class="language-note">From Star Trek - logical language!</span>
+                        </label>
+                        <label class="language-option">
+                            <input type="radio" name="language" value="jbo" id="language-jbo">
+                            🤖 Lojban (la .lojban.)
+                            <span class="language-note">Constructed logical language</span>
+                        </label>
+                        <label class="language-option">
+                            <input type="radio" name="language" value="eo" id="language-eo">
+                            🌟 Esperanto
+                            <span class="language-note">International auxiliary language</span>
+                        </label>
+                    </div>
                 </div>
             </section>
         `;
@@ -540,7 +598,21 @@ export class ConfigScreen {
             .language-options {
                 display: flex;
                 flex-direction: column;
-                gap: 15px;
+                gap: 25px;
+            }
+
+            .language-group {
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 12px;
+                padding: 20px;
+                border-left: 4px solid #4CAF50;
+            }
+
+            .language-group-title {
+                font-size: 1.2rem;
+                font-weight: bold;
+                margin: 0 0 15px 0;
+                color: #4CAF50;
             }
 
             .language-option {
@@ -549,8 +621,14 @@ export class ConfigScreen {
                 font-size: 1.1rem;
                 cursor: pointer;
                 padding: 10px;
+                margin-bottom: 8px;
                 border-radius: 8px;
                 background: rgba(255, 255, 255, 0.1);
+                transition: background-color 0.2s;
+            }
+
+            .language-option:hover {
+                background: rgba(255, 255, 255, 0.15);
             }
 
             .language-option input {

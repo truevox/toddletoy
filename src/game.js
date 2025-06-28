@@ -854,14 +854,46 @@ class GameScene extends Phaser.Scene {
         const data = obj.data;
         let textsToSpeak = [];
         
+        // Get language setting from config
+        const configLanguage = this.configManager ? this.configManager.getLanguage() : 'bilingual';
+        const actualLanguage = language === 'both' ? configLanguage : language;
+        
         // Determine what to speak based on language parameter
-        if (language === 'en') {
+        if (actualLanguage === 'en') {
             textsToSpeak = [data.en];
-        } else if (language === 'es') {
+        } else if (actualLanguage === 'es') {
             textsToSpeak = [data.es];
-        } else if (language === 'both') {
+        } else if (actualLanguage === 'zh') {
+            textsToSpeak = [data.zh || data.en]; // Fallback to English if translation missing
+        } else if (actualLanguage === 'hi') {
+            textsToSpeak = [data.hi || data.en];
+        } else if (actualLanguage === 'ar') {
+            textsToSpeak = [data.ar || data.en];
+        } else if (actualLanguage === 'fr') {
+            textsToSpeak = [data.fr || data.en];
+        } else if (actualLanguage === 'bn') {
+            textsToSpeak = [data.bn || data.en];
+        } else if (actualLanguage === 'pt') {
+            textsToSpeak = [data.pt || data.en];
+        } else if (actualLanguage === 'ru') {
+            textsToSpeak = [data.ru || data.en];
+        } else if (actualLanguage === 'id') {
+            textsToSpeak = [data.id || data.en];
+        } else if (actualLanguage === 'tlh') {
+            textsToSpeak = [data.tlh || data.en];
+        } else if (actualLanguage === 'jbo') {
+            textsToSpeak = [data.jbo || data.en];
+        } else if (actualLanguage === 'eo') {
+            textsToSpeak = [data.eo || data.en];
+        } else if (actualLanguage === 'bilingual') {
             textsToSpeak = [data.en, data.es];
+        } else {
+            // Default fallback
+            textsToSpeak = [data.en];
         }
+        
+        // Store current language for speech synthesis
+        this.currentLanguage = actualLanguage;
         
         // Speak each text in sequence
         this.speakTextSequence(textsToSpeak, 0);
@@ -880,7 +912,31 @@ class GameScene extends Phaser.Scene {
         }
         
         const utterance = new SpeechSynthesisUtterance(texts[index]);
-        utterance.lang = index === 0 ? 'en-US' : 'es-ES';
+        
+        // Map language codes to Web Speech API language tags
+        const languageMap = {
+            'en': 'en-US',
+            'es': 'es-ES', 
+            'zh': 'zh-CN',
+            'hi': 'hi-IN',
+            'ar': 'ar-SA',
+            'fr': 'fr-FR',
+            'bn': 'bn-BD',
+            'pt': 'pt-PT',
+            'ru': 'ru-RU',
+            'id': 'id-ID',
+            'tlh': 'en-US', // Klingon falls back to English
+            'jbo': 'en-US', // Lojban falls back to English  
+            'eo': 'eo'      // Esperanto
+        };
+        
+        // For bilingual mode, alternate between English and Spanish
+        if (this.currentLanguage === 'bilingual') {
+            utterance.lang = index === 0 ? 'en-US' : 'es-ES';
+        } else {
+            utterance.lang = languageMap[this.currentLanguage] || 'en-US';
+        }
+        
         utterance.rate = 0.8;
         utterance.volume = 0.7;
         
@@ -925,6 +981,9 @@ class GameScene extends Phaser.Scene {
         const x = obj.x;
         const y = obj.y;
         
+        // Get current language setting
+        const configLanguage = this.configManager ? this.configManager.getLanguage() : 'bilingual';
+        
         // Text style for labels with responsive sizing
         const screenWidth = this.scale.width || window.innerWidth || 800;
         const screenHeight = this.scale.height || window.innerHeight || 600;
@@ -941,12 +1000,24 @@ class GameScene extends Phaser.Scene {
             strokeThickness: Math.max(1, Math.floor(2 * scaleFactor))
         };
         
-        // Create individual word objects for English text with responsive positioning
         const labelOffset = Math.floor(60 * scaleFactor);
-        const englishWords = this.createWordObjects(data.en, x, y + labelOffset, labelStyle);
+        let englishWords = [];
+        let spanishWords = [];
         
-        // Create individual word objects for Spanish text with responsive positioning
-        const spanishWords = this.createWordObjects(data.es, x, y + labelOffset + Math.floor(30 * scaleFactor), labelStyle);
+        // Create text based on language setting
+        if (configLanguage === 'bilingual') {
+            // Show both English and Spanish (original behavior)
+            englishWords = this.createWordObjects(data.en, x, y + labelOffset, labelStyle);
+            spanishWords = this.createWordObjects(data.es, x, y + labelOffset + Math.floor(30 * scaleFactor), labelStyle);
+        } else if (configLanguage === 'en') {
+            englishWords = this.createWordObjects(data.en, x, y + labelOffset, labelStyle);
+        } else if (configLanguage === 'es') {
+            spanishWords = this.createWordObjects(data.es, x, y + labelOffset, labelStyle);
+        } else {
+            // For other languages, show in the primary position with fallback to English
+            const text = data[configLanguage] || data.en;
+            englishWords = this.createWordObjects(text, x, y + labelOffset, labelStyle);
+        }
         
         // Store references to word objects for cleanup and animation
         obj.englishWords = englishWords;

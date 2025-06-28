@@ -1,8 +1,8 @@
 [
-  {"emoji":"🐶","en":"Dog","es":"Perro","type":"emoji","categories":["animals","nature"],"colors":["brown"]},
-  {"emoji":"🐱","en":"Cat","es":"Gato","type":"emoji","categories":["animals","nature"],"colors":["gray"]},
-  {"emoji":"🐭","en":"Mouse","es":"Ratón","type":"emoji","categories":["animals","nature"],"colors":["gray"]},
-  {"emoji":"🐹","en":"Hamster","es":"Hámster","type":"emoji","categories":["animals","nature"],"colors":["brown"]},
+  {"emoji":"🐶","en":"Dog","es":"Perro","zh":"狗","hi":"कुत्ता","ar":"كلب","fr":"Chien","bn":"কুকুর","pt":"Cão","ru":"Собака","id":"Anjing","tlh":"Ha'DIbaH","jbo":"gerku","eo":"Hundo","type":"emoji","categories":["animals","nature"],"colors":["brown"]},
+  {"emoji":"🐱","en":"Cat","es":"Gato","zh":"猫","hi":"बिल्ली","ar":"قطة","fr":"Chat","bn":"বিড়াল","pt":"Gato","ru":"Кот","id":"Kucing","tlh":"vIghro'","jbo":"mlatu","eo":"Kato","type":"emoji","categories":["animals","nature"],"colors":["gray"]},
+  {"emoji":"🐭","en":"Mouse","es":"Ratón","zh":"老鼠","hi":"चूहा","ar":"فأر","fr":"Souris","bn":"ইঁদুর","pt":"Rato","ru":"Мышь","id":"Tikus","tlh":"nas","jbo":"smacu","eo":"Muso","type":"emoji","categories":["animals","nature"],"colors":["gray"]},
+  {"emoji":"🐹","en":"Hamster","es":"Hámster","zh":"仓鼠","hi":"हैम्स्टर","ar":"همستر","fr":"Hamster","bn":"হ্যামস্টার","pt":"Hamster","ru":"Хомяк","id":"Hamster","tlh":"jup","jbo":"ratcu","eo":"Hamstro","type":"emoji","categories":["animals","nature"],"colors":["brown"]},
   {"emoji":"🐰","en":"Rabbit","es":"Conejo","type":"emoji","categories":["animals","nature"],"colors":["white"]},
   {"emoji":"🦊","en":"Fox","es":"Zorro","type":"emoji","categories":["animals","nature"],"colors":["orange"]},
   {"emoji":"🐻","en":"Bear","es":"Oso","type":"emoji","categories":["animals","nature"],"colors":["brown"]},
