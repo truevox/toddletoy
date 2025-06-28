@@ -2003,82 +2003,6 @@ class GameScene extends Phaser.Scene {
             });
         }
     }
-}
-
-export class ToddlerToyGame {
-    constructor() {
-        this.config = {
-            type: Phaser.AUTO,
-            width: window.innerWidth,
-            height: window.innerHeight,
-            parent: 'game-container',
-            scene: GameScene,
-            scale: {
-                mode: Phaser.Scale.RESIZE,
-                autoCenter: Phaser.Scale.CENTER_BOTH,
-                min: {
-                    width: 320,
-                    height: 240
-                },
-                max: {
-                    width: 1920,
-                    height: 1080
-                },
-                zoom: 1
-            },
-            physics: {
-                default: 'arcade',
-                arcade: {
-                    gravity: { y: 0 },
-                    debug: false
-                }
-            }
-        };
-        
-        this.game = new Phaser.Game(this.config);
-        
-        // Add window resize handler for responsive scaling
-        window.addEventListener('resize', () => {
-            this.handleResize();
-        });
-        
-        // Handle orientation changes for mobile
-        window.addEventListener('orientationchange', () => {
-            setTimeout(() => {
-                this.handleResize();
-            }, 100);
-        });
-    }
-    
-    handleResize() {
-        const canvas = this.game.canvas;
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-        
-        // Calculate scale factor for responsive design
-        const baseWidth = 800;
-        const baseHeight = 600;
-        const scaleX = width / baseWidth;
-        const scaleY = height / baseHeight;
-        const scale = Math.min(scaleX, scaleY);
-        
-        // Ensure minimum scale for mobile readability
-        const minScale = 0.5;
-        const finalScale = Math.max(scale, minScale);
-        
-        // Update game size
-        this.game.scale.resize(width, height);
-        
-        // Update canvas styling for better mobile experience
-        if (canvas) {
-            canvas.style.width = width + 'px';
-            canvas.style.height = height + 'px';
-            canvas.style.display = 'block';
-            canvas.style.margin = '0 auto';
-        }
-        
-        console.log(`Resized to ${width}x${height}, scale: ${finalScale}`);
-    }
 
     /**
      * Initialize auto-cleanup timer system
@@ -2272,6 +2196,82 @@ export class ToddlerToyGame {
         if (obj) {
             obj.lastTouchedTime = Date.now();
         }
+    }
+}
+
+export class ToddlerToyGame {
+    constructor() {
+        this.config = {
+            type: Phaser.AUTO,
+            width: window.innerWidth,
+            height: window.innerHeight,
+            parent: 'game-container',
+            scene: GameScene,
+            scale: {
+                mode: Phaser.Scale.RESIZE,
+                autoCenter: Phaser.Scale.CENTER_BOTH,
+                min: {
+                    width: 320,
+                    height: 240
+                },
+                max: {
+                    width: 1920,
+                    height: 1080
+                },
+                zoom: 1
+            },
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: { y: 0 },
+                    debug: false
+                }
+            }
+        };
+        
+        this.game = new Phaser.Game(this.config);
+        
+        // Add window resize handler for responsive scaling
+        window.addEventListener('resize', () => {
+            this.handleResize();
+        });
+        
+        // Handle orientation changes for mobile
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => {
+                this.handleResize();
+            }, 100);
+        });
+    }
+    
+    handleResize() {
+        const canvas = this.game.canvas;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        
+        // Calculate scale factor for responsive design
+        const baseWidth = 800;
+        const baseHeight = 600;
+        const scaleX = width / baseWidth;
+        const scaleY = height / baseHeight;
+        const scale = Math.min(scaleX, scaleY);
+        
+        // Ensure minimum scale for mobile readability
+        const minScale = 0.5;
+        const finalScale = Math.max(scale, minScale);
+        
+        // Update game size
+        this.game.scale.resize(width, height);
+        
+        // Update canvas styling for better mobile experience
+        if (canvas) {
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+            canvas.style.display = 'block';
+            canvas.style.margin = '0 auto';
+        }
+        
+        console.log(`Resized to ${width}x${height}, scale: ${finalScale}`);
     }
 }
 
