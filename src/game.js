@@ -95,6 +95,9 @@ class GameScene extends Phaser.Scene {
         this.preloadKaktovikFont();
         this.preloadCistercianFont();
         
+        // Initialize auto-cleanup timer system
+        this.initAutoCleanupSystem();
+        
         // Initialization complete - ready for user interaction
         
     }
@@ -110,6 +113,9 @@ class GameScene extends Phaser.Scene {
         if (this.keys) {
             this.checkKeyboardInput();
         }
+        
+        // Check for objects that need auto-cleanup
+        this.checkAutoCleanup();
     }
     
     async checkKeyboardInput() {
@@ -169,6 +175,7 @@ class GameScene extends Phaser.Scene {
         
         if (hitObject && !this.isSpeaking) {
             // Revoice the object if nothing is currently speaking
+            this.updateObjectTouchTime(hitObject); // Reset auto-cleanup timer
             this.speakObjectLabel(hitObject, 'both');
             this.generateTone(pointer.x, pointer.y, hitObject.id);
             // Also start dragging the existing object
@@ -178,6 +185,7 @@ class GameScene extends Phaser.Scene {
             this.startHoldTimer(hitObject);
         } else if (hitObject && this.isSpeaking) {
             // Currently speaking - just start dragging without revoicing
+            this.updateObjectTouchTime(hitObject); // Reset auto-cleanup timer
             this.isDragging = true;
             this.draggedObject = hitObject;
             this.startDragTrail(hitObject);
@@ -191,6 +199,7 @@ class GameScene extends Phaser.Scene {
             this.startHoldTimer(obj);
         } else if (this.isSpeaking && this.currentSpeakingObject) {
             // Move the currently speaking object instead of spawning
+            this.updateObjectTouchTime(this.currentSpeakingObject); // Reset auto-cleanup timer
             this.moveObjectTo(this.currentSpeakingObject, pointer.x, pointer.y, true);
             this.updateTonePosition(pointer.x, pointer.y, this.currentSpeakingObject.id);
             // Set up dragging state for the speaking object to follow mouse
@@ -207,14 +216,17 @@ class GameScene extends Phaser.Scene {
     onPointerMove(pointer) {
         if (this.isDragging && this.draggedObject) {
             // Immediate movement during active dragging
+            this.updateObjectTouchTime(this.draggedObject); // Reset auto-cleanup timer
             this.moveObjectTo(this.draggedObject, pointer.x, pointer.y, false);
             this.updateDragTrail(this.draggedObject, pointer.x, pointer.y);
         } else if (this.isHolding && this.draggedObject) {
             // Smooth movement during auto-drag mode
+            this.updateObjectTouchTime(this.draggedObject); // Reset auto-cleanup timer
             this.moveObjectTo(this.draggedObject, pointer.x, pointer.y, true);
             this.updateDragTrail(this.draggedObject, pointer.x, pointer.y);
         } else if (this.pointerIsDown && this.isSpeaking && this.currentSpeakingObject) {
             // Speaking object follows mouse when pointer is held down during speech
+            this.updateObjectTouchTime(this.currentSpeakingObject); // Reset auto-cleanup timer
             this.moveObjectTo(this.currentSpeakingObject, pointer.x, pointer.y, true);
             this.updateTonePosition(pointer.x, pointer.y, this.currentSpeakingObject.id);
             this.updateDragTrail(this.currentSpeakingObject, pointer.x, pointer.y);
@@ -470,7 +482,8 @@ class GameScene extends Phaser.Scene {
             y: y,
             type: type,
             id: Date.now() + Math.random(),
-            data: selectedItem
+            data: selectedItem,
+            lastTouchedTime: Date.now() // Track when object was last interacted with
         };
         
         // Add to objects array
@@ -826,6 +839,9 @@ class GameScene extends Phaser.Scene {
     speakObjectLabel(obj, language = 'en') {
         if (!obj || !obj.data) return;
         
+        // Reset auto-cleanup timer when object is voiced
+        this.updateObjectTouchTime(obj);
+        
         // Cancel any current speech
         if (this.currentSpeech) {
             speechSynthesis.cancel();
@@ -1150,8 +1166,12 @@ class GameScene extends Phaser.Scene {
                 this.keyboardObject = obj;
             } else if (this.currentSpeakingObject) {
                 // Use the currently speaking object as keyboard object
+                this.updateObjectTouchTime(this.currentSpeakingObject); // Reset auto-cleanup timer
                 this.keyboardObject = this.currentSpeakingObject;
             }
+        } else if (this.keyboardObject) {
+            // Additional key pressed - update touch time
+            this.updateObjectTouchTime(this.keyboardObject);
         }
         
         // Update object position based on interpolated key positions
@@ -1176,6 +1196,9 @@ class GameScene extends Phaser.Scene {
     
     updateKeyboardObjectPosition() {
         if (!this.keyboardObject || this.heldKeys.size === 0) return;
+        
+        // Reset auto-cleanup timer during keyboard movement
+        this.updateObjectTouchTime(this.keyboardObject);
         
         // Calculate interpolated position from all held keys
         const interpolatedPosition = this.getInterpolatedKeyPosition();
@@ -1471,6 +1494,7 @@ class GameScene extends Phaser.Scene {
             this.createSpawnBurst(this.currentGamepadPosition.x, this.currentGamepadPosition.y);
         } else if (this.currentSpeakingObject) {
             // Move the currently speaking object
+            this.updateObjectTouchTime(this.currentSpeakingObject); // Reset auto-cleanup timer
             this.moveObjectTo(this.currentSpeakingObject, this.currentGamepadPosition.x, this.currentGamepadPosition.y);
             this.updateTonePosition(this.currentGamepadPosition.x, this.currentGamepadPosition.y, this.currentSpeakingObject.id);
         }
@@ -2054,6 +2078,200 @@ export class ToddlerToyGame {
         }
         
         console.log(`Resized to ${width}x${height}, scale: ${finalScale}`);
+    }
+
+    /**
+     * Initialize auto-cleanup timer system
+     */
+    initAutoCleanupSystem() {
+        // Auto-cleanup state
+        this.autoCleanupConfig = null;
+        this.lastCleanupCheck = Date.now();
+        this.cleanupCheckInterval = 1000; // Check every second
+        
+        // Load cleanup configuration
+        this.updateAutoCleanupConfig();
+    }
+
+    /**
+     * Update auto-cleanup configuration from ConfigManager
+     */
+    updateAutoCleanupConfig() {
+        if (this.configManager) {
+            this.autoCleanupConfig = this.configManager.getAutoCleanupConfig();
+        } else {
+            // Fallback default configuration
+            this.autoCleanupConfig = {
+                enabled: false,
+                timeoutMinutes: 2
+            };
+        }
+    }
+
+    /**
+     * Check for objects that need auto-cleanup
+     */
+    checkAutoCleanup() {
+        // Only check periodically to avoid performance issues
+        const now = Date.now();
+        if (now - this.lastCleanupCheck < this.cleanupCheckInterval) {
+            return;
+        }
+        this.lastCleanupCheck = now;
+
+        // Refresh config in case it changed
+        this.updateAutoCleanupConfig();
+
+        // Skip if auto-cleanup is disabled
+        if (!this.autoCleanupConfig.enabled) {
+            return;
+        }
+
+        const timeoutMs = this.autoCleanupConfig.timeoutMinutes * 60 * 1000;
+        const objectsToCleanup = [];
+
+        // Find objects that have timed out
+        this.objects.forEach(obj => {
+            const timeSinceLastTouch = now - obj.lastTouchedTime;
+            
+            // Don't cleanup objects that are currently speaking
+            const isCurrentlySpeaking = this.currentSpeakingObject && this.currentSpeakingObject.id === obj.id;
+            
+            if (timeSinceLastTouch > timeoutMs && !isCurrentlySpeaking) {
+                objectsToCleanup.push(obj);
+            }
+        });
+
+        // Clean up timed-out objects
+        objectsToCleanup.forEach(obj => {
+            this.cleanupObjectWithEffects(obj);
+        });
+    }
+
+    /**
+     * Clean up object with cute sound and particle effects
+     */
+    cleanupObjectWithEffects(obj) {
+        console.log(`Auto-cleaning up object ${obj.id} (${obj.type}) after timeout`);
+
+        // Create fireworks particle effect at object position
+        this.createCleanupParticleEffect(obj.x, obj.y);
+
+        // Play cute pop sound effect
+        this.playCleanupSound();
+
+        // Remove object from game
+        this.removeObject(obj);
+    }
+
+    /**
+     * Create celebratory particle effect for cleanup
+     */
+    createCleanupParticleEffect(x, y) {
+        if (!this.textures.exists('particle')) {
+            this.createParticleTexture();
+        }
+
+        // Create multiple bursts of particles for fireworks effect
+        const colors = [0xff6b6b, 0x4ecdc4, 0x45b7d1, 0xf9ca24, 0x6c5ce7, 0xa29bfe, 0xfd79a8, 0x00b894, 0xe17055];
+        
+        for (let burst = 0; burst < 3; burst++) {
+            this.time.delayedCall(burst * 150, () => {
+                const emitter = this.add.particles(x, y, 'particle', {
+                    speed: { min: 50, max: 150 },
+                    scale: { start: 0.8, end: 0 },
+                    tint: colors[Math.floor(Math.random() * colors.length)],
+                    lifespan: 1000,
+                    quantity: 8,
+                    emitZone: { type: 'edge', source: new Phaser.Geom.Circle(0, 0, 5), quantity: 8 }
+                });
+
+                // Clean up emitter after particles expire
+                this.time.delayedCall(1500, () => {
+                    emitter.destroy();
+                });
+            });
+        }
+    }
+
+    /**
+     * Play cute pop sound for cleanup
+     */
+    playCleanupSound() {
+        // Create a pleasant pop sound using Web Audio API
+        if (this.audioContext) {
+            try {
+                const oscillator = this.audioContext.createOscillator();
+                const gainNode = this.audioContext.createGain();
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(this.audioContext.destination);
+                
+                // Create a cheerful pop sound
+                oscillator.frequency.setValueAtTime(800, this.audioContext.currentTime);
+                oscillator.frequency.exponentialRampToValueAtTime(200, this.audioContext.currentTime + 0.1);
+                
+                gainNode.gain.setValueAtTime(0.1, this.audioContext.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, this.audioContext.currentTime + 0.2);
+                
+                oscillator.type = 'sine';
+                oscillator.start(this.audioContext.currentTime);
+                oscillator.stop(this.audioContext.currentTime + 0.2);
+            } catch (error) {
+                console.warn('Could not play cleanup sound:', error);
+            }
+        }
+    }
+
+    /**
+     * Remove object and all its components from the game
+     */
+    removeObject(obj) {
+        // Destroy all visual components
+        if (obj.sprite) {
+            obj.sprite.destroy();
+        }
+        if (obj.englishLabel) {
+            obj.englishLabel.destroy();
+        }
+        if (obj.spanishLabel) {
+            obj.spanishLabel.destroy();
+        }
+        if (obj.kaktovikNumeral) {
+            obj.kaktovikNumeral.destroy();
+        }
+        if (obj.cistercianNumeral) {
+            obj.cistercianNumeral.destroy();
+        }
+        if (obj.binaryDisplay) {
+            obj.binaryDisplay.destroy();
+        }
+
+        // Stop any audio associated with this object
+        if (this.activeTones.has(obj.id)) {
+            const tone = this.activeTones.get(obj.id);
+            try {
+                tone.stop();
+            } catch (e) {
+                // Tone might already be stopped
+            }
+            this.activeTones.delete(obj.id);
+        }
+
+        // Remove from objects array
+        const index = this.objects.indexOf(obj);
+        if (index > -1) {
+            this.objects.splice(index, 1);
+        }
+    }
+
+    /**
+     * Update lastTouchedTime for an object when it's interacted with
+     */
+    updateObjectTouchTime(obj) {
+        if (obj) {
+            obj.lastTouchedTime = Date.now();
+        }
     }
 }
 

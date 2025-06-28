@@ -354,6 +354,28 @@ export class ConfigScreen {
                         <span class="advanced-note">Computer-style numbers with hearts</span>
                     </label>
                 </div>
+                
+                <div class="auto-cleanup-section">
+                    <h3 class="subsection-title">🧹 Auto-Cleanup Timer</h3>
+                    <p class="section-help">Objects that haven't been touched will automatically disappear with cute effects!</p>
+                    
+                    <div class="cleanup-controls">
+                        <label class="advanced-option">
+                            <input type="checkbox" id="auto-cleanup-enabled">
+                            ⏰ Enable Auto-Cleanup
+                            <span class="advanced-note">Objects disappear after not being touched for a while</span>
+                        </label>
+                        
+                        <div class="cleanup-timer-control">
+                            <label class="timer-label">
+                                Objects disappear after: 
+                                <input type="number" id="cleanup-timer-minutes" class="timer-input" min="0.5" max="10" step="0.5" value="2">
+                                minutes of no interaction
+                            </label>
+                            <p class="timer-note">⭐ Each object gets its own timer that resets when touched, clicked, or voiced. When the timer expires, the object disappears with a fun pop sound and firework effects!</p>
+                        </div>
+                    </div>
+                </div>
             </section>
         `;
     }
@@ -573,6 +595,67 @@ export class ConfigScreen {
                 font-style: italic;
             }
 
+            .auto-cleanup-section {
+                margin-top: 25px;
+                padding-top: 20px;
+                border-top: 1px solid rgba(255, 255, 255, 0.2);
+            }
+
+            .subsection-title {
+                font-size: 1.3rem;
+                margin: 0 0 10px 0;
+                color: #fff;
+            }
+
+            .cleanup-controls {
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .cleanup-timer-control {
+                margin-left: 25px;
+                padding: 15px;
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 10px;
+                border-left: 3px solid #4CAF50;
+            }
+
+            .timer-label {
+                display: flex;
+                align-items: center;
+                font-size: 1rem;
+                gap: 10px;
+                margin-bottom: 10px;
+            }
+
+            .timer-input {
+                width: 80px;
+                padding: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                border-radius: 5px;
+                background: rgba(255, 255, 255, 0.1);
+                color: white;
+                font-size: 1rem;
+                text-align: center;
+            }
+
+            .timer-input:focus {
+                outline: none;
+                border-color: #4CAF50;
+                box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+            }
+
+            .timer-note {
+                font-size: 0.9rem;
+                opacity: 0.8;
+                margin: 0;
+                padding: 10px;
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 8px;
+                border-left: 3px solid #FFC107;
+            }
+
             .config-footer {
                 text-align: center;
                 margin-top: 30px;
@@ -683,6 +766,17 @@ export class ConfigScreen {
             input.addEventListener('change', () => this.validateNumberRanges());
         });
 
+        // Cleanup timer validation
+        const cleanupTimerInput = this.container.querySelector('#cleanup-timer-minutes');
+        cleanupTimerInput.addEventListener('input', (e) => {
+            let value = parseFloat(e.target.value);
+            if (value < 0.5) {
+                e.target.value = 0.5;
+            } else if (value > 10) {
+                e.target.value = 10;
+            }
+        });
+
         // Save configuration on any change
         const allInputs = this.container.querySelectorAll('input');
         allInputs.forEach(input => {
@@ -740,6 +834,10 @@ export class ConfigScreen {
         this.setCheckboxValue('#kaktovik-enabled', config.advanced.numberModes.kaktovik);
         this.setCheckboxValue('#binary-enabled', config.advanced.numberModes.binary);
         this.setCheckboxValue('#skip-config-checkbox', config.advanced.skipConfig);
+
+        // Auto-cleanup configuration
+        this.setCheckboxValue('#auto-cleanup-enabled', config.advanced.autoCleanup.enabled);
+        this.setInputValue('#cleanup-timer-minutes', config.advanced.autoCleanup.timeoutMinutes);
     }
 
     /**
@@ -881,6 +979,10 @@ export class ConfigScreen {
                     cistercian: this.container.querySelector('#cistercian-enabled').checked,
                     kaktovik: this.container.querySelector('#kaktovik-enabled').checked,
                     binary: this.container.querySelector('#binary-enabled').checked
+                },
+                autoCleanup: {
+                    enabled: this.container.querySelector('#auto-cleanup-enabled').checked,
+                    timeoutMinutes: parseFloat(this.container.querySelector('#cleanup-timer-minutes').value)
                 }
             }
         };

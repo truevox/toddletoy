@@ -41,6 +41,10 @@ export class ConfigManager {
                     cistercian: true, 
                     kaktovik: true, 
                     binary: true 
+                },
+                autoCleanup: {
+                    enabled: false,
+                    timeoutMinutes: 2
                 }
             }
         };
@@ -280,5 +284,12 @@ export class ConfigManager {
      */
     getNumberModes() {
         return { ...this.config.advanced.numberModes };
+    }
+
+    /**
+     * Get auto-cleanup configuration
+     */
+    getAutoCleanupConfig() {
+        return { ...this.config.advanced.autoCleanup };
     }
 }

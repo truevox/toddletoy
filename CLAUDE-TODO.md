@@ -251,11 +251,14 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - [ ] Integrate with existing ConfigManager system
 
 #### Phase 16.2: Core Implementation
-- [ ] Add lastTouchedTime property to all spawned objects
+- [ ] Add lastTouchedTime property to all spawned objects 
 - [ ] Update interaction methods to refresh lastTouchedTime on touch/click/voice
 - [ ] Implement cleanup timer that runs periodically to check for stale objects
+- [ ] Each thing when spawned gets a timer (configurable in config). That timer resets if the thing is interacted with. If the timer expires, the thing despawns with a cute sound effect (maybe a pop?) and particle effects (fireworks?)
 - [ ] Add smooth fade-out animation before object removal
 - [ ] Ensure cleanup respects currently speaking objects (don't remove during speech)
+- [ ] Add cute despawn sound effect (pop sound)
+- [ ] Add despawn particle effects (fireworks/celebration style)
 
 #### Phase 16.3: Testing & Polish
 - [ ] Write tests for auto-cleanup functionality
