@@ -94,6 +94,10 @@ export class AppRoutes {
         // Create game instance if it doesn't exist
         if (!this.game) {
             this.game = new ToddlerToyGame(this.configManager);
+        } else {
+            // Reset toy state when navigating from config
+            console.log('Resetting existing toy state');
+            this.resetToyState();
         }
         
         this.currentScreen = 'toy';
@@ -131,6 +135,18 @@ export class AppRoutes {
      */
     navigate(path) {
         this.router.navigate(path);
+    }
+
+    /**
+     * Reset toy state - clear all objects and reset game
+     */
+    resetToyState() {
+        if (this.game && this.game.game && this.game.game.scene) {
+            const scene = this.game.game.scene.scenes[0];
+            if (scene && scene.resetToyState) {
+                scene.resetToyState();
+            }
+        }
     }
 
     /**

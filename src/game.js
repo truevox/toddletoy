@@ -585,6 +585,73 @@ class GameScene extends Phaser.Scene {
     }
 
     /**
+     * Reset the toy state - clear all objects and audio
+     */
+    resetToyState() {
+        console.log('Resetting toy state - clearing all objects');
+        
+        // Clear all game objects
+        this.objects.forEach(obj => {
+            if (obj.sprite) {
+                obj.sprite.destroy();
+            }
+            if (obj.englishLabel) {
+                obj.englishLabel.destroy();
+            }
+            if (obj.spanishLabel) {
+                obj.spanishLabel.destroy();
+            }
+            if (obj.kaktovikNumeral) {
+                obj.kaktovikNumeral.destroy();
+            }
+            if (obj.cistercianNumeral) {
+                obj.cistercianNumeral.destroy();
+            }
+            if (obj.binaryDisplay) {
+                obj.binaryDisplay.destroy();
+            }
+        });
+        
+        // Clear objects array
+        this.objects = [];
+        
+        // Stop any current speech
+        if (this.currentSpeech) {
+            window.speechSynthesis.cancel();
+            this.currentSpeech = null;
+            this.isSpeaking = false;
+            this.currentSpeakingObject = null;
+        }
+        
+        // Stop all audio tones
+        if (this.audioContext) {
+            this.activeOscillators.forEach(osc => {
+                try {
+                    osc.stop();
+                } catch (e) {
+                    // Oscillator might already be stopped
+                }
+            });
+            this.activeOscillators = [];
+        }
+        
+        // Reset input states
+        this.isDragging = false;
+        this.draggedObject = null;
+        this.keyboardObject = null;
+        this.gamepadObject = null;
+        this.pointerIsDown = false;
+        this.heldKeys.clear();
+        
+        // Clear any drag trails
+        if (this.dragTrailGraphics) {
+            this.dragTrailGraphics.clear();
+        }
+        
+        console.log('Toy state reset complete');
+    }
+
+    /**
      * Select object type based on configuration weights
      * Returns: 'emoji', 'shape', 'letter', or 'number'
      */
