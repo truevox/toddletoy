@@ -1030,7 +1030,7 @@ class GameScene extends Phaser.Scene {
         console.log('Numpad mapping added');
     }
     
-    onKeyDown(event) {
+    async onKeyDown(event) {
         // Handle both event.code (from Phaser) and event.keyCode/key
         let keyCode = event.code || event.key;
         console.log('Key down:', keyCode, 'Event:', event);
@@ -1049,7 +1049,7 @@ class GameScene extends Phaser.Scene {
             // First key pressed - create or identify keyboard object
             if (!this.isSpeaking) {
                 // Spawn new object only if not speaking
-                const obj = this.spawnObjectAt(position.x, position.y, 'random');
+                const obj = await this.spawnObjectAt(position.x, position.y, 'random');
                 this.speakObjectLabel(obj, 'both');
                 this.generateTone(position.x, position.y, obj.id);
                 this.createSpawnBurst(position.x, position.y);
@@ -1363,10 +1363,10 @@ class GameScene extends Phaser.Scene {
         }
     }
 
-    onGamepadButtonDown(gamepad, buttonIndex) {
+    async onGamepadButtonDown(gamepad, buttonIndex) {
         if (!this.isSpeaking) {
             // Spawn object at current gamepad cursor position
-            const obj = this.spawnObjectAt(
+            const obj = await this.spawnObjectAt(
                 this.currentGamepadPosition.x, 
                 this.currentGamepadPosition.y, 
                 'random'
