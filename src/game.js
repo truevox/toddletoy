@@ -601,7 +601,7 @@ class GameScene extends Phaser.Scene {
     async getRandomEmoji() {
         // Load filtered emojis based on configuration
         try {
-            const response = await fetch('/src/emojis.json');
+            const response = await fetch('/emojis.json');
             const emojiData = await response.json();
             
             // Filter emojis based on enabled categories
