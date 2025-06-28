@@ -182,14 +182,29 @@ export class ConfigManager {
      * Get weighted selection probabilities for content types
      */
     getContentWeights() {
+        // Map config keys to game types
+        const typeMapping = {
+            'shapes': 'shape',
+            'smallNumbers': 'number',
+            'largeNumbers': 'number', 
+            'uppercaseLetters': 'letter',
+            'lowercaseLetters': 'letter',
+            'emojis': 'emoji'
+        };
+
         const enabled = Object.entries(this.config.content)
             .filter(([key, value]) => value.enabled)
-            .map(([key, value]) => ({ type: key, weight: value.weight }));
+            .map(([key, value]) => ({ 
+                type: typeMapping[key] || key, 
+                configKey: key,
+                weight: value.weight 
+            }));
 
         const totalWeight = enabled.reduce((sum, item) => sum + item.weight, 0);
         
         return enabled.map(item => ({
             type: item.type,
+            configKey: item.configKey,
             probability: totalWeight > 0 ? item.weight / totalWeight : 0
         }));
     }

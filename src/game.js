@@ -445,17 +445,23 @@ class GameScene extends Phaser.Scene {
             type = this.selectSpawnType();
         }
         
-        if (type === 'emoji') {
+        // Handle both old simple types and new config keys
+        if (type === 'emoji' || type === 'emojis') {
             selectedItem = await this.getRandomEmoji();
-        } else if (type === 'shape') {
+            type = 'emoji'; // Normalize for downstream code
+        } else if (type === 'shape' || type === 'shapes') {
             selectedItem = this.getRandomShape();
-        } else if (type === 'letter') {
-            selectedItem = this.getRandomLetter();
-        } else if (type === 'number') {
-            selectedItem = this.getRandomNumber();
+            type = 'shape';
+        } else if (type === 'letter' || type === 'uppercaseLetters' || type === 'lowercaseLetters') {
+            selectedItem = this.getRandomLetter(type);
+            type = 'letter';
+        } else if (type === 'number' || type === 'smallNumbers' || type === 'largeNumbers') {
+            selectedItem = this.getRandomNumber(type);
+            type = 'number';
         } else {
             // Fallback to emoji
             selectedItem = await this.getRandomEmoji();
+            type = 'emoji';
         }
         
         // Create visual object
@@ -471,6 +477,7 @@ class GameScene extends Phaser.Scene {
         this.objects.push(obj);
         
         // Create Phaser text object with appropriate content and responsive sizing
+        console.log('selectedItem:', selectedItem, 'type:', type);
         const displayText = this.getDisplayText(selectedItem, type);
         
         // Calculate responsive font size based on screen dimensions
@@ -486,6 +493,8 @@ class GameScene extends Phaser.Scene {
         const safeX = Math.max(safeMargin, Math.min(screenWidth - safeMargin, x));
         const safeY = Math.max(safeMargin + 60, Math.min(screenHeight - safeMargin - 120, y)); // Extra margin for labels
         
+        console.log('Creating Phaser text with displayText:', displayText, 'type:', type);
+        
         const objectText = this.add.text(safeX, safeY, displayText, {
             fontSize: `${fontSize}px`,
             align: 'center',
@@ -494,6 +503,8 @@ class GameScene extends Phaser.Scene {
             fontFamily: 'Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
             fontStyle: 'normal'
         }).setOrigin(0.5);
+        
+        console.log('Phaser text object created, text value:', objectText.text);
         
         // Update object position to match safe position
         obj.x = safeX;
@@ -580,19 +591,19 @@ class GameScene extends Phaser.Scene {
     selectSpawnType() {
         const contentWeights = this.configManager.getContentWeights();
         
-        // Build weighted selection array
+        // Build weighted selection array with config keys for specificity
         const weightedTypes = [];
         contentWeights.forEach(item => {
-            // Add type to array based on its probability (0-1)
+            // Add configKey to array based on its probability (0-1)
             const count = Math.floor(item.probability * 1000); // Scale to integer for selection
             for (let i = 0; i < count; i++) {
-                weightedTypes.push(item.type);
+                weightedTypes.push(item.configKey); // Use configKey for specificity
             }
         });
         
         // Fallback if no weights configured
         if (weightedTypes.length === 0) {
-            const fallbackTypes = ['emoji', 'shape', 'letter', 'number'];
+            const fallbackTypes = ['emojis', 'shapes', 'uppercaseLetters', 'smallNumbers'];
             return fallbackTypes[Math.floor(Math.random() * fallbackTypes.length)];
         }
         
@@ -666,7 +677,7 @@ class GameScene extends Phaser.Scene {
         };
     }
 
-    getRandomLetter() {
+    getRandomLetter(configType = 'uppercaseLetters') {
         const colors = [
             { value: "Red", en: "Red", es: "Rojo", hex: "#ff0000" },
             { value: "Blue", en: "Blue", es: "Azul", hex: "#0000ff" },
@@ -676,7 +687,13 @@ class GameScene extends Phaser.Scene {
             { value: "Orange", en: "Orange", es: "Naranja", hex: "#ffa500" }
         ];
         
-        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        // Choose uppercase or lowercase based on config type
+        let letters;
+        if (configType === 'lowercaseLetters') {
+            letters = "abcdefghijklmnopqrstuvwxyz";
+        } else {
+            letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; // Default to uppercase
+        }
         const letter = letters[Math.floor(Math.random() * letters.length)];
         const color = colors[Math.floor(Math.random() * colors.length)];
         
@@ -689,7 +706,7 @@ class GameScene extends Phaser.Scene {
         };
     }
 
-    getRandomNumber() {
+    getRandomNumber(configType = 'smallNumbers') {
         const colors = [
             { value: "Red", en: "Red", es: "Rojo", hex: "#ff0000" },
             { value: "Blue", en: "Blue", es: "Azul", hex: "#0000ff" },
@@ -699,18 +716,24 @@ class GameScene extends Phaser.Scene {
             { value: "Orange", en: "Orange", es: "Naranja", hex: "#ffa500" }
         ];
         
-        // Weighted random number generation as per design doc
+        // Use configuration-based number ranges
         let number;
-        const rand = Math.random();
-        if (rand < 0.6) {
-            // 0-20: most frequent (60%)
-            number = Math.floor(Math.random() * 21);
-        } else if (rand < 0.9) {
-            // 21-1000: less frequent (30%)
-            number = 21 + Math.floor(Math.random() * 980);
+        if (configType === 'smallNumbers') {
+            const range = this.configManager.getSmallNumberRange();
+            number = range.min + Math.floor(Math.random() * (range.max - range.min + 1));
+        } else if (configType === 'largeNumbers') {
+            const range = this.configManager.getLargeNumberRange();
+            number = range.min + Math.floor(Math.random() * (range.max - range.min + 1));
         } else {
-            // 1001-9999: least frequent (10%)
-            number = 1001 + Math.floor(Math.random() * 8999);
+            // Fallback to old weighted logic
+            const rand = Math.random();
+            if (rand < 0.6) {
+                number = Math.floor(Math.random() * 21);
+            } else if (rand < 0.9) {
+                number = 21 + Math.floor(Math.random() * 980);
+            } else {
+                number = 1001 + Math.floor(Math.random() * 8999);
+            }
         }
         
         const color = colors[Math.floor(Math.random() * colors.length)];
@@ -726,6 +749,7 @@ class GameScene extends Phaser.Scene {
 
     getDisplayText(item, type) {
         if (type === 'emoji') {
+            console.log('Displaying emoji:', item.emoji, 'Unicode:', item.emoji.charCodeAt(0));
             return item.emoji;
         } else {
             return item.symbol;
