@@ -13,8 +13,8 @@ export class Router {
             this.handleRouteChange(window.location.pathname);
         });
         
-        // Handle initial load
-        this.init();
+        // Don't call init() immediately - let AppRoutes set up routes first
+        // init() will be called manually after routes are registered
     }
 
     /**
@@ -56,21 +56,31 @@ export class Router {
     handleRouteChange(path) {
         this.currentRoute = path;
         
+        console.log(`handleRouteChange called with path: "${path}"`);
+        console.log(`Available routes:`, Array.from(this.routes.keys()));
+        console.log(`Looking for handler for: "${path}"`);
+        
         // Find matching route
         const handler = this.routes.get(path);
         
+        console.log(`Handler found:`, !!handler);
+        
         if (handler) {
             try {
+                console.log(`Executing handler for route: ${path}`);
                 handler();
             } catch (error) {
                 console.error(`Error handling route ${path}:`, error);
                 this.handleNotFound();
             }
         } else {
+            console.log(`No handler found for path: "${path}"`);
             // Try default route for unknown paths
             if (path !== this.defaultRoute) {
+                console.log(`Redirecting to default route: ${this.defaultRoute}`);
                 this.replace(this.defaultRoute);
             } else {
+                console.log(`Already at default route, calling handleNotFound`);
                 this.handleNotFound();
             }
         }

@@ -15,6 +15,9 @@ export class AppRoutes {
         this.currentScreen = null;
         
         this.setupRoutes();
+        
+        // Initialize router after routes are set up
+        this.router.init();
     }
 
     setupRoutes() {
