@@ -45,6 +45,13 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - serve from cache, fallback to network
 self.addEventListener('fetch', (event) => {
+  // Skip Vite dev server resources
+  if (event.request.url.includes('/@vite/') || 
+      event.request.url.includes('?t=') ||
+      event.request.url.includes('localhost:4003')) {
+    return; // Let browser handle Vite dev resources
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then((response) => {

@@ -141,7 +141,7 @@ class GameScene extends Phaser.Scene {
         if (heldKeysArray.length !== currentlyHeldArray.length || 
             !heldKeysArray.every(key => currentlyHeld.has(key))) {
             
-            console.log('Keys changed:', currentlyHeldArray);
+            // Keys changed - reduced logging
             this.heldKeys = currentlyHeld;
             
             if (this.heldKeys.size > 0) {
@@ -590,9 +590,7 @@ class GameScene extends Phaser.Scene {
         
         // CRITICAL: Create text labels and store componentLayout at spawn position
         // This must happen before any movement to ensure correct relative positioning
-        console.log(`About to call displayTextLabels for object at spawn position (${x}, ${y})`);
         this.displayTextLabels(obj);
-        console.log(`ComponentLayout stored:`, obj.componentLayout);
         
         return obj;
     }
@@ -1098,7 +1096,7 @@ class GameScene extends Phaser.Scene {
         const width = this.scale.width || window.innerWidth || 800;
         const height = this.scale.height || window.innerHeight || 600;
         
-        console.log('Setting up key positions with dimensions:', width, 'x', height);
+        // Setting up key positions for responsive layout
         
         // Create a comprehensive mapping for the entire keyboard
         this.keyPositions = {};
@@ -1168,8 +1166,7 @@ class GameScene extends Phaser.Scene {
             this.addNumpadMapping(width, height);
         }
         
-        console.log('Key positions created for', Object.keys(this.keyPositions).length, 'keys');
-        console.log('All key codes:', Object.keys(this.keyPositions));
+        // Key positions created for keyboard input
     }
     
     hasNumpad() {
@@ -1307,8 +1304,7 @@ class GameScene extends Phaser.Scene {
     
     getKeyPosition(keyCode) {
         this.ensureKeyPositions();
-        console.log('Available key positions:', Object.keys(this.keyPositions));
-        console.log('Looking for keyCode:', keyCode);
+        // Looking for key position
         return this.keyPositions[keyCode] || null;
     }
 
@@ -2097,8 +2093,8 @@ class GameScene extends Phaser.Scene {
         } else {
             // Fallback default configuration
             this.autoCleanupConfig = {
-                enabled: false,
-                timeoutMinutes: 2
+                enabled: true,
+                timeoutSeconds: 10
             };
         }
     }
@@ -2122,7 +2118,7 @@ class GameScene extends Phaser.Scene {
             return;
         }
 
-        const timeoutMs = this.autoCleanupConfig.timeoutMinutes * 60 * 1000;
+        const timeoutMs = this.autoCleanupConfig.timeoutSeconds * 1000;
         const objectsToCleanup = [];
 
         // Find objects that have timed out
@@ -2147,7 +2143,7 @@ class GameScene extends Phaser.Scene {
      * Clean up object with cute sound and particle effects
      */
     cleanupObjectWithEffects(obj) {
-        console.log(`Auto-cleaning up object ${obj.id} (${obj.type}) after timeout`);
+        // Auto-cleanup: removing timed-out object
 
         // Create fireworks particle effect at object position
         this.createCleanupParticleEffect(obj.x, obj.y);
@@ -2232,14 +2228,31 @@ class GameScene extends Phaser.Scene {
         if (obj.spanishLabel) {
             obj.spanishLabel.destroy();
         }
+        
+        // Destroy word arrays that contain individual word objects
+        if (obj.englishWords && Array.isArray(obj.englishWords)) {
+            obj.englishWords.forEach(wordObj => {
+                if (wordObj && wordObj.destroy) {
+                    wordObj.destroy();
+                }
+            });
+        }
+        if (obj.spanishWords && Array.isArray(obj.spanishWords)) {
+            obj.spanishWords.forEach(wordObj => {
+                if (wordObj && wordObj.destroy) {
+                    wordObj.destroy();
+                }
+            });
+        }
+        
         if (obj.kaktovikNumeral) {
             obj.kaktovikNumeral.destroy();
         }
         if (obj.cistercianNumeral) {
             obj.cistercianNumeral.destroy();
         }
-        if (obj.binaryDisplay) {
-            obj.binaryDisplay.destroy();
+        if (obj.binaryHearts) {
+            obj.binaryHearts.destroy();
         }
 
         // Stop any audio associated with this object
