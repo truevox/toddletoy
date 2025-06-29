@@ -528,8 +528,9 @@ class GameScene extends Phaser.Scene {
         // Add Kaktovik numeral above numbers as per design specification (using safe position)
         // Positioning improved: moved 4 pixels higher for better visual alignment
         if (type === 'number') {
+            const numberModes = this.configManager ? this.configManager.getNumberModes() : { kaktovik: true };
             const numberValue = parseInt(selectedItem.symbol);
-            if (numberValue >= 0) {
+            if (numberValue >= 0 && numberModes.kaktovik) {
                 const kaktovikText = this.renderKaktovikNumeral(numberValue, safeX, safeY - (fontSize * 0.9) - 4);
                 obj.kaktovikNumeral = kaktovikText;
             }
@@ -537,8 +538,9 @@ class GameScene extends Phaser.Scene {
 
         // Add binary hearts above Kaktovik numerals (above numbers, using safe position)
         if (type === 'number') {
+            const numberModes = this.configManager ? this.configManager.getNumberModes() : { binary: true };
             const numberValue = parseInt(selectedItem.symbol);
-            if (numberValue >= 0) {
+            if (numberValue >= 0 && numberModes.binary) {
                 const binaryHeartsText = this.renderBinaryHearts(numberValue, safeX, safeY - (fontSize * 0.5));
                 obj.binaryHearts = binaryHeartsText;
             }
@@ -572,8 +574,9 @@ class GameScene extends Phaser.Scene {
         // Cistercian numerals using font-based rendering
         // Positioning improved: moved 20 pixels higher for better visual alignment
         if (type === 'number') {
+            const numberModes = this.configManager ? this.configManager.getNumberModes() : { cistercian: true };
             const numberValue = parseInt(selectedItem.symbol);
-            if (numberValue >= 0 && numberValue <= 9999) {
+            if (numberValue >= 0 && numberValue <= 9999 && numberModes.cistercian) {
                 const cistercianText = this.renderCistercianNumeral(numberValue, safeX, safeY - 100);
                 obj.cistercianNumeral = cistercianText;
                 
