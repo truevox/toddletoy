@@ -6,7 +6,8 @@ export default defineConfig({
     outDir: 'dist'
   },
   server: {
-    port: 3000,
-    open: true
+    port: 4001,
+    open: true,
+    historyApiFallback: true
   }
 });
