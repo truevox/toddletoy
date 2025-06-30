@@ -30,6 +30,13 @@ Repeat for each feature:
   7. **Commit implementation**.
   8. **Refactor** as needed; repeat cycle :contentReference[oaicite:7]{index=7}.
 
+### 📋 File Refactoring Guidelines
+- **Refactoring Definition**: Restructuring existing code/content without changing its external behavior or losing information
+- **Zero-Loss Principle**: When refactoring files (especially documentation), NO content should be lost - only reorganized
+- **Documentation Refactoring**: Moving content between files (e.g., completed tasks from TODO to TODONE) must preserve ALL information
+- **Verification Required**: Always verify line counts and content completeness before/after refactoring
+- **Rollback Plan**: Be prepared to restore from git if refactoring accidentally removes content
+
 ### 3. Visual/UI Iteration
 - After basic behavior works, ask Claude to provide screenshots or visual mockups.
 - Iterate UI elements (animations, layout) until polished :contentReference[oaicite:8]{index=8}.
