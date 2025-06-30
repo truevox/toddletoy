@@ -5,8 +5,8 @@ const urlsToCache = [
   '/index.html',
   '/src/main.js',
   '/src/game.js',
-  '/src/emojis.json',
-  '/src/things.json',
+  '/public/emojis.json',
+  '/public/things.json',
   '/manifest.json',
   'https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js'
 ];

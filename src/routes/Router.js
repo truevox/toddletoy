@@ -7,6 +7,8 @@ export class Router {
         this.routes = new Map();
         this.currentRoute = null;
         this.defaultRoute = '/';
+        this.previousRoute = null;
+        this.allowDirectToyAccess = false; // Track if toy access is allowed
         
         // Listen for browser back/forward navigation
         window.addEventListener('popstate', (event) => {
@@ -54,10 +56,10 @@ export class Router {
      * Handle route changes
      */
     handleRouteChange(path) {
+        this.previousRoute = this.currentRoute;
         this.currentRoute = path;
         
-        console.log(`handleRouteChange called with path: "${path}"`);
-        console.log(`Available routes:`, Array.from(this.routes.keys()));
+        // Handling route change
         console.log(`Looking for handler for: "${path}"`);
         
         // Find matching route
@@ -67,7 +69,7 @@ export class Router {
         
         if (handler) {
             try {
-                console.log(`Executing handler for route: ${path}`);
+                // Executing route handler
                 handler();
             } catch (error) {
                 console.error(`Error handling route ${path}:`, error);
@@ -77,10 +79,10 @@ export class Router {
             console.log(`No handler found for path: "${path}"`);
             // Try default route for unknown paths
             if (path !== this.defaultRoute) {
-                console.log(`Redirecting to default route: ${this.defaultRoute}`);
+                // Redirecting to default route
                 this.replace(this.defaultRoute);
             } else {
-                console.log(`Already at default route, calling handleNotFound`);
+                // Already at default route
                 this.handleNotFound();
             }
         }
@@ -101,6 +103,27 @@ export class Router {
      */
     getCurrentRoute() {
         return this.currentRoute;
+    }
+
+    /**
+     * Allow direct access to toy (called when user goes through config)
+     */
+    allowToyAccess() {
+        this.allowDirectToyAccess = true;
+    }
+
+    /**
+     * Check if toy access is allowed
+     */
+    isToyAccessAllowed() {
+        return this.allowDirectToyAccess;
+    }
+
+    /**
+     * Reset toy access (for security)
+     */
+    resetToyAccess() {
+        this.allowDirectToyAccess = false;
     }
 
     /**

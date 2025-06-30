@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { ConfigManager } from './config/ConfigManager.js'
+import { PositioningSystem } from './positioning/PositioningSystem.js'
 
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -29,6 +30,15 @@ class GameScene extends Phaser.Scene {
         
         // Initialize configuration manager
         this.configManager = new ConfigManager();
+        
+        // Initialize positioning system for collision detection
+        try {
+            this.positioningSystem = new PositioningSystem(this);
+            console.log('PositioningSystem initialized successfully');
+        } catch (error) {
+            console.error('Failed to initialize PositioningSystem:', error);
+            this.positioningSystem = null;
+        }
         
         // Create particle texture first
         this.createParticleTexture();
@@ -330,6 +340,25 @@ class GameScene extends Phaser.Scene {
                 });
             }
             
+            // Update all language words using stored relative positions (comprehensive multilingual support)
+            if (obj.allLanguageWords && obj.componentLayout.allLanguageWords) {
+                obj.componentLayout.allLanguageWords.forEach(langGroup => {
+                    const actualLangGroup = obj.allLanguageWords.find(group => group.languageCode === langGroup.languageCode);
+                    if (actualLangGroup && actualLangGroup.words) {
+                        actualLangGroup.words.forEach((wordObj, index) => {
+                            const storedOffset = langGroup.words[index];
+                            if (storedOffset && wordObj) {
+                                // Convert from center-based offset to left-edge position
+                                const newWordCenterX = targetX + storedOffset.offsetX;
+                                const newWordLeftX = newWordCenterX - (wordObj.width / 2);
+                                const newWordY = targetY + storedOffset.offsetY;
+                                wordObj.setPosition(newWordLeftX, newWordY);
+                            }
+                        });
+                    }
+                });
+            }
+            
             // Update Kaktovik numeral using stored relative position
             if (obj.kaktovikNumeral && obj.componentLayout.kaktovikNumeral) {
                 const offset = obj.componentLayout.kaktovikNumeral;
@@ -346,6 +375,26 @@ class GameScene extends Phaser.Scene {
             if (obj.cistercianNumeral && obj.componentLayout.cistercianNumeral) {
                 const offset = obj.componentLayout.cistercianNumeral;
                 obj.cistercianNumeral.setPosition(targetX + offset.offsetX, targetY + offset.offsetY);
+            }
+            
+            // Update object counting components using stored relative positions
+            if (obj.objectCountingComponents && obj.componentLayout.objectCountingComponents) {
+                obj.objectCountingComponents.forEach((component, index) => {
+                    const storedOffset = obj.componentLayout.objectCountingComponents[index];
+                    if (storedOffset && component) {
+                        component.setPosition(targetX + storedOffset.offsetX, targetY + storedOffset.offsetY);
+                    }
+                });
+            }
+            
+            // Update only apples components using stored relative positions
+            if (obj.onlyApplesComponents && obj.componentLayout.onlyApplesComponents) {
+                obj.onlyApplesComponents.forEach((component, index) => {
+                    const storedOffset = obj.componentLayout.onlyApplesComponents[index];
+                    if (storedOffset && component) {
+                        component.setPosition(targetX + storedOffset.offsetX, targetY + storedOffset.offsetY);
+                    }
+                });
             }
         } else {
             // FALLBACK: Use old hardcoded method if no component layout stored
@@ -468,7 +517,7 @@ class GameScene extends Phaser.Scene {
             selectedItem = this.getRandomLetter(type);
             type = 'letter';
         } else if (type === 'number' || type === 'smallNumbers' || type === 'largeNumbers') {
-            selectedItem = this.getRandomNumber(type);
+            selectedItem = await this.getRandomNumber(type);
             type = 'number';
         } else {
             // Fallback to emoji
@@ -525,26 +574,7 @@ class GameScene extends Phaser.Scene {
         
         obj.sprite = objectText;
         
-        // Add Kaktovik numeral above numbers as per design specification (using safe position)
-        // Positioning improved: moved 4 pixels higher for better visual alignment
-        if (type === 'number') {
-            const numberModes = this.configManager ? this.configManager.getNumberModes() : { kaktovik: true };
-            const numberValue = parseInt(selectedItem.symbol);
-            if (numberValue >= 0 && numberModes.kaktovik) {
-                const kaktovikText = this.renderKaktovikNumeral(numberValue, safeX, safeY - (fontSize * 0.9) - 4);
-                obj.kaktovikNumeral = kaktovikText;
-            }
-        }
-
-        // Add binary hearts above Kaktovik numerals (above numbers, using safe position)
-        if (type === 'number') {
-            const numberModes = this.configManager ? this.configManager.getNumberModes() : { binary: true };
-            const numberValue = parseInt(selectedItem.symbol);
-            if (numberValue >= 0 && numberModes.binary) {
-                const binaryHeartsText = this.renderBinaryHearts(numberValue, safeX, safeY - (fontSize * 0.5));
-                obj.binaryHearts = binaryHeartsText;
-            }
-        }
+        // Number modes are now handled by renderAllNumberModes() with collision detection
         
         // CRITICAL: Store number display component layout for locked relative positioning
         // This prevents misalignment when number objects are moved after spawn
@@ -571,23 +601,11 @@ class GameScene extends Phaser.Scene {
             
         }
 
-        // Cistercian numerals using font-based rendering
-        // Positioning improved: moved 20 pixels higher for better visual alignment
+        // ✨ NEW: Advanced Number Mode Positioning with Collision Detection
         if (type === 'number') {
-            const numberModes = this.configManager ? this.configManager.getNumberModes() : { cistercian: true };
             const numberValue = parseInt(selectedItem.symbol);
-            if (numberValue >= 0 && numberValue <= 9999 && numberModes.cistercian) {
-                const cistercianText = this.renderCistercianNumeral(numberValue, safeX, safeY - 100);
-                obj.cistercianNumeral = cistercianText;
-                
-                // Store Cistercian numeral in component layout for this object
-                if (!obj.componentLayout) {
-                    obj.componentLayout = {};
-                }
-                obj.componentLayout.cistercianNumeral = {
-                    offsetX: obj.cistercianNumeral.x - safeX,
-                    offsetY: obj.cistercianNumeral.y - safeY
-                };
+            if (numberValue >= 0 && numberValue <= 9999) {
+                this.renderAllNumberModes(obj, numberValue, safeX, safeY);
             }
         }
         
@@ -596,6 +614,242 @@ class GameScene extends Phaser.Scene {
         this.displayTextLabels(obj);
         
         return obj;
+    }
+
+    /**
+     * Render all number modes with advanced collision detection
+     * This prevents overlaps regardless of configuration or number size
+     */
+    renderAllNumberModes(obj, numberValue, centerX, centerY) {
+        const numberModes = this.configManager ? this.configManager.getNumberModes() : {};
+        
+        // Debug: Check if positioning system exists
+        if (!this.positioningSystem) {
+            console.error('PositioningSystem not initialized! Falling back to old method.');
+            this.renderNumberModesLegacy(obj, numberValue, centerX, centerY, numberModes);
+            return;
+        }
+        
+        // Use positioning system to calculate optimal positions
+        let positions;
+        try {
+            positions = this.positioningSystem.calculateNumberModePositions(
+                numberValue, centerX, centerY, numberModes
+            );
+            console.log('Calculated positions:', positions);
+        } catch (error) {
+            console.error('Positioning system error:', error);
+            this.renderNumberModesLegacy(obj, numberValue, centerX, centerY, numberModes);
+            return;
+        }
+        
+        // Initialize component layout if not exists
+        if (!obj.componentLayout) {
+            obj.componentLayout = {};
+        }
+        
+        // Render each enabled number mode at calculated position
+        if (numberModes.binary && positions.binary) {
+            const binaryText = this.renderBinaryHearts(numberValue, positions.binary.x, positions.binary.y);
+            obj.binaryHearts = binaryText;
+            obj.componentLayout.binaryHearts = {
+                offsetX: positions.binary.offsetX,
+                offsetY: positions.binary.offsetY
+            };
+        }
+        
+        if (numberModes.kaktovik && positions.kaktovik) {
+            const kaktovikText = this.renderKaktovikNumeral(numberValue, positions.kaktovik.x, positions.kaktovik.y);
+            obj.kaktovikNumeral = kaktovikText;
+            obj.componentLayout.kaktovikNumeral = {
+                offsetX: positions.kaktovik.offsetX,
+                offsetY: positions.kaktovik.offsetY
+            };
+        }
+        
+        if (numberModes.cistercian && positions.cistercian) {
+            const cistercianText = this.renderCistercianNumeral(numberValue, positions.cistercian.x, positions.cistercian.y);
+            obj.cistercianNumeral = cistercianText;
+            obj.componentLayout.cistercianNumeral = {
+                offsetX: positions.cistercian.offsetX,
+                offsetY: positions.cistercian.offsetY
+            };
+        }
+        
+        if (numberModes.objectCounting && positions.objectCounting) {
+            const objectCountingComponents = this.renderObjectCountingNumeralAtPosition(
+                numberValue, positions.objectCounting.x, positions.objectCounting.y
+            );
+            if (objectCountingComponents.length > 0) {
+                obj.objectCountingComponents = objectCountingComponents;
+                obj.componentLayout.objectCountingComponents = objectCountingComponents.map(comp => ({
+                    offsetX: comp.x - centerX,
+                    offsetY: comp.y - centerY
+                }));
+            }
+        }
+        
+        // Only Apples counting (if enabled)
+        if (numberModes.onlyApples && numberValue >= 0 && numberValue <= 50) {
+            const onlyApplesComponents = this.renderOnlyApplesNumeral(numberValue, centerX, centerY);
+            if (onlyApplesComponents.length > 0) {
+                obj.onlyApplesComponents = onlyApplesComponents;
+                obj.componentLayout.onlyApplesComponents = onlyApplesComponents.map(comp => ({
+                    offsetX: comp.x - centerX,
+                    offsetY: comp.y - centerY
+                }));
+            }
+        }
+        
+        // Debug positioning if in development mode
+        if (process.env.NODE_ENV === 'development') {
+            const isValid = this.positioningSystem.debugVisualize();
+            if (!isValid) {
+                console.warn(`Overlap detected for number ${numberValue} with modes:`, numberModes);
+            }
+        }
+    }
+
+    /**
+     * Render object counting numeral at specific position (used by positioning system)
+     */
+    renderObjectCountingNumeralAtPosition(number, x, y) {
+        if (number < 0 || number > 9999) return [];
+        
+        // Extract place values
+        const ones = number % 10;
+        const tens = Math.floor((number % 100) / 10);
+        const hundreds = Math.floor((number % 1000) / 100);
+        const thousands = Math.floor(number / 1000);
+        
+        const components = [];
+        const emojis = {
+            ones: '🍎',      // Apple for 1s
+            tens: '🛍️',      // Shopping bag for 10s  
+            hundreds: '📦',   // Box for 100s
+            thousands: '🚛'   // Truck for 1000s
+        };
+        
+        // Calculate responsive sizing
+        const screenWidth = this.scale.width || window.innerWidth || 800;
+        const screenHeight = this.scale.height || window.innerHeight || 600;
+        const minDimension = Math.min(screenWidth, screenHeight);
+        const scaleFactor = Math.max(0.4, Math.min(1.2, minDimension / 600));
+        const fontSize = Math.floor(24 * scaleFactor);
+        const spacing = Math.floor(30 * scaleFactor);
+        
+        // Build array of place values in stacking order: thousands (bottom) to ones (top)
+        const placeValues = [
+            { count: thousands, emoji: emojis.thousands, name: 'thousands' },
+            { count: hundreds, emoji: emojis.hundreds, name: 'hundreds' },
+            { count: tens, emoji: emojis.tens, name: 'tens' },
+            { count: ones, emoji: emojis.ones, name: 'ones' }
+        ].filter(place => place.count > 0); // Only include non-zero place values
+        
+        // Handle zero case - show nothing for zero in place value system
+        if (number === 0) {
+            return components; // Return empty array for zero
+        }
+        
+        // Calculate the widest row to center everything
+        let maxWidth = 0;
+        placeValues.forEach(place => {
+            const rowWidth = place.count * spacing;
+            maxWidth = Math.max(maxWidth, rowWidth);
+        });
+        
+        // Start from the top of the designated area
+        let currentY = y - (placeValues.length * spacing) / 2;
+        
+        // Render each place value as vertical stack (thousands at bottom, ones at top)
+        placeValues.forEach((place, placeIndex) => {
+            // Calculate Y position: stack from top down
+            const rowY = currentY + (placeIndex * spacing);
+            
+            // Center this row within the max width
+            const rowWidth = place.count * spacing;
+            let rowX = x - rowWidth / 2;
+            
+            // Render the emoji count horizontally for this place value
+            for (let i = 0; i < place.count; i++) {
+                const emoji = this.add.text(rowX, rowY, place.emoji, {
+                    fontSize: `${fontSize}px`,
+                    fontFamily: 'Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
+                    fill: '#ffffff',
+                    align: 'center'
+                }).setOrigin(0.5);
+                
+                components.push(emoji);
+                rowX += spacing;
+            }
+        });
+        
+        return components;
+    }
+
+    /**
+     * Legacy fallback for number mode rendering (used when positioning system fails)
+     */
+    renderNumberModesLegacy(obj, numberValue, centerX, centerY, numberModes) {
+        console.log('Using legacy number mode rendering');
+        
+        // Initialize component layout if not exists
+        if (!obj.componentLayout) {
+            obj.componentLayout = {};
+        }
+        
+        // Render using old hardcoded positions
+        if (numberModes.binary) {
+            const binaryText = this.renderBinaryHearts(numberValue, centerX, centerY - 40);
+            obj.binaryHearts = binaryText;
+            obj.componentLayout.binaryHearts = {
+                offsetX: 0,
+                offsetY: -40
+            };
+        }
+        
+        if (numberModes.kaktovik) {
+            const kaktovikText = this.renderKaktovikNumeral(numberValue, centerX, centerY - 80);
+            obj.kaktovikNumeral = kaktovikText;
+            obj.componentLayout.kaktovikNumeral = {
+                offsetX: 0,
+                offsetY: -80
+            };
+        }
+        
+        if (numberModes.cistercian) {
+            const cistercianText = this.renderCistercianNumeral(numberValue, centerX, centerY - 100);
+            obj.cistercianNumeral = cistercianText;
+            obj.componentLayout.cistercianNumeral = {
+                offsetX: 0,
+                offsetY: -100
+            };
+        }
+        
+        if (numberModes.objectCounting) {
+            const objectCountingComponents = this.renderObjectCountingNumeralAtPosition(
+                numberValue, centerX, centerY - 170
+            );
+            if (objectCountingComponents.length > 0) {
+                obj.objectCountingComponents = objectCountingComponents;
+                obj.componentLayout.objectCountingComponents = objectCountingComponents.map(comp => ({
+                    offsetX: comp.x - centerX,
+                    offsetY: comp.y - centerY
+                }));
+            }
+        }
+        
+        // Only Apples counting (if enabled)
+        if (numberModes.onlyApples && numberValue >= 0 && numberValue <= 50) {
+            const onlyApplesComponents = this.renderOnlyApplesNumeral(numberValue, centerX, centerY);
+            if (onlyApplesComponents.length > 0) {
+                obj.onlyApplesComponents = onlyApplesComponents;
+                obj.componentLayout.onlyApplesComponents = onlyApplesComponents.map(comp => ({
+                    offsetX: comp.x - centerX,
+                    offsetY: comp.y - centerY
+                }));
+            }
+        }
     }
 
     /**
@@ -623,6 +877,20 @@ class GameScene extends Phaser.Scene {
             }
             if (obj.binaryDisplay) {
                 obj.binaryDisplay.destroy();
+            }
+            if (obj.objectCountingComponents && Array.isArray(obj.objectCountingComponents)) {
+                obj.objectCountingComponents.forEach(component => {
+                    if (component && component.destroy) {
+                        component.destroy();
+                    }
+                });
+            }
+            if (obj.onlyApplesComponents && Array.isArray(obj.onlyApplesComponents)) {
+                obj.onlyApplesComponents.forEach(component => {
+                    if (component && component.destroy) {
+                        component.destroy();
+                    }
+                });
             }
         });
         
@@ -672,15 +940,21 @@ class GameScene extends Phaser.Scene {
     selectSpawnType() {
         const contentWeights = this.configManager.getContentWeights();
         
+        // DEBUG: Log weight calculations
+        console.log('Content weights:', contentWeights);
+        
         // Build weighted selection array with config keys for specificity
         const weightedTypes = [];
         contentWeights.forEach(item => {
             // Add configKey to array based on its probability (0-1)
             const count = Math.floor(item.probability * 1000); // Scale to integer for selection
+            console.log(`Adding ${count} entries for ${item.configKey} (probability: ${item.probability})`);
             for (let i = 0; i < count; i++) {
                 weightedTypes.push(item.configKey); // Use configKey for specificity
             }
         });
+        
+        console.log('Weighted types array length:', weightedTypes.length);
         
         // Fallback if no weights configured
         if (weightedTypes.length === 0) {
@@ -690,7 +964,9 @@ class GameScene extends Phaser.Scene {
         
         // Select weighted random type
         const randomIndex = Math.floor(Math.random() * weightedTypes.length);
-        return weightedTypes[randomIndex];
+        const selectedType = weightedTypes[randomIndex];
+        console.log(`Selected spawn type: ${selectedType} (index ${randomIndex} of ${weightedTypes.length})`);
+        return selectedType;
     }
 
     async getRandomEmoji() {
@@ -718,13 +994,54 @@ class GameScene extends Phaser.Scene {
                 return {"emoji":"🐶","en":"Dog","es":"Perro","type":"emoji"};
             }
             
-            // For now, simple random selection (can be enhanced with category weighting later)
-            return availableEmojis[Math.floor(Math.random() * availableEmojis.length)];
+            // Weighted selection based on category weights
+            return this.selectWeightedEmoji(availableEmojis, config.emojiCategories);
             
         } catch (error) {
             console.warn('Failed to load emojis.json, using fallback:', error);
             return {"emoji":"🐶","en":"Dog","es":"Perro","type":"emoji"};
         }
+    }
+
+    /**
+     * Select a weighted random emoji based on category weights
+     */
+    selectWeightedEmoji(availableEmojis, categoryConfig) {
+        // Build weighted selection array
+        const weightedEmojis = [];
+        
+        availableEmojis.forEach(emoji => {
+            // Calculate weight for this emoji based on its categories
+            let maxWeight = 0;
+            
+            if (emoji.categories) {
+                emoji.categories.forEach(category => {
+                    if (categoryConfig[category] && categoryConfig[category].enabled) {
+                        maxWeight = Math.max(maxWeight, categoryConfig[category].weight);
+                    }
+                });
+            }
+            
+            // Add emoji to weighted array based on its maximum category weight
+            const count = Math.max(1, Math.floor(maxWeight)); // At least 1 entry, scaled by weight
+            for (let i = 0; i < count; i++) {
+                weightedEmojis.push(emoji);
+            }
+            
+            // DEBUG: Log emoji weight calculation
+            console.log(`Emoji ${emoji.emoji} (${emoji.categories?.join(', ')}) weight: ${maxWeight}, entries: ${count}`);
+        });
+        
+        // Select random emoji from weighted array
+        if (weightedEmojis.length === 0) {
+            // Fallback to simple random if no weights
+            return availableEmojis[Math.floor(Math.random() * availableEmojis.length)];
+        }
+        
+        const selectedEmoji = weightedEmojis[Math.floor(Math.random() * weightedEmojis.length)];
+        console.log(`Selected emoji: ${selectedEmoji.emoji} from ${weightedEmojis.length} weighted entries`);
+        
+        return selectedEmoji;
     }
 
     getRandomShape() {
@@ -787,15 +1104,9 @@ class GameScene extends Phaser.Scene {
         };
     }
 
-    getRandomNumber(configType = 'smallNumbers') {
-        const colors = [
-            { value: "Red", en: "Red", es: "Rojo", hex: "#ff0000" },
-            { value: "Blue", en: "Blue", es: "Azul", hex: "#0000ff" },
-            { value: "Green", en: "Green", es: "Verde", hex: "#00ff00" },
-            { value: "Yellow", en: "Yellow", es: "Amarillo", hex: "#ffff00" },
-            { value: "Purple", en: "Purple", es: "Morado", hex: "#800080" },
-            { value: "Orange", en: "Orange", es: "Naranja", hex: "#ffa500" }
-        ];
+    async getRandomNumber(configType = 'smallNumbers') {
+        // Load color data from things.json to support proper multilingual translations
+        const colorsData = await this.loadColorsData();
         
         // Use configuration-based number ranges
         let number;
@@ -817,15 +1128,62 @@ class GameScene extends Phaser.Scene {
             }
         }
         
-        const color = colors[Math.floor(Math.random() * colors.length)];
+        const color = colorsData[Math.floor(Math.random() * colorsData.length)];
+        
+        // Get enabled languages for proper translation support
+        const languagesConfig = this.configManager ? this.configManager.getLanguages() : null;
+        const enabledLanguages = languagesConfig?.enabled || [{ code: 'en' }, { code: 'es' }];
+        
+        // Create multilingual text labels
+        const translatedLabels = {};
+        enabledLanguages.forEach(lang => {
+            const colorName = color[lang.code] || color['en-US'] || color.en || color.value;
+            const numberText = number.toString();
+            
+            // Language-specific formatting (some languages put adjectives after nouns)
+            if (lang.code === 'es' || lang.code === 'fr') {
+                translatedLabels[lang.code] = `${numberText} ${colorName}`;
+            } else {
+                translatedLabels[lang.code] = `${colorName} ${numberText}`;
+            }
+        });
+        
+        // Backward compatibility with old en/es structure
+        translatedLabels.en = translatedLabels.en || translatedLabels['en-US'] || `${color['en-US'] || color.value} ${number}`;
+        translatedLabels.es = translatedLabels.es || `${number} ${color.es || color.value}`;
         
         return {
             type: 'number',
             symbol: number.toString(),
             color: color.hex,
-            en: `${color.en} ${number}`,
-            es: `${number} ${color.es}`
+            ...translatedLabels
         };
+    }
+    
+    async loadColorsData() {
+        // Cache colors data to avoid repeated loading
+        if (this.cachedColorsData) {
+            return this.cachedColorsData;
+        }
+        
+        try {
+            const response = await fetch('/public/things.json');
+            const data = await response.json();
+            this.cachedColorsData = data.colors || [];
+            return this.cachedColorsData;
+        } catch (error) {
+            console.warn('Failed to load colors from things.json, using fallback:', error);
+            // Fallback colors with proper multilingual support
+            this.cachedColorsData = [
+                { value: "Red", "en-US": "Red", "en-GB": "Red", "es": "Rojo", hex: "#ff0000" },
+                { value: "Blue", "en-US": "Blue", "en-GB": "Blue", "es": "Azul", hex: "#0000ff" },
+                { value: "Green", "en-US": "Green", "en-GB": "Green", "es": "Verde", hex: "#00ff00" },
+                { value: "Yellow", "en-US": "Yellow", "en-GB": "Yellow", "es": "Amarillo", hex: "#ffff00" },
+                { value: "Purple", "en-US": "Purple", "en-GB": "Purple", "es": "Morado", hex: "#800080" },
+                { value: "Orange", "en-US": "Orange", "en-GB": "Orange", "es": "Naranja", hex: "#ffa500" }
+            ];
+            return this.cachedColorsData;
+        }
     }
 
     getDisplayText(item, type) {
@@ -855,46 +1213,37 @@ class GameScene extends Phaser.Scene {
         const data = obj.data;
         let textsToSpeak = [];
         
-        // Get language setting from config
-        const configLanguage = this.configManager ? this.configManager.getLanguage() : 'bilingual';
-        const actualLanguage = language === 'both' ? configLanguage : language;
+        // Get enabled languages from config
+        const config = this.configManager ? this.configManager.getConfig() : null;
+        const enabledLanguages = config?.languages?.enabled || [{ code: 'en' }];
+        
+        console.log('🗣️ Speech debug - enabled languages:', enabledLanguages);
+        console.log('🗣️ Speech debug - language parameter:', language);
+        console.log('🗣️ Speech debug - object data:', data);
         
         // Determine what to speak based on language parameter
-        if (actualLanguage === 'en') {
-            textsToSpeak = [data.en];
-        } else if (actualLanguage === 'es') {
-            textsToSpeak = [data.es];
-        } else if (actualLanguage === 'zh') {
-            textsToSpeak = [data.zh || data.en]; // Fallback to English if translation missing
-        } else if (actualLanguage === 'hi') {
-            textsToSpeak = [data.hi || data.en];
-        } else if (actualLanguage === 'ar') {
-            textsToSpeak = [data.ar || data.en];
-        } else if (actualLanguage === 'fr') {
-            textsToSpeak = [data.fr || data.en];
-        } else if (actualLanguage === 'bn') {
-            textsToSpeak = [data.bn || data.en];
-        } else if (actualLanguage === 'pt') {
-            textsToSpeak = [data.pt || data.en];
-        } else if (actualLanguage === 'ru') {
-            textsToSpeak = [data.ru || data.en];
-        } else if (actualLanguage === 'id') {
-            textsToSpeak = [data.id || data.en];
-        } else if (actualLanguage === 'tlh') {
-            textsToSpeak = [data.tlh || data.en];
-        } else if (actualLanguage === 'jbo') {
-            textsToSpeak = [data.jbo || data.en];
-        } else if (actualLanguage === 'eo') {
-            textsToSpeak = [data.eo || data.en];
-        } else if (actualLanguage === 'bilingual') {
-            textsToSpeak = [data.en, data.es];
+        if (language === 'both' || language === 'all') {
+            // Use all enabled languages in order
+            textsToSpeak = [];
+            this.currentLanguageCodes = []; // Store corresponding language codes
+            enabledLanguages.forEach(lang => {
+                const text = data[lang.code] || data.en; // Fallback to English if translation missing
+                if (text) {
+                    textsToSpeak.push(text);
+                    this.currentLanguageCodes.push(lang.code);
+                }
+            });
+            console.log('🗣️ Speech debug - texts to speak:', textsToSpeak);
+            console.log('🗣️ Speech debug - language codes:', this.currentLanguageCodes);
         } else {
-            // Default fallback
-            textsToSpeak = [data.en];
+            // Use specific language
+            const text = data[language] || data.en;
+            textsToSpeak = [text];
+            this.currentLanguageCodes = [language];
         }
         
         // Store current language for speech synthesis
-        this.currentLanguage = actualLanguage;
+        this.currentLanguage = language === 'both' || language === 'all' ? 'multilingual' : language;
         
         // Speak each text in sequence
         this.speakTextSequence(textsToSpeak, 0);
@@ -931,12 +1280,12 @@ class GameScene extends Phaser.Scene {
             'eo': 'eo'      // Esperanto
         };
         
-        // For bilingual mode, alternate between English and Spanish
-        if (this.currentLanguage === 'bilingual') {
-            utterance.lang = index === 0 ? 'en-US' : 'es-ES';
-        } else {
-            utterance.lang = languageMap[this.currentLanguage] || 'en-US';
-        }
+        // Use the language code for this specific text
+        const currentLangCode = this.currentLanguageCodes && this.currentLanguageCodes[index] 
+            ? this.currentLanguageCodes[index] 
+            : (this.currentLanguage === 'multilingual' ? 'en' : this.currentLanguage);
+        
+        utterance.lang = languageMap[currentLangCode] || 'en-US';
         
         utterance.rate = 0.8;
         utterance.volume = 0.7;
@@ -946,11 +1295,21 @@ class GameScene extends Phaser.Scene {
             const obj = this.currentSpeakingObject;
             let wordObjects = null;
             
-            // Get the appropriate word objects based on language
-            if (index === 0 && obj.englishWords) {
-                wordObjects = obj.englishWords;
-            } else if (index === 1 && obj.spanishWords) {
-                wordObjects = obj.spanishWords;
+            // Get the appropriate word objects based on current language being spoken
+            if (obj.allLanguageWords && this.currentLanguageCodes && this.currentLanguageCodes[index]) {
+                // Find the language group that matches the current language being spoken
+                const currentLangCode = this.currentLanguageCodes[index];
+                const langGroup = obj.allLanguageWords.find(group => group.languageCode === currentLangCode);
+                if (langGroup && langGroup.words) {
+                    wordObjects = langGroup.words;
+                }
+            } else {
+                // Fallback to old structure for backward compatibility
+                if (index === 0 && obj.englishWords) {
+                    wordObjects = obj.englishWords;
+                } else if (index === 1 && obj.spanishWords) {
+                    wordObjects = obj.spanishWords;
+                }
             }
             
             // Estimate speech duration and animate words
@@ -982,8 +1341,9 @@ class GameScene extends Phaser.Scene {
         const x = obj.x;
         const y = obj.y;
         
-        // Get current language setting
-        const configLanguage = this.configManager ? this.configManager.getLanguage() : 'bilingual';
+        // Get enabled languages from configuration
+        const languagesConfig = this.configManager ? this.configManager.getLanguages() : null;
+        const enabledLanguages = languagesConfig?.enabled || [{ code: 'en' }, { code: 'es' }];
         
         // Text style for labels with responsive sizing
         const screenWidth = this.scale.width || window.innerWidth || 800;
@@ -1002,27 +1362,37 @@ class GameScene extends Phaser.Scene {
         };
         
         const labelOffset = Math.floor(60 * scaleFactor);
+        const lineSpacing = Math.floor(30 * scaleFactor);
+        
+        // Store word objects for all enabled languages
+        const allLanguageWords = [];
         let englishWords = [];
         let spanishWords = [];
         
-        // Create text based on language setting
-        if (configLanguage === 'bilingual') {
-            // Show both English and Spanish (original behavior)
-            englishWords = this.createWordObjects(data.en, x, y + labelOffset, labelStyle);
-            spanishWords = this.createWordObjects(data.es, x, y + labelOffset + Math.floor(30 * scaleFactor), labelStyle);
-        } else if (configLanguage === 'en') {
-            englishWords = this.createWordObjects(data.en, x, y + labelOffset, labelStyle);
-        } else if (configLanguage === 'es') {
-            spanishWords = this.createWordObjects(data.es, x, y + labelOffset, labelStyle);
-        } else {
-            // For other languages, show in the primary position with fallback to English
-            const text = data[configLanguage] || data.en;
-            englishWords = this.createWordObjects(text, x, y + labelOffset, labelStyle);
-        }
+        // Create text labels for all enabled languages
+        enabledLanguages.forEach((language, index) => {
+            const text = data[language.code] || data.en; // Fallback to English if language not available
+            const yPosition = y + labelOffset + (index * lineSpacing);
+            const wordObjects = this.createWordObjects(text, x, yPosition, labelStyle);
+            
+            // Store in language-specific arrays for backward compatibility
+            if (language.code === 'en') {
+                englishWords = wordObjects;
+            } else if (language.code === 'es') {
+                spanishWords = wordObjects;
+            }
+            
+            // Store all language words for comprehensive layout management
+            allLanguageWords.push({
+                languageCode: language.code,
+                words: wordObjects
+            });
+        });
         
         // Store references to word objects for cleanup and animation
         obj.englishWords = englishWords;
         obj.spanishWords = spanishWords;
+        obj.allLanguageWords = allLanguageWords; // Store all language words
         
         // Keep legacy single text references for compatibility
         obj.englishLabel = englishWords.length > 0 ? englishWords[0] : null;
@@ -1034,18 +1404,27 @@ class GameScene extends Phaser.Scene {
             obj.componentLayout = {};
         }
         
-        // Store English words relative positions FROM WORD CENTER, not left edge
+        // Store all language words relative positions FROM WORD CENTER, not left edge
+        obj.componentLayout.allLanguageWords = allLanguageWords.map(langGroup => ({
+            languageCode: langGroup.languageCode,
+            words: langGroup.words.map((wordObj, index) => {
+                // Calculate offset from word center to object center
+                const wordCenterX = wordObj.x + (wordObj.width / 2);
+                const offsetX = wordCenterX - x;
+                const offsetY = wordObj.y - y;
+                return { offsetX, offsetY };
+            })
+        }));
+        
+        // Keep backward compatibility with old structure
         obj.componentLayout.englishWords = englishWords.map((wordObj, index) => {
-            // Calculate offset from word center to object center
             const wordCenterX = wordObj.x + (wordObj.width / 2);
             const offsetX = wordCenterX - x;
             const offsetY = wordObj.y - y;
             return { offsetX, offsetY };
         });
         
-        // Store Spanish words relative positions FROM WORD CENTER, not left edge
         obj.componentLayout.spanishWords = spanishWords.map((wordObj, index) => {
-            // Calculate offset from word center to object center
             const wordCenterX = wordObj.x + (wordObj.width / 2);
             const offsetX = wordCenterX - x;
             const offsetY = wordObj.y - y;
@@ -1744,6 +2123,156 @@ class GameScene extends Phaser.Scene {
         return number.toString(2);
     }
 
+    /**
+     * Render object counting numerals using place value system
+     * 🍎=1s, 🛍️=10s, 📦=100s, 🚛=1000s
+     * Stacks horizontally and collapses unused place values
+     */
+    renderObjectCountingNumeral(number, x, y) {
+        if (number < 0 || number > 9999) return [];
+        
+        // Extract place values
+        const ones = number % 10;
+        const tens = Math.floor((number % 100) / 10);
+        const hundreds = Math.floor((number % 1000) / 100);
+        const thousands = Math.floor(number / 1000);
+        
+        const components = [];
+        const emojis = {
+            ones: '🍎',      // Apple for 1s
+            tens: '🛍️',      // Shopping bag for 10s  
+            hundreds: '📦',   // Box for 100s
+            thousands: '🚛'   // Truck for 1000s
+        };
+        
+        // Calculate responsive sizing
+        const screenWidth = this.scale.width || window.innerWidth || 800;
+        const screenHeight = this.scale.height || window.innerHeight || 600;
+        const minDimension = Math.min(screenWidth, screenHeight);
+        const scaleFactor = Math.max(0.4, Math.min(1.2, minDimension / 600));
+        const fontSize = Math.floor(24 * scaleFactor);
+        const spacing = Math.floor(30 * scaleFactor);
+        
+        // Track enabled number modes to calculate proper vertical positioning with collapsing
+        const numberModes = this.configManager ? this.configManager.getNumberModes() : {};
+        let yOffset = 0;
+        
+        // Object counting goes above Cistercian numerals, so calculate offset upward from main number
+        // Start above main number and add space for other modes that appear above Cistercian
+        yOffset = 170; // Base offset to place above Cistercian (which is at -100) - increased for better positioning
+        if (numberModes.binary) yOffset += 30;
+        if (numberModes.kaktovik) yOffset += 40;
+        
+        // If Cistercian is disabled, collapse down closer to main number
+        if (!numberModes.cistercian) {
+            yOffset = 100; // Closer to main number when Cistercian not present - slightly increased
+            if (numberModes.binary) yOffset += 30;
+            if (numberModes.kaktovik) yOffset += 40;
+        }
+        
+        const baseY = y - yOffset; // Position above main number
+        
+        // Build array of place values in stacking order: thousands (bottom) to ones (top)
+        const placeValues = [
+            { count: thousands, emoji: emojis.thousands, name: 'thousands' },
+            { count: hundreds, emoji: emojis.hundreds, name: 'hundreds' },
+            { count: tens, emoji: emojis.tens, name: 'tens' },
+            { count: ones, emoji: emojis.ones, name: 'ones' }
+        ].filter(place => place.count > 0); // Only include non-zero place values
+        
+        // Handle zero case - show nothing for zero in place value system
+        if (number === 0) {
+            return components; // Return empty array for zero
+        }
+        
+        // Calculate the widest row to center everything
+        let maxWidth = 0;
+        placeValues.forEach(place => {
+            const rowWidth = place.count * spacing;
+            maxWidth = Math.max(maxWidth, rowWidth);
+        });
+        
+        // Render each place value as vertical stack (thousands at bottom, ones at top)
+        placeValues.forEach((place, placeIndex) => {
+            // Calculate Y position: stack from bottom up
+            const rowY = baseY + (placeValues.length - 1 - placeIndex) * spacing;
+            
+            // Center this row within the max width
+            const rowWidth = place.count * spacing;
+            let rowX = x - rowWidth / 2;
+            
+            // Render the emoji count horizontally for this place value
+            for (let i = 0; i < place.count; i++) {
+                const emoji = this.add.text(rowX, rowY, place.emoji, {
+                    fontSize: `${fontSize}px`,
+                    fontFamily: 'Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
+                    fill: '#ffffff',
+                    align: 'center'
+                }).setOrigin(0.5);
+                
+                components.push(emoji);
+                rowX += spacing;
+            }
+        });
+        
+        return components;
+    }
+
+    /**
+     * Render only apples counting for early learners
+     * Simple horizontal display of apple emojis
+     */
+    renderOnlyApplesNumeral(number, x, y) {
+        if (number < 0 || number > 50) return []; // Limit to reasonable count for UI
+        
+        const components = [];
+        const appleEmoji = '🍎';
+        
+        // Calculate responsive sizing
+        const screenWidth = this.scale.width || window.innerWidth || 800;
+        const screenHeight = this.scale.height || window.innerHeight || 600;
+        const minDimension = Math.min(screenWidth, screenHeight);
+        const scaleFactor = Math.max(0.4, Math.min(1.2, minDimension / 600));
+        const fontSize = Math.floor(20 * scaleFactor);
+        const spacing = Math.floor(25 * scaleFactor);
+        
+        // Track enabled number modes to calculate proper vertical positioning with collapsing
+        const numberModes = this.configManager ? this.configManager.getNumberModes() : {};
+        let yOffset = 0;
+        
+        // Calculate how many number modes are above this one
+        if (numberModes.cistercian) yOffset += 40;
+        if (numberModes.binary) yOffset += 30;
+        if (numberModes.kaktovik) yOffset += 35;
+        if (numberModes.objectCounting) yOffset += 50;
+        
+        const baseY = y - 80 - yOffset;
+        
+        // Calculate total width and starting position for proper centering
+        const totalWidth = Math.max(0, (number - 1) * spacing); // Width of gaps between apples
+        const startX = x - totalWidth / 2;
+        
+        // Handle zero case - show no apples for zero
+        if (number === 0) {
+            return components; // Return empty array for zero
+        }
+        
+        // Render apples horizontally
+        for (let i = 0; i < number; i++) {
+            const appleX = startX + (i * spacing);
+            const apple = this.add.text(appleX, baseY, appleEmoji, {
+                fontSize: `${fontSize}px`,
+                fontFamily: 'Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
+                fill: '#ffffff',
+                align: 'center'
+            }).setOrigin(0.5);
+            
+            components.push(apple);
+        }
+        
+        return components;
+    }
+
     createWordSparkleEffect(wordObj, duration = 1000) {
         if (!wordObj) return null;
         
@@ -2248,6 +2777,19 @@ class GameScene extends Phaser.Scene {
             });
         }
         
+        // Destroy all language words from the comprehensive multilingual structure
+        if (obj.allLanguageWords && Array.isArray(obj.allLanguageWords)) {
+            obj.allLanguageWords.forEach(langGroup => {
+                if (langGroup.words && Array.isArray(langGroup.words)) {
+                    langGroup.words.forEach(wordObj => {
+                        if (wordObj && wordObj.destroy) {
+                            wordObj.destroy();
+                        }
+                    });
+                }
+            });
+        }
+        
         if (obj.kaktovikNumeral) {
             obj.kaktovikNumeral.destroy();
         }
@@ -2256,6 +2798,24 @@ class GameScene extends Phaser.Scene {
         }
         if (obj.binaryHearts) {
             obj.binaryHearts.destroy();
+        }
+        
+        // Destroy object counting components (arrays of emojis)
+        if (obj.objectCountingComponents && Array.isArray(obj.objectCountingComponents)) {
+            obj.objectCountingComponents.forEach(component => {
+                if (component && component.destroy) {
+                    component.destroy();
+                }
+            });
+        }
+        
+        // Destroy only apples components (arrays of apple emojis)
+        if (obj.onlyApplesComponents && Array.isArray(obj.onlyApplesComponents)) {
+            obj.onlyApplesComponents.forEach(component => {
+                if (component && component.destroy) {
+                    component.destroy();
+                }
+            });
         }
 
         // Stop any audio associated with this object

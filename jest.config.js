@@ -4,7 +4,7 @@ module.exports = {
   testMatch: ['<rootDir>/tests/**/*.test.js'],
   collectCoverageFrom: [
     'src/**/*.js',
-    '!src/emojis.json',
-    '!src/things.json'
+    '!public/emojis.json',
+    '!public/things.json'
   ]
 };

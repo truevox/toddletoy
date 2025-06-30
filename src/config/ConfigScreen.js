@@ -38,7 +38,6 @@ export class ConfigScreen {
                 <main class="config-main">
                     ${this.createContentTypesSection()}
                     ${this.createEmojiCategoriesSection()}
-                    ${this.createColorCategoriesSection()}
                     ${this.createLanguageSection()}
                     ${this.createAdvancedSection()}
                 </main>
@@ -60,6 +59,9 @@ export class ConfigScreen {
         
         // Add event listeners
         this.addEventListeners();
+        
+        // Populate language columns
+        this.populateLanguageColumns();
         
         // Append to body (initially hidden)
         this.container.style.display = 'none';
@@ -169,11 +171,12 @@ export class ConfigScreen {
      */
     createEmojiCategoriesSection() {
         return `
-            <section class="config-section">
+            <section class="config-section emoji-categories-section">
                 <h2 class="section-title">What kinds of emojis?</h2>
                 <p class="section-help">Choose which types of emojis to include. Make favorites appear more often.</p>
+                <p class="emoji-dependency-note">💡 These categories are only used when "😊 Emojis" is enabled above</p>
                 
-                <div class="emoji-grid">
+                <div class="emoji-grid emoji-subcategories">
                     <div class="emoji-item">
                         <label class="emoji-label">
                             <input type="checkbox" id="animals-enabled" class="emoji-checkbox">
@@ -250,136 +253,48 @@ export class ConfigScreen {
         `;
     }
 
-    /**
-     * Create color categories section
-     */
-    createColorCategoriesSection() {
-        return `
-            <section class="config-section">
-                <h2 class="section-title">What colors should things be?</h2>
-                <p class="section-help">Choose which colors appear in shapes and letters. More variety = more learning!</p>
-                
-                <div class="color-grid">
-                    <div class="color-item">
-                        <label class="color-label">
-                            <input type="checkbox" id="primary-colors-enabled" class="color-checkbox">
-                            🔴 Primary Colors
-                        </label>
-                        <div class="weight-control">
-                            <input type="range" id="primary-colors-weight" class="weight-slider" min="1" max="100" value="50">
-                            <span class="weight-value" id="primary-colors-weight-value">50</span>
-                        </div>
-                        <p class="color-examples">Red, Blue, Yellow - basic color learning</p>
-                    </div>
-
-                    <div class="color-item">
-                        <label class="color-label">
-                            <input type="checkbox" id="secondary-colors-enabled" class="color-checkbox">
-                            🟢 Secondary Colors
-                        </label>
-                        <div class="weight-control">
-                            <input type="range" id="secondary-colors-weight" class="weight-slider" min="1" max="100" value="35">
-                            <span class="weight-value" id="secondary-colors-weight-value">35</span>
-                        </div>
-                        <p class="color-examples">Green, Orange, Purple - expanded color vocabulary</p>
-                    </div>
-
-                    <div class="color-item">
-                        <label class="color-label">
-                            <input type="checkbox" id="neutral-colors-enabled" class="color-checkbox">
-                            🤍 Neutral Colors
-                        </label>
-                        <div class="weight-control">
-                            <input type="range" id="neutral-colors-weight" class="weight-slider" min="1" max="100" value="15">
-                            <span class="weight-value" id="neutral-colors-weight-value">15</span>
-                        </div>
-                        <p class="color-examples">Black, White, Brown, Gray - advanced color concepts</p>
-                    </div>
-                </div>
-            </section>
-        `;
-    }
 
     /**
-     * Create language selection section
+     * Create drag-and-drop language selection section
      */
     createLanguageSection() {
         return `
             <section class="config-section">
                 <h2 class="section-title">What language(s)?</h2>
-                <p class="section-help">Choose how words are spoken and displayed.</p>
+                <p class="section-help">Drag languages between columns. Enabled languages will be spoken and displayed. Drag to reorder priority.</p>
                 
-                <div class="language-options">
-                    <div class="language-group">
-                        <h3 class="language-group-title">Primary Languages</h3>
-                        <label class="language-option">
-                            <input type="radio" name="language" value="en" id="language-en">
-                            🇺🇸 English Only
-                        </label>
-                        <label class="language-option">
-                            <input type="radio" name="language" value="es" id="language-es">
-                            🇪🇸 Spanish Only
-                        </label>
-                        <label class="language-option">
-                            <input type="radio" name="language" value="bilingual" id="language-bilingual" checked>
-                            🌍 Both English & Spanish
-                            <span class="language-note">Child hears words in both English and Spanish</span>
-                        </label>
+                <div class="language-drag-container">
+                    <div class="language-column enabled-column">
+                        <h3 class="column-title">
+                            <span class="column-icon">✅</span>
+                            Enabled Languages
+                        </h3>
+                        <p class="column-help">Languages the child will hear and see</p>
+                        <div class="language-dropzone" id="enabled-languages" data-column="enabled">
+                            <!-- Enabled languages will be populated here -->
+                        </div>
                     </div>
-
-                    <div class="language-group">
-                        <h3 class="language-group-title">World Languages</h3>
-                        <label class="language-option">
-                            <input type="radio" name="language" value="zh" id="language-zh">
-                            🇨🇳 Mandarin Chinese (中文)
-                        </label>
-                        <label class="language-option">
-                            <input type="radio" name="language" value="hi" id="language-hi">
-                            🇮🇳 Hindi (हिन्दी)
-                        </label>
-                        <label class="language-option">
-                            <input type="radio" name="language" value="ar" id="language-ar">
-                            🇸🇦 Arabic (العربية)
-                        </label>
-                        <label class="language-option">
-                            <input type="radio" name="language" value="fr" id="language-fr">
-                            🇫🇷 French (Français)
-                        </label>
-                        <label class="language-option">
-                            <input type="radio" name="language" value="bn" id="language-bn">
-                            🇧🇩 Bengali (বাংলা)
-                        </label>
-                        <label class="language-option">
-                            <input type="radio" name="language" value="pt" id="language-pt">
-                            🇵🇹 Portuguese (Português)
-                        </label>
-                        <label class="language-option">
-                            <input type="radio" name="language" value="ru" id="language-ru">
-                            🇷🇺 Russian (Русский)
-                        </label>
-                        <label class="language-option">
-                            <input type="radio" name="language" value="id" id="language-id">
-                            🇮🇩 Indonesian (Bahasa Indonesia)
-                        </label>
+                    
+                    <div class="language-column available-column">
+                        <h3 class="column-title">
+                            <span class="column-icon">📋</span>
+                            Available Languages
+                        </h3>
+                        <p class="column-help">Drag languages to enable them</p>
+                        <div class="language-dropzone" id="available-languages" data-column="available">
+                            <!-- Available languages will be populated here -->
+                        </div>
                     </div>
-
-                    <div class="language-group">
-                        <h3 class="language-group-title">Fun Languages</h3>
-                        <label class="language-option">
-                            <input type="radio" name="language" value="tlh" id="language-tlh">
-                            🖖 Klingon (tlhIngan Hol)
-                            <span class="language-note">From Star Trek - logical language!</span>
-                        </label>
-                        <label class="language-option">
-                            <input type="radio" name="language" value="jbo" id="language-jbo">
-                            🤖 Lojban (la .lojban.)
-                            <span class="language-note">Constructed logical language</span>
-                        </label>
-                        <label class="language-option">
-                            <input type="radio" name="language" value="eo" id="language-eo">
-                            🌟 Esperanto
-                            <span class="language-note">International auxiliary language</span>
-                        </label>
+                </div>
+                
+                <div class="language-tips">
+                    <div class="tip-item">
+                        <span class="tip-icon">💡</span>
+                        <span class="tip-text">Drag to reorder: First language = primary speech</span>
+                    </div>
+                    <div class="tip-item">
+                        <span class="tip-icon">🌍</span>
+                        <span class="tip-text">Multiple languages = child learns different ways to say things</span>
                     </div>
                 </div>
             </section>
@@ -411,6 +326,16 @@ export class ConfigScreen {
                         ❤️ Binary Hearts
                         <span class="advanced-note">Computer-style numbers with hearts</span>
                     </label>
+                    <label class="advanced-option">
+                        <input type="checkbox" id="object-counting-enabled">
+                        🔢 Object Counting (Place Values)
+                        <span class="advanced-note">🍎=1s, 🛍️=10s, 📦=100s, 🚛=1000s (e.g. 15 = 1🛍️ + 5🍎)</span>
+                    </label>
+                    <label class="advanced-option">
+                        <input type="checkbox" id="only-apples-enabled" checked>
+                        🍎 Only Apples Counting
+                        <span class="advanced-note">Simple counting with just apples (e.g. 5 = 🍎🍎🍎🍎🍎)</span>
+                    </label>
                 </div>
                 
                 <div class="auto-cleanup-section">
@@ -419,7 +344,7 @@ export class ConfigScreen {
                     
                     <div class="cleanup-controls">
                         <label class="advanced-option">
-                            <input type="checkbox" id="auto-cleanup-enabled">
+                            <input type="checkbox" id="auto-cleanup-enabled" checked>
                             ⏰ Enable Auto-Cleanup
                             <span class="advanced-note">Objects disappear after not being touched for a while</span>
                         </label>
@@ -427,8 +352,8 @@ export class ConfigScreen {
                         <div class="cleanup-timer-control">
                             <label class="timer-label">
                                 Objects disappear after: 
-                                <input type="number" id="cleanup-timer-minutes" class="timer-input" min="0.5" max="10" step="0.5" value="2">
-                                minutes of no interaction
+                                <input type="number" id="cleanup-timer-seconds" class="timer-input" min="5" max="300" step="5" value="10">
+                                seconds of no interaction
                             </label>
                             <p class="timer-note">⭐ Each object gets its own timer that resets when touched, clicked, or voiced. When the timer expires, the object disappears with a fun pop sound and firework effects!</p>
                         </div>
@@ -436,6 +361,427 @@ export class ConfigScreen {
                 </div>
             </section>
         `;
+    }
+
+    /**
+     * Populate the language columns with draggable language items
+     */
+    populateLanguageColumns() {
+        const config = this.configManager.getConfig();
+        const enabledContainer = this.container.querySelector('#enabled-languages');
+        const availableContainer = this.container.querySelector('#available-languages');
+        
+        // Clear existing content
+        enabledContainer.innerHTML = '';
+        availableContainer.innerHTML = '';
+        
+        // Add enabled languages
+        config.languages.enabled.forEach((language, index) => {
+            const languageElement = this.createLanguageElement(language, index + 1);
+            enabledContainer.appendChild(languageElement);
+        });
+        
+        // Add available languages
+        config.languages.available.forEach(language => {
+            const languageElement = this.createLanguageElement(language);
+            availableContainer.appendChild(languageElement);
+        });
+        
+        // Set up drag and drop
+        this.setupLanguageDragAndDrop();
+    }
+
+    /**
+     * Create a draggable language element
+     */
+    createLanguageElement(language, priority = null) {
+        const element = document.createElement('div');
+        element.className = 'language-item';
+        element.dataset.languageCode = language.code;
+        
+        // Get flag emoji for language
+        const flagEmoji = this.getLanguageFlag(language.code);
+        
+        // Ensure language has difficulty data
+        const rank = language.difficultyRank || this.getDefaultRank(language.code);
+        
+        const difficultyLevel = this.getDifficultyLevel(rank);
+        const difficultyText = this.getDifficultyText(difficultyLevel);
+        
+        element.innerHTML = `
+            <span class="language-flag">${flagEmoji}</span>
+            <div class="language-info">
+                <div class="language-name">${language.name}</div>
+                <div class="language-native">${language.nativeName}</div>
+            </div>
+            ${priority ? `<span class="language-difficulty difficulty-${difficultyLevel}">${priority === 1 ? 'Primary' : `#${priority}`}</span>` : `<span class="language-difficulty difficulty-${difficultyLevel}">${difficultyText}</span>`}
+        `;
+        
+        return element;
+    }
+
+    /**
+     * Get flag emoji for language code
+     */
+    getLanguageFlag(code) {
+        const flags = {
+            'en': '🇺🇸', 'es': '🇪🇸', 'zh': '🇨🇳', 'hi': '🇮🇳', 'ar': '🇸🇦', 
+            'fr': '🇫🇷', 'bn': '🇧🇩', 'pt': '🇵🇹', 'ru': '🇷🇺', 'id': '🇮🇩',
+            'tlh': '⚔️', 'jbo': '🤖', 'eo': '⭐'
+        };
+        return flags[code] || '🌍';
+    }
+
+    /**
+     * Get difficulty level category for styling
+     */
+    getDifficultyLevel(rank) {
+        if (rank === 1) return 'trivial';   // Esperanto
+        if (rank <= 3) return 'easy';       // Indonesian, Spanish
+        if (rank <= 6) return 'medium';     // Portuguese, French, English
+        if (rank <= 8) return 'hard';       // Lojban, Russian
+        if (rank <= 10) return 'very-hard'; // Bengali, Hindi
+        if (rank <= 11) return 'extreme';   // Klingon
+        return 'nightmare';                 // Arabic, Chinese
+    }
+
+    /**
+     * Get difficulty text for display
+     */
+    getDifficultyText(level) {
+        const texts = {
+            'trivial': 'Trivial',
+            'easy': 'Easy',
+            'medium': 'Medium',
+            'hard': 'Hard',
+            'very-hard': 'Very Hard',
+            'extreme': 'Extreme',
+            'nightmare': 'Expert Only'
+        };
+        return texts[level] || 'Medium';
+    }
+
+    /**
+     * Get default difficulty rank for language code
+     */
+    getDefaultRank(code) {
+        const ranks = {
+            'eo': 1, 'id': 2, 'es': 3, 'pt': 4, 'fr': 5, 'en': 6,
+            'jbo': 7, 'ru': 8, 'bn': 9, 'hi': 10, 'tlh': 11, 'ar': 12, 'zh': 13
+        };
+        return ranks[code] || 6; // Default to English difficulty
+    }
+
+    /**
+     * Get default learning hours for language code
+     */
+    getDefaultHours(code) {
+        const hours = {
+            'eo': '150-200h', 'id': '900h', 'es': '600-750h', 'pt': '600-750h', 
+            'fr': '600-750h', 'en': '700-900h', 'jbo': '1000h±', 'ru': '1100h',
+            'bn': '1100h', 'hi': '1100h', 'tlh': '1400h±', 'ar': '2200h', 'zh': '2200h+'
+        };
+        return hours[code] || '700-900h'; // Default to English hours
+    }
+
+    /**
+     * Set up drag and drop functionality for languages
+     */
+    setupLanguageDragAndDrop() {
+        const languageItems = this.container.querySelectorAll('.language-item');
+        
+        languageItems.forEach(item => {
+            this.makeLanguageItemDraggable(item);
+        });
+    }
+
+    /**
+     * Make a language item draggable with mouse/touch events
+     */
+    makeLanguageItemDraggable(item) {
+        let isDragging = false;
+        let dragOffset = { x: 0, y: 0 };
+        let dragElement = null;
+        let originalParent = null;
+        let originalNextSibling = null;
+
+        const startDrag = (e) => {
+            // Prevent if clicking on text to allow selection
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+            
+            isDragging = true;
+            originalParent = item.parentNode;
+            originalNextSibling = item.nextElementSibling;
+            
+            const rect = item.getBoundingClientRect();
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            
+            dragOffset.x = clientX - rect.left;
+            dragOffset.y = clientY - rect.top;
+            
+            // Create drag element
+            dragElement = item.cloneNode(true);
+            dragElement.style.cssText = `
+                position: fixed;
+                pointer-events: none;
+                z-index: 1000;
+                opacity: 0.8;
+                transform: rotate(3deg);
+                width: ${rect.width}px;
+                box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+            `;
+            document.body.appendChild(dragElement);
+            
+            // Style original item
+            item.style.opacity = '0.3';
+            item.classList.add('dragging');
+            
+            // Prevent text selection
+            document.body.style.userSelect = 'none';
+            
+            e.preventDefault();
+        };
+
+        const drag = (e) => {
+            if (!isDragging) return;
+            
+            const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+            const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+            
+            // Use requestAnimationFrame for smoother updates
+            requestAnimationFrame(() => {
+                if (!dragElement) return;
+                
+                // Update drag element position immediately
+                dragElement.style.left = (clientX - dragOffset.x) + 'px';
+                dragElement.style.top = (clientY - dragOffset.y) + 'px';
+                
+                // Find drop target
+                const dropTarget = this.findDropTarget(clientX, clientY, item.dataset.languageCode);
+                this.updateDropIndicator(dropTarget);
+            });
+            
+            e.preventDefault();
+        };
+
+        const endDrag = (e) => {
+            if (!isDragging) return;
+            
+            isDragging = false;
+            
+            const clientX = e.clientX || e.changedTouches && e.changedTouches[0].clientX;
+            const clientY = e.clientY || e.changedTouches && e.changedTouches[0].clientY;
+            
+            // Clean up
+            if (dragElement) {
+                dragElement.remove();
+                dragElement = null;
+            }
+            
+            item.style.opacity = '';
+            item.classList.remove('dragging');
+            document.body.style.userSelect = '';
+            this.clearDropIndicators();
+            
+            // Handle drop
+            const dropTarget = this.findDropTarget(clientX, clientY, item.dataset.languageCode);
+            if (dropTarget) {
+                this.handleLanguageDrop(item.dataset.languageCode, dropTarget);
+            }
+        };
+
+        // Mouse events
+        item.addEventListener('mousedown', startDrag);
+        document.addEventListener('mousemove', drag);
+        document.addEventListener('mouseup', endDrag);
+        
+        // Touch events
+        item.addEventListener('touchstart', startDrag, { passive: false });
+        document.addEventListener('touchmove', drag, { passive: false });
+        document.addEventListener('touchend', endDrag);
+    }
+
+    /**
+     * Find the drop target based on mouse position
+     */
+    findDropTarget(clientX, clientY, draggedCode) {
+        const dropzones = this.container.querySelectorAll('.language-dropzone');
+        
+        for (const zone of dropzones) {
+            const rect = zone.getBoundingClientRect();
+            if (clientX >= rect.left && clientX <= rect.right && 
+                clientY >= rect.top && clientY <= rect.bottom) {
+                
+                const column = zone.dataset.column;
+                const languageItems = Array.from(zone.querySelectorAll('.language-item:not(.dragging)'));
+                
+                // Check if dragged item is already in this column
+                const draggedInColumn = zone.querySelector(`[data-language-code="${draggedCode}"]`);
+                const isReorder = !!draggedInColumn;
+                
+                if (languageItems.length === 0) {
+                    return { 
+                        zone, 
+                        column, 
+                        isReorder, 
+                        insertIndex: 0, 
+                        insertElement: zone, 
+                        insertBefore: false 
+                    };
+                }
+                
+                let insertIndex = languageItems.length;
+                let insertElement = null;
+                let insertBefore = false;
+                
+                for (let i = 0; i < languageItems.length; i++) {
+                    const item = languageItems[i];
+                    const itemRect = item.getBoundingClientRect();
+                    const midpoint = itemRect.top + itemRect.height / 2;
+                    
+                    if (clientY < midpoint) {
+                        insertIndex = i;
+                        insertElement = item;
+                        insertBefore = true;
+                        break;
+                    }
+                }
+                
+                if (!insertElement) {
+                    insertElement = languageItems[languageItems.length - 1];
+                    insertBefore = false;
+                }
+                
+                return { zone, column, isReorder, insertIndex, insertElement, insertBefore };
+            }
+        }
+        
+        return null;
+    }
+
+    /**
+     * Update drop indicator based on drop target
+     */
+    updateDropIndicator(dropTarget) {
+        this.clearDropIndicators();
+        
+        if (!dropTarget || !dropTarget.insertElement) return;
+        
+        const indicator = document.createElement('div');
+        indicator.className = 'drop-indicator';
+        indicator.style.cssText = `
+            height: 3px;
+            background: #4CAF50;
+            margin: 2px 0;
+            border-radius: 2px;
+            opacity: 0.9;
+            box-shadow: 0 0 4px rgba(76, 175, 80, 0.5);
+        `;
+        
+        if (dropTarget.insertBefore) {
+            dropTarget.insertElement.parentNode.insertBefore(indicator, dropTarget.insertElement);
+        } else {
+            dropTarget.insertElement.parentNode.appendChild(indicator);
+        }
+        
+        // Add column highlighting
+        dropTarget.zone.classList.add('drag-over');
+    }
+
+    /**
+     * Clear all drop indicators and highlights
+     */
+    clearDropIndicators() {
+        const indicators = this.container.querySelectorAll('.drop-indicator');
+        indicators.forEach(indicator => indicator.remove());
+        
+        const dropzones = this.container.querySelectorAll('.language-dropzone');
+        dropzones.forEach(zone => zone.classList.remove('drag-over'));
+    }
+
+    /**
+     * Handle language drop
+     */
+    handleLanguageDrop(languageCode, dropTarget) {
+        if (dropTarget.isReorder) {
+            this.reorderLanguage(languageCode, dropTarget.column, dropTarget.insertIndex);
+        } else {
+            this.moveLanguage(languageCode, dropTarget.column);
+        }
+    }
+
+    /**
+     * Reorder a language within the same column
+     */
+    reorderLanguage(languageCode, column, insertIndex) {
+        const config = this.configManager.getConfig();
+        const languageArray = column === 'enabled' ? config.languages.enabled : config.languages.available;
+        
+        // Find current index
+        const currentIndex = languageArray.findIndex(lang => lang.code === languageCode);
+        if (currentIndex === -1) return;
+        
+        // Remove from current position
+        const [language] = languageArray.splice(currentIndex, 1);
+        
+        // Adjust insert index if moving within same array
+        const adjustedIndex = currentIndex < insertIndex ? insertIndex - 1 : insertIndex;
+        
+        // Insert at new position
+        languageArray.splice(adjustedIndex, 0, language);
+        
+        // Update configuration and repopulate
+        this.configManager.saveConfig(config);
+        this.populateLanguageColumns();
+    }
+
+    /**
+     * Move a language between enabled and available columns
+     */
+    moveLanguage(languageCode, targetColumn) {
+        const config = this.configManager.getConfig();
+        
+        // Find the language in current configuration
+        let language = null;
+        let sourceColumn = null;
+        
+        // Check enabled languages
+        const enabledIndex = config.languages.enabled.findIndex(lang => lang.code === languageCode);
+        if (enabledIndex !== -1) {
+            language = config.languages.enabled[enabledIndex];
+            sourceColumn = 'enabled';
+        }
+        
+        // Check available languages
+        const availableIndex = config.languages.available.findIndex(lang => lang.code === languageCode);
+        if (availableIndex !== -1) {
+            language = config.languages.available[availableIndex];
+            sourceColumn = 'available';
+        }
+        
+        // If source and target are the same, do nothing
+        if (sourceColumn === targetColumn || !language) {
+            return;
+        }
+        
+        // Remove from source
+        if (sourceColumn === 'enabled') {
+            config.languages.enabled.splice(enabledIndex, 1);
+        } else {
+            config.languages.available.splice(availableIndex, 1);
+        }
+        
+        // Add to target
+        if (targetColumn === 'enabled') {
+            config.languages.enabled.push(language);
+        } else {
+            config.languages.available.push(language);
+        }
+        
+        // Update configuration and repopulate
+        this.configManager.saveConfig(config);
+        this.populateLanguageColumns();
     }
 
     /**
@@ -531,6 +877,43 @@ export class ConfigScreen {
                 grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
             }
 
+            .emoji-categories-section {
+                position: relative;
+                border-left: 4px solid rgba(255, 255, 255, 0.3);
+                margin-left: 20px;
+                padding-left: 30px;
+                transition: all 0.3s ease;
+            }
+
+            .emoji-categories-section.emoji-enabled {
+                border-left-color: #4CAF50;
+                background: rgba(76, 175, 80, 0.05);
+            }
+
+            .emoji-categories-section.emoji-disabled {
+                opacity: 0.5;
+                border-left-color: #f44336;
+            }
+
+            .emoji-dependency-note {
+                font-size: 0.9rem;
+                padding: 10px 15px;
+                margin: 10px 0 20px 0;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                border-left: 3px solid #2196F3;
+                font-style: italic;
+            }
+
+            .emoji-subcategories {
+                transition: all 0.3s ease;
+            }
+
+            .emoji-subcategories.disabled {
+                opacity: 0.4;
+                pointer-events: none;
+            }
+
             .content-item, .emoji-item, .color-item {
                 background: rgba(255, 255, 255, 0.1);
                 border-radius: 10px;
@@ -588,60 +971,191 @@ export class ConfigScreen {
                 text-align: center;
             }
 
-            .content-examples, .emoji-examples, .color-examples {
+            .content-examples, .emoji-examples {
                 font-size: 0.85rem;
                 opacity: 0.7;
                 margin: 5px 0 0 0;
                 font-style: italic;
             }
 
-            .language-options {
-                display: flex;
-                flex-direction: column;
-                gap: 25px;
+            .language-drag-container {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 30px;
+                margin: 20px 0;
             }
 
-            .language-group {
+            .language-column {
                 background: rgba(255, 255, 255, 0.05);
                 border-radius: 12px;
                 padding: 20px;
+                min-height: 400px;
+            }
+
+            .enabled-column {
                 border-left: 4px solid #4CAF50;
             }
 
-            .language-group-title {
+            .available-column {
+                border-left: 4px solid #2196F3;
+            }
+
+            .column-title {
                 font-size: 1.2rem;
                 font-weight: bold;
-                margin: 0 0 15px 0;
+                margin: 0 0 10px 0;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .enabled-column .column-title {
                 color: #4CAF50;
             }
 
-            .language-option {
+            .available-column .column-title {
+                color: #2196F3;
+            }
+
+            .column-help {
+                font-size: 0.9rem;
+                opacity: 0.8;
+                margin: 0 0 20px 0;
+                font-style: italic;
+            }
+
+            .language-dropzone {
+                min-height: 300px;
+                border: 2px dashed rgba(255, 255, 255, 0.3);
+                border-radius: 8px;
+                padding: 15px;
+                transition: all 0.3s ease;
+            }
+
+            .language-dropzone.drag-over {
+                border-color: #4CAF50;
+                background: rgba(76, 175, 80, 0.1);
+            }
+
+            .language-item {
                 display: flex;
                 align-items: center;
-                font-size: 1.1rem;
-                cursor: pointer;
-                padding: 10px;
-                margin-bottom: 8px;
+                padding: 12px 15px;
+                margin: 8px 0;
                 border-radius: 8px;
-                background: rgba(255, 255, 255, 0.1);
-                transition: background-color 0.2s;
-            }
-
-            .language-option:hover {
+                cursor: grab;
+                transition: all 0.2s ease;
+                user-select: none;
+                position: relative;
                 background: rgba(255, 255, 255, 0.15);
+                border: 1px solid rgba(255, 255, 255, 0.2);
             }
 
-            .language-option input {
-                margin-right: 10px;
-                transform: scale(1.2);
+            .enabled-column .language-item {
+                background: rgba(76, 175, 80, 0.2);
+                border-color: rgba(76, 175, 80, 0.4);
             }
 
-            .language-note {
-                display: block;
+            .available-column .language-item {
+                background: rgba(33, 150, 243, 0.2);
+                border-color: rgba(33, 150, 243, 0.4);
+            }
+
+            .language-item:active {
+                cursor: grabbing;
+            }
+
+            .language-item.dragging {
+                opacity: 0.5;
+                transform: rotate(5deg);
+            }
+
+            .language-flag {
+                font-size: 1.5rem;
+                margin-right: 12px;
+            }
+
+            .language-info {
+                flex: 1;
+            }
+
+            .language-name {
+                font-weight: bold;
+                font-size: 1rem;
+                margin-bottom: 2px;
+            }
+
+            .language-native {
                 font-size: 0.85rem;
-                opacity: 0.7;
-                margin-left: 25px;
+                opacity: 0.8;
                 font-style: italic;
+            }
+
+            .language-difficulty {
+                font-size: 0.7rem;
+                padding: 3px 8px;
+                border-radius: 12px;
+                margin-left: 8px;
+                font-weight: bold;
+                text-align: center;
+                min-width: 80px;
+            }
+
+            .difficulty-trivial {
+                background: #8BC34A;
+                color: white;
+            }
+
+            .difficulty-easy {
+                background: #4CAF50;
+                color: white;
+            }
+
+            .difficulty-medium {
+                background: #FF9800;
+                color: white;
+            }
+
+            .difficulty-hard {
+                background: #FF5722;
+                color: white;
+            }
+
+            .difficulty-very-hard {
+                background: #E91E63;
+                color: white;
+            }
+
+            .difficulty-extreme {
+                background: #9C27B0;
+                color: white;
+            }
+
+            .difficulty-nightmare {
+                background: #212121;
+                color: white;
+                border: 1px solid #FF1744;
+            }
+
+            .language-tips {
+                margin-top: 20px;
+                display: flex;
+                gap: 20px;
+                flex-wrap: wrap;
+            }
+
+            .tip-item {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                padding: 10px 15px;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                font-size: 0.9rem;
+            }
+
+            .tip-icon {
+                font-size: 1.2rem;
             }
 
             .advanced-options {
@@ -801,13 +1315,83 @@ export class ConfigScreen {
                     font-size: 2rem;
                 }
 
-                .content-grid, .emoji-grid, .color-grid {
+                .content-grid, .emoji-grid {
                     grid-template-columns: 1fr;
                 }
 
                 .config-actions {
                     flex-direction: column;
                     gap: 15px;
+                }
+            }
+
+            /* Admin notification styles */
+            .admin-notification {
+                margin: 20px 0;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+                animation: slideIn 0.3s ease-out;
+            }
+
+            .admin-notification-info {
+                background: linear-gradient(135deg, #3498db, #2980b9);
+                border-left: 4px solid #2196F3;
+            }
+
+            .admin-notification-success {
+                background: linear-gradient(135deg, #27ae60, #229954);
+                border-left: 4px solid #4CAF50;
+            }
+
+            .notification-content {
+                padding: 20px;
+                color: white;
+                position: relative;
+            }
+
+            .notification-title {
+                margin: 0 0 8px 0;
+                font-size: 1.2rem;
+                font-weight: bold;
+            }
+
+            .notification-message {
+                margin: 0;
+                line-height: 1.5;
+                opacity: 0.95;
+            }
+
+            .notification-close {
+                position: absolute;
+                top: 10px;
+                right: 15px;
+                background: rgba(255,255,255,0.2);
+                border: none;
+                color: white;
+                font-size: 18px;
+                width: 24px;
+                height: 24px;
+                border-radius: 50%;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: background 0.2s;
+            }
+
+            .notification-close:hover {
+                background: rgba(255,255,255,0.3);
+            }
+
+            @keyframes slideIn {
+                from {
+                    transform: translateY(-20px);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateY(0);
+                    opacity: 1;
                 }
             }
         `;
@@ -845,21 +1429,148 @@ export class ConfigScreen {
         });
 
         // Cleanup timer validation
-        const cleanupTimerInput = this.container.querySelector('#cleanup-timer-minutes');
+        const cleanupTimerInput = this.container.querySelector('#cleanup-timer-seconds');
         cleanupTimerInput.addEventListener('input', (e) => {
-            let value = parseFloat(e.target.value);
-            if (value < 0.5) {
-                e.target.value = 0.5;
-            } else if (value > 10) {
-                e.target.value = 10;
+            let value = parseInt(e.target.value);
+            if (value < 5) {
+                e.target.value = 5;
+            } else if (value > 300) {
+                e.target.value = 300;
             }
         });
+
+        // Emoji master toggle functionality
+        this.setupEmojiMasterToggle();
+
+        // Object counting mutual exclusivity
+        this.setupObjectCountingMutualExclusivity();
 
         // Save configuration on any change
         const allInputs = this.container.querySelectorAll('input');
         allInputs.forEach(input => {
             input.addEventListener('change', () => this.saveCurrentConfig());
         });
+    }
+
+    /**
+     * Set up the emoji master toggle behavior
+     */
+    setupEmojiMasterToggle() {
+        const masterCheckbox = this.container.querySelector('#emojis-enabled');
+        const categoryCheckboxes = this.container.querySelectorAll('#animals-enabled, #food-enabled, #vehicles-enabled, #faces-enabled, #nature-enabled, #objects-enabled');
+
+        // When master checkbox changes, update all category checkboxes and visual styling
+        masterCheckbox.addEventListener('change', (e) => {
+            const isChecked = e.target.checked;
+            categoryCheckboxes.forEach(checkbox => {
+                checkbox.checked = isChecked;
+            });
+            
+            // Update visual styling of emoji categories section
+            this.updateEmojiCategoriesVisualState(isChecked);
+            
+            // Save after updating all checkboxes
+            this.saveCurrentConfig();
+        });
+
+        // When any category checkbox changes, update master checkbox
+        categoryCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                this.updateEmojiMasterCheckboxState();
+            });
+        });
+        
+        // Initialize visual state
+        this.updateEmojiMasterCheckboxState();
+    }
+
+    /**
+     * Update the master emoji checkbox based on category checkbox states
+     */
+    updateEmojiMasterCheckbox() {
+        this.updateEmojiMasterCheckboxState();
+    }
+
+    /**
+     * Update the master emoji checkbox state (checked/unchecked/indeterminate)
+     */
+    updateEmojiMasterCheckboxState() {
+        const masterCheckbox = this.container.querySelector('#emojis-enabled');
+        const categoryCheckboxes = this.container.querySelectorAll('#animals-enabled, #food-enabled, #vehicles-enabled, #faces-enabled, #nature-enabled, #objects-enabled');
+        
+        if (masterCheckbox && categoryCheckboxes.length > 0) {
+            const checkedCount = Array.from(categoryCheckboxes).filter(cb => cb.checked).length;
+            const totalCount = categoryCheckboxes.length;
+            
+            if (checkedCount === 0) {
+                // None selected - unchecked
+                masterCheckbox.checked = false;
+                masterCheckbox.indeterminate = false;
+                this.updateEmojiCategoriesVisualState(false);
+            } else if (checkedCount === totalCount) {
+                // All selected - checked
+                masterCheckbox.checked = true;
+                masterCheckbox.indeterminate = false;
+                this.updateEmojiCategoriesVisualState(true);
+            } else {
+                // Partial selection - indeterminate (half-ticked gray)
+                masterCheckbox.checked = false;
+                masterCheckbox.indeterminate = true;
+                this.updateEmojiCategoriesVisualState(true); // Categories are still usable
+            }
+        }
+    }
+
+    /**
+     * Update visual styling of emoji categories section based on master toggle state
+     */
+    updateEmojiCategoriesVisualState(isEnabled) {
+        const categoriesSection = this.container.querySelector('.emoji-categories-section');
+        const subcategoriesDiv = this.container.querySelector('.emoji-subcategories');
+        
+        if (categoriesSection) {
+            // Remove all state classes
+            categoriesSection.classList.remove('emoji-enabled', 'emoji-disabled');
+            
+            // Add appropriate state class
+            if (isEnabled) {
+                categoriesSection.classList.add('emoji-enabled');
+            } else {
+                categoriesSection.classList.add('emoji-disabled');
+            }
+        }
+        
+        if (subcategoriesDiv) {
+            if (isEnabled) {
+                subcategoriesDiv.classList.remove('disabled');
+            } else {
+                subcategoriesDiv.classList.add('disabled');
+            }
+        }
+    }
+
+    /**
+     * Set up mutual exclusivity between Object Counting and Only Apples
+     */
+    setupObjectCountingMutualExclusivity() {
+        const objectCountingCheckbox = this.container.querySelector('#object-counting-enabled');
+        const onlyApplesCheckbox = this.container.querySelector('#only-apples-enabled');
+
+        if (objectCountingCheckbox && onlyApplesCheckbox) {
+            // When Object Counting is checked, uncheck Only Apples
+            objectCountingCheckbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    onlyApplesCheckbox.checked = false;
+                }
+            });
+
+            // When Only Apples is checked, uncheck Object Counting
+            onlyApplesCheckbox.addEventListener('change', (e) => {
+                if (e.target.checked) {
+                    objectCountingCheckbox.checked = false;
+                }
+            });
+        }
     }
 
     /**
@@ -897,25 +1608,23 @@ export class ConfigScreen {
             this.setSliderValue(`#${category}-weight`, config.emojiCategories[category].weight);
         });
 
-        // Color categories
-        Object.keys(config.colorCategories).forEach(category => {
-            const kebabCase = category.replace(/([A-Z])/g, '-$1').toLowerCase();
-            this.setCheckboxValue(`#${kebabCase}-colors-enabled`, config.colorCategories[category].enabled);
-            this.setSliderValue(`#${kebabCase}-colors-weight`, config.colorCategories[category].weight);
-        });
+        // Update emoji master checkbox based on category states
+        this.updateEmojiMasterCheckbox();
 
-        // Language
-        this.setRadioValue('language', config.language);
+        // Refresh language columns
+        this.populateLanguageColumns();
 
         // Advanced options
         this.setCheckboxValue('#cistercian-enabled', config.advanced.numberModes.cistercian);
         this.setCheckboxValue('#kaktovik-enabled', config.advanced.numberModes.kaktovik);
         this.setCheckboxValue('#binary-enabled', config.advanced.numberModes.binary);
+        this.setCheckboxValue('#object-counting-enabled', config.advanced.numberModes.objectCounting);
+        this.setCheckboxValue('#only-apples-enabled', config.advanced.numberModes.onlyApples);
         this.setCheckboxValue('#skip-config-checkbox', config.advanced.skipConfig);
 
         // Auto-cleanup configuration
         this.setCheckboxValue('#auto-cleanup-enabled', config.advanced.autoCleanup.enabled);
-        this.setInputValue('#cleanup-timer-minutes', config.advanced.autoCleanup.timeoutMinutes);
+        this.setInputValue('#cleanup-timer-seconds', config.advanced.autoCleanup.timeoutSeconds);
     }
 
     /**
@@ -949,10 +1658,8 @@ export class ConfigScreen {
      * Validate number ranges and auto-adjust if needed
      */
     validateNumberRanges() {
-        const smallMin = parseInt(this.container.querySelector('#small-min').value);
         const smallMax = parseInt(this.container.querySelector('#small-max').value);
         const largeMin = parseInt(this.container.querySelector('#large-min').value);
-        const largeMax = parseInt(this.container.querySelector('#large-max').value);
 
         // Auto-adjust overlapping ranges
         if (smallMax >= largeMin) {
@@ -1036,31 +1743,20 @@ export class ConfigScreen {
                     weight: parseInt(this.container.querySelector('#objects-weight').value)
                 }
             },
-            colorCategories: {
-                primary: {
-                    enabled: this.container.querySelector('#primary-colors-enabled').checked,
-                    weight: parseInt(this.container.querySelector('#primary-colors-weight').value)
-                },
-                secondary: {
-                    enabled: this.container.querySelector('#secondary-colors-enabled').checked,
-                    weight: parseInt(this.container.querySelector('#secondary-colors-weight').value)
-                },
-                neutral: {
-                    enabled: this.container.querySelector('#neutral-colors-enabled').checked,
-                    weight: parseInt(this.container.querySelector('#neutral-colors-weight').value)
-                }
-            },
-            language: this.container.querySelector('input[name="language"]:checked').value,
+            colorCategories: this.configManager.getConfig().colorCategories,
+            languages: this.configManager.getConfig().languages,
             advanced: {
                 skipConfig: this.container.querySelector('#skip-config-checkbox').checked,
                 numberModes: {
                     cistercian: this.container.querySelector('#cistercian-enabled').checked,
                     kaktovik: this.container.querySelector('#kaktovik-enabled').checked,
-                    binary: this.container.querySelector('#binary-enabled').checked
+                    binary: this.container.querySelector('#binary-enabled').checked,
+                    objectCounting: this.container.querySelector('#object-counting-enabled').checked,
+                    onlyApples: this.container.querySelector('#only-apples-enabled').checked
                 },
                 autoCleanup: {
                     enabled: this.container.querySelector('#auto-cleanup-enabled').checked,
-                    timeoutMinutes: parseFloat(this.container.querySelector('#cleanup-timer-minutes').value)
+                    timeoutSeconds: parseInt(this.container.querySelector('#cleanup-timer-seconds').value)
                 }
             }
         };
@@ -1077,6 +1773,9 @@ export class ConfigScreen {
         const savedConfig = localStorage.getItem('toddleToyConfig');
         console.log('Config saved to localStorage:', !!savedConfig);
         
+        // Allow toy access since user went through config
+        this.router.allowToyAccess();
+        
         this.router.navigate('/toy');
     }
 
@@ -1092,11 +1791,17 @@ export class ConfigScreen {
 
     /**
      * Show the configuration screen
+     * @param {boolean} isAdmin - Whether this is admin access
      */
-    show() {
+    show(isAdmin = false) {
         this.container.style.display = 'block';
         this.isVisible = true;
         this.loadCurrentConfig(); // Refresh from current config
+        
+        // Show PWA installation prompt for admin users
+        if (isAdmin) {
+            this.showPWAInstallPrompt();
+        }
     }
 
     /**
@@ -1112,5 +1817,65 @@ export class ConfigScreen {
      */
     isShowing() {
         return this.isVisible;
+    }
+
+    /**
+     * Show PWA installation prompt for admin users
+     */
+    showPWAInstallPrompt() {
+        // Check if already installed or if browser supports PWA installation
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                           window.navigator.standalone === true;
+        
+        if (isStandalone) {
+            // Already installed as PWA
+            this.createNotification('✅ PWA Installed', 'ToddleToy is already installed as a Progressive Web App!', 'success');
+            return;
+        }
+
+        // Check if installation is supported
+        if ('serviceWorker' in navigator && 'BeforeInstallPromptEvent' in window) {
+            this.createNotification(
+                '📱 Install as App', 
+                'Install ToddleToy as a PWA to use offline! Look for the "Install" button in your browser or use the browser menu to "Install App".', 
+                'info'
+            );
+        } else {
+            this.createNotification(
+                '💡 Use Offline', 
+                'ToddleToy works offline! Add it to your home screen for quick access. On mobile: use "Add to Home Screen" in your browser menu.', 
+                'info'
+            );
+        }
+    }
+
+    /**
+     * Create a notification banner
+     */
+    createNotification(title, message, type = 'info') {
+        // Remove any existing notifications
+        const existingNotifications = this.container.querySelectorAll('.admin-notification');
+        existingNotifications.forEach(n => n.remove());
+
+        const notification = document.createElement('div');
+        notification.className = `admin-notification admin-notification-${type}`;
+        notification.innerHTML = `
+            <div class="notification-content">
+                <h3 class="notification-title">${title}</h3>
+                <p class="notification-message">${message}</p>
+                <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+            </div>
+        `;
+
+        // Insert after the header
+        const header = this.container.querySelector('.config-header');
+        header.parentNode.insertBefore(notification, header.nextSibling);
+
+        // Auto-hide after 10 seconds
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.remove();
+            }
+        }, 10000);
     }
 }

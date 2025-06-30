@@ -34,17 +34,37 @@ export class ConfigManager {
                 secondary: { enabled: true, weight: 35 },  // Green, Orange, Purple  
                 neutral: { enabled: false, weight: 15 }    // Black, White, Brown, Gray
             },
-            language: 'bilingual', // 'en', 'es', 'bilingual', 'zh', 'hi', 'ar', 'fr', 'bn', 'pt', 'ru', 'id', 'tlh', 'jbo', 'eo'
+            languages: {
+                enabled: [
+                    { code: 'en', name: 'English', nativeName: 'English', difficultyRank: 6, learningHours: '700-900h', colors: ['#B22234', '#FFFFFF', '#3C3B6E'] }, // American Red, White, Blue 🇺🇸
+                    { code: 'es', name: 'Spanish', nativeName: 'Español', difficultyRank: 3, learningHours: '600-750h', colors: ['#AA151B', '#F1BF00'] } // Spanish Red & Yellow 🇪🇸
+                ],
+                available: [
+                    { code: 'eo', name: 'Esperanto', nativeName: 'Esperanto', difficultyRank: 1, learningHours: '150-200h', colors: ['#009900', '#FFFFFF'] }, // Esperanto Green & White ⭐
+                    { code: 'id', name: 'Indonesian', nativeName: 'Bahasa Indonesia', difficultyRank: 2, learningHours: '900h', colors: ['#FF0000', '#FFFFFF'] }, // Indonesian Red & White 🇮🇩
+                    { code: 'pt', name: 'Portuguese', nativeName: 'Português', difficultyRank: 4, learningHours: '600-750h', colors: ['#006600', '#FF0000'] }, // Portuguese Green & Red 🇵🇹
+                    { code: 'fr', name: 'French', nativeName: 'Français', difficultyRank: 5, learningHours: '600-750h', colors: ['#0055A4', '#FFFFFF', '#EF4135'] }, // French Blue, White, Red 🇫🇷
+                    { code: 'jbo', name: 'Lojban', nativeName: 'la .lojban.', difficultyRank: 7, learningHours: '1000h±', colors: ['#00FF00', '#0000FF'] }, // Lojban Logical Green & Blue 🤖
+                    { code: 'ru', name: 'Russian', nativeName: 'Русский', difficultyRank: 8, learningHours: '1100h', colors: ['#FFFFFF', '#0039A6', '#D52B1E'] }, // Russian White, Blue, Red 🇷🇺
+                    { code: 'bn', name: 'Bengali', nativeName: 'বাংলা', difficultyRank: 9, learningHours: '1100h', colors: ['#006A4E', '#F42A41'] }, // Bangladesh Green & Red 🇧🇩
+                    { code: 'hi', name: 'Hindi', nativeName: 'हिन্দী', difficultyRank: 10, learningHours: '1100h', colors: ['#FF9933', '#FFFFFF', '#138808'] }, // Indian Saffron, White, Green 🇮🇳
+                    { code: 'tlh', name: 'Klingon', nativeName: 'tlhIngan Hol', difficultyRank: 11, learningHours: '1400h±', colors: ['#8B0000', '#000000', '#FFD700'] }, // Klingon Dark Red, Black, Gold ⚔️
+                    { code: 'ar', name: 'Modern Standard Arabic', nativeName: 'العربية', difficultyRank: 12, learningHours: '2200h', colors: ['#000000', '#FFFFFF', '#007A3D'] }, // Pan-Arab Black, White, Green
+                    { code: 'zh', name: 'Mandarin Chinese', nativeName: '中文', difficultyRank: 13, learningHours: '2200h+', colors: ['#DE2910', '#FFDE00'] } // Chinese Red & Yellow 🇨🇳
+                ]
+            },
             advanced: {
                 skipConfig: false,
                 numberModes: { 
                     cistercian: true, 
                     kaktovik: true, 
-                    binary: true 
+                    binary: true,
+                    objectCounting: false,
+                    onlyApples: true
                 },
                 autoCleanup: {
-                    enabled: false,
-                    timeoutMinutes: 2
+                    enabled: true,
+                    timeoutSeconds: 10
                 }
             }
         };
@@ -58,13 +78,63 @@ export class ConfigManager {
             const stored = localStorage.getItem(this.storageKey);
             if (stored) {
                 const parsed = JSON.parse(stored);
+                // Migrate old language structure if needed
+                const migrated = this.migrateLanguageStructure(parsed);
                 // Merge with defaults to ensure all required properties exist
-                return this.mergeWithDefaults(parsed);
+                return this.mergeWithDefaults(migrated);
             }
         } catch (error) {
             console.warn('Failed to load config from localStorage:', error);
         }
         return this.getDefaults();
+    }
+
+    /**
+     * Migrate old language structure to new difficulty ranking system
+     */
+    migrateLanguageStructure(config) {
+        if (!config.languages) return config;
+        
+        // Language difficulty mapping
+        const difficultyData = {
+            'eo': { difficultyRank: 1, learningHours: '150-200h' },
+            'id': { difficultyRank: 2, learningHours: '900h' },
+            'es': { difficultyRank: 3, learningHours: '600-750h' },
+            'pt': { difficultyRank: 4, learningHours: '600-750h' },
+            'fr': { difficultyRank: 5, learningHours: '600-750h' },
+            'en': { difficultyRank: 6, learningHours: '700-900h' },
+            'jbo': { difficultyRank: 7, learningHours: '1000h±' },
+            'ru': { difficultyRank: 8, learningHours: '1100h' },
+            'bn': { difficultyRank: 9, learningHours: '1100h' },
+            'hi': { difficultyRank: 10, learningHours: '1100h' },
+            'tlh': { difficultyRank: 11, learningHours: '1400h±' },
+            'ar': { difficultyRank: 12, learningHours: '2200h' },
+            'zh': { difficultyRank: 13, learningHours: '2200h+' }
+        };
+        
+        // Update enabled languages
+        if (config.languages.enabled) {
+            config.languages.enabled = config.languages.enabled.map(lang => {
+                const data = difficultyData[lang.code];
+                if (data && !lang.difficultyRank) {
+                    return { ...lang, ...data };
+                }
+                return lang;
+            });
+        }
+        
+        // Update available languages  
+        if (config.languages.available) {
+            config.languages.available = config.languages.available.map(lang => {
+                const data = difficultyData[lang.code];
+                if (data && !lang.difficultyRank) {
+                    return { ...lang, ...data };
+                }
+                return lang;
+            });
+        }
+        
+        return config;
     }
 
     /**
@@ -204,6 +274,27 @@ export class ConfigManager {
                 weight: value.weight 
             }));
 
+        // Special handling for emojis: include if any emoji category is enabled
+        // even if the main emoji toggle is off
+        const hasEmojiToggle = enabled.some(item => item.configKey === 'emojis');
+        const hasAnyEmojiCategory = Object.values(this.config.emojiCategories).some(cat => cat.enabled);
+        
+        if (!hasEmojiToggle && hasAnyEmojiCategory) {
+            // Add emoji type with weight based on enabled categories
+            const emojiCategoryWeight = Object.values(this.config.emojiCategories)
+                .filter(cat => cat.enabled)
+                .reduce((sum, cat) => sum + cat.weight, 0);
+            
+            // Use the actual total category weight without scaling down
+            if (emojiCategoryWeight > 0) {
+                enabled.push({
+                    type: 'emoji',
+                    configKey: 'emojis',
+                    weight: emojiCategoryWeight // Use full category weight, no scaling
+                });
+            }
+        }
+
         const totalWeight = enabled.reduce((sum, item) => sum + item.weight, 0);
         
         return enabled.map(item => ({
@@ -273,10 +364,22 @@ export class ConfigManager {
     }
 
     /**
-     * Get enabled language setting
+     * Get enabled languages configuration
+     */
+    getLanguages() {
+        return { ...this.config.languages };
+    }
+
+    /**
+     * Get enabled language codes for backward compatibility
      */
     getLanguage() {
-        return this.config.language;
+        // Return 'bilingual' if both en and es are enabled, otherwise first enabled language
+        const enabledCodes = this.config.languages.enabled.map(lang => lang.code);
+        if (enabledCodes.includes('en') && enabledCodes.includes('es') && enabledCodes.length === 2) {
+            return 'bilingual';
+        }
+        return enabledCodes[0] || 'en';
     }
 
     /**

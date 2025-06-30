@@ -6,7 +6,9 @@ My name is Marvin Bentley II.
 ## 🎯 Purpose
 This file configures Claude Code to follow a structured, TDD-first workflow tailored for the toddler-toy PWA. It ensures Claude works as a disciplined partner: reading docs, planning, writing failing tests first, implementing to pass, and committing in small, verifiable steps.
 
----
+## FYI
+- FYI, use CLAUDE-TODO.md as your personal todo file.
+- Use /.claude/CGEM.md to implement a sub-agent named Gemini.
 
 ## ⚙️ Workflow & Best Practices
 

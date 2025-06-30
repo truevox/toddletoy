@@ -21,34 +21,43 @@ export class AppRoutes {
     }
 
     setupRoutes() {
-        console.log('Setting up routes...');
+        // Setting up application routes
         
         // Default route: Configuration screen
         this.router.addRoute('/', () => {
-            console.log('Handling root route /');
+            // Handling root route
             this.showConfigScreen();
         });
         
-        // Main toy route
+        // Main toy route - only accessible via config screen
         this.router.addRoute('/toy', () => {
-            console.log('Handling toy route /toy');
+            // Check if access is allowed (user came through config)
+            if (!this.router.isToyAccessAllowed()) {
+                // Redirect to config if trying to access toy directly
+                console.log('Direct toy access denied, redirecting to config');
+                this.router.replace('/');
+                return;
+            }
+            
+            // Handling toy route
             this.showToyScreen();
         });
         
         // Admin route: Always show config (bypass skip setting)
         this.router.addRoute('/admin', () => {
-            console.log('Handling admin route /admin');
-            this.showConfigScreen(true);
+            // Handling admin route - show config with admin features
+            this.showConfigScreen(true, true); // forceShow=true, isAdmin=true
         });
         
-        console.log('Routes setup complete. Registered routes:', Array.from(this.router.routes.keys()));
+        // Routes setup complete
     }
 
     /**
      * Show configuration screen
      * @param {boolean} forceShow - Force show config even if skip is enabled
+     * @param {boolean} isAdmin - Whether this is admin access
      */
-    showConfigScreen(forceShow = false) {
+    showConfigScreen(forceShow = false, isAdmin = false) {
         console.log('showConfigScreen called, forceShow:', forceShow);
         
         // Check if we should skip config and go straight to toy
@@ -66,11 +75,15 @@ export class AppRoutes {
             this.configScreen = new ConfigScreen(this.configManager, this.router);
         }
         
-        this.configScreen.show();
+        this.configScreen.show(isAdmin);
         this.currentScreen = 'config';
         
         // Update page title
-        document.title = 'ToddleToy - Configure';
+        if (isAdmin) {
+            document.title = 'ToddleToy - Admin Configuration';
+        } else {
+            document.title = 'ToddleToy - Configure';
+        }
         console.log('Config screen should now be visible');
     }
 
