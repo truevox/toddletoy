@@ -800,11 +800,17 @@ export class ConfigScreen {
                 left: 0;
                 width: 100%;
                 height: 100%;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
                 color: white;
                 overflow-y: auto;
                 z-index: 1000;
-                font-family: 'Arial', sans-serif;
+                font-family: 'Inter', 'Segoe UI', 'Roboto', sans-serif;
+                animation: fadeIn 0.6s ease-out;
+            }
+            
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(20px); }
+                to { opacity: 1; transform: translateY(0); }
             }
 
             .config-container {
@@ -852,11 +858,33 @@ export class ConfigScreen {
             }
 
             .config-section {
-                background: rgba(255, 255, 255, 0.1);
-                border-radius: 15px;
-                padding: 25px;
-                margin-bottom: 25px;
-                backdrop-filter: blur(10px);
+                background: rgba(255, 255, 255, 0.15);
+                border-radius: 20px;
+                padding: 30px;
+                margin-bottom: 30px;
+                backdrop-filter: blur(20px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .config-section::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 3px;
+                background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1, #f9ca24);
+                opacity: 0.8;
+            }
+            
+            .config-section:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+                background: rgba(255, 255, 255, 0.18);
             }
 
             .section-title {
@@ -915,9 +943,37 @@ export class ConfigScreen {
             }
 
             .content-item, .emoji-item, .color-item {
-                background: rgba(255, 255, 255, 0.1);
-                border-radius: 10px;
-                padding: 15px;
+                background: rgba(255, 255, 255, 0.12);
+                border-radius: 16px;
+                padding: 20px;
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+            
+            .content-item::before, .emoji-item::before, .color-item::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+                opacity: 0;
+                transition: opacity 0.3s ease;
+                pointer-events: none;
+            }
+            
+            .content-item:hover, .emoji-item:hover, .color-item:hover {
+                transform: translateY(-2px);
+                background: rgba(255, 255, 255, 0.18);
+                border-color: rgba(255, 255, 255, 0.3);
+                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            }
+            
+            .content-item:hover::before, .emoji-item:hover::before, .color-item:hover::before {
+                opacity: 1;
             }
 
             .content-label, .emoji-label, .color-label {
@@ -1254,22 +1310,45 @@ export class ConfigScreen {
             }
 
             .start-button {
-                background: linear-gradient(45deg, #4CAF50, #45a049);
+                background: linear-gradient(135deg, #4CAF50, #45a049, #66BB6A);
                 color: white;
                 border: none;
-                padding: 20px 40px;
-                font-size: 1.5rem;
-                font-weight: bold;
-                border-radius: 15px;
+                padding: 24px 48px;
+                font-size: 1.6rem;
+                font-weight: 700;
+                border-radius: 20px;
                 cursor: pointer;
-                margin-bottom: 20px;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-                transition: transform 0.2s, box-shadow 0.2s;
+                margin-bottom: 25px;
+                box-shadow: 0 8px 25px rgba(76, 175, 80, 0.3);
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+                text-transform: uppercase;
+                letter-spacing: 1px;
             }
-
+            
+            .start-button::before {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+                transition: left 0.6s ease;
+            }
+            
             .start-button:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+                transform: translateY(-3px) scale(1.02);
+                box-shadow: 0 12px 35px rgba(76, 175, 80, 0.4);
+            }
+            
+            .start-button:hover::before {
+                left: 100%;
+            }
+            
+            .start-button:active {
+                transform: translateY(-1px) scale(0.98);
             }
 
             .config-actions {

@@ -240,6 +240,29 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - [ ] Add translations for Lojban (la .lojban.) - fun language
 - [ ] Add translations for Esperanto (Esperanto) - fun language
 
+#### Phase 15.8: Canadian English Support (Stretch Goal - Low Priority)
+**Goal**: Add Canadian English regional variant with distinctive Canadian vocabulary and maple leaf flag
+
+- [ ] Add en-CA language code to configuration system
+- [ ] Create Canadian English translations in things.json and emojis.json
+- [ ] Add distinctive Canadian vocabulary differences:
+  - "Grey" vs "Gray" (Canadian spelling like British)
+  - "Colour" vs "Color" (Canadian spelling like British)  
+  - "Centre" vs "Center" (Canadian spelling like British)
+  - "Toque" for winter hat (distinctly Canadian)
+  - "Loonie" and "Toonie" for Canadian coins
+  - "Chesterfield" for sofa/couch (older Canadian term)
+- [ ] Add maple leaf flag (🍁) as spawnable object for en-CA
+- [ ] Update ConfigManager to support en-CA in language selection
+- [ ] Test en-CA language switching and flag spawning
+- [ ] Add Canadian cultural content (maple syrup, hockey, etc.)
+
+**Expected Outcomes:**
+- **Cultural Authenticity**: Proper Canadian English spellings and vocabulary
+- **Flag Representation**: Maple leaf (🍁) appears when Canadian English is enabled  
+- **Educational Value**: Children learn regional language differences
+- **Inclusive Design**: Supports Canadian families with familiar terms and references
+
 ### Phase 16: Auto-Cleanup Timer Feature (Medium Priority)
 
 **Goal**: Implement a time-since-last-touched feature to automatically remove objects that haven't been interacted with in a configurable amount of time.
