@@ -738,12 +738,12 @@ class GameScene extends Phaser.Scene {
         const fontSize = Math.floor(24 * scaleFactor);
         const spacing = Math.floor(30 * scaleFactor);
         
-        // Build array of place values in stacking order: thousands (bottom) to ones (top)
+        // Build array of place values in stacking order: ones (top) to thousands (bottom)
         const placeValues = [
-            { count: thousands, emoji: emojis.thousands, name: 'thousands' },
-            { count: hundreds, emoji: emojis.hundreds, name: 'hundreds' },
+            { count: ones, emoji: emojis.ones, name: 'ones' },
             { count: tens, emoji: emojis.tens, name: 'tens' },
-            { count: ones, emoji: emojis.ones, name: 'ones' }
+            { count: hundreds, emoji: emojis.hundreds, name: 'hundreds' },
+            { count: thousands, emoji: emojis.thousands, name: 'thousands' }
         ].filter(place => place.count > 0); // Only include non-zero place values
         
         // Handle zero case - show nothing for zero in place value system
@@ -2172,12 +2172,12 @@ class GameScene extends Phaser.Scene {
         
         const baseY = y - yOffset; // Position above main number
         
-        // Build array of place values in stacking order: thousands (bottom) to ones (top)
+        // Build array of place values in stacking order: ones (top) to thousands (bottom)
         const placeValues = [
-            { count: thousands, emoji: emojis.thousands, name: 'thousands' },
-            { count: hundreds, emoji: emojis.hundreds, name: 'hundreds' },
+            { count: ones, emoji: emojis.ones, name: 'ones' },
             { count: tens, emoji: emojis.tens, name: 'tens' },
-            { count: ones, emoji: emojis.ones, name: 'ones' }
+            { count: hundreds, emoji: emojis.hundreds, name: 'hundreds' },
+            { count: thousands, emoji: emojis.thousands, name: 'thousands' }
         ].filter(place => place.count > 0); // Only include non-zero place values
         
         // Handle zero case - show nothing for zero in place value system
@@ -2192,10 +2192,10 @@ class GameScene extends Phaser.Scene {
             maxWidth = Math.max(maxWidth, rowWidth);
         });
         
-        // Render each place value as vertical stack (thousands at bottom, ones at top)
+        // Render each place value as vertical stack (ones at top, thousands at bottom)
         placeValues.forEach((place, placeIndex) => {
-            // Calculate Y position: stack from bottom up
-            const rowY = baseY + (placeValues.length - 1 - placeIndex) * spacing;
+            // Calculate Y position: stack from top down
+            const rowY = baseY + placeIndex * spacing;
             
             // Center this row within the max width
             const rowWidth = place.count * spacing;
