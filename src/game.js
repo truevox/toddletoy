@@ -8,6 +8,7 @@ import { RenderManager } from './game/systems/RenderManager.js'
 import { SpeechManager } from './game/systems/SpeechManager.js'
 import { ObjectManager } from './game/objects/ObjectManager.js'
 import { ObjectCountingRenderer } from './game/systems/ObjectCountingRenderer.js'
+import { MovementManager } from './game/systems/MovementManager.js'
 
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -45,6 +46,7 @@ class GameScene extends Phaser.Scene {
         this.objectManager = new ObjectManager(this);
         this.objectCountingRenderer = new ObjectCountingRenderer(this);
         this.inputManager = new InputManager(this);
+        this.movementManager = new MovementManager(this);
         
         // Set up input event handlers from InputManager
         this.setupInputHandlers();
@@ -66,9 +68,6 @@ class GameScene extends Phaser.Scene {
         this.isDragging = false;
         this.draggedObject = null;
         
-        // Initialize smooth movement state
-        this.movingObjects = new Map(); // Objects currently lerping to target positions
-        this.lerpSpeed = 0.15; // Lerp interpolation speed (0.1 = slow, 0.3 = fast)
         
         // Initialize auto-cleanup system
         this.initAutoCleanupSystem();
@@ -96,7 +95,7 @@ class GameScene extends Phaser.Scene {
         }
         
         // Update object movements (smooth lerping)
-        this.updateObjectMovements();
+        this.movementManager.updateObjectMovements();
         
         // Check for auto-cleanup
         this.checkAutoCleanup();
@@ -214,77 +213,14 @@ class GameScene extends Phaser.Scene {
         if (!obj || !obj.active) return;
         
         if (useSmooth) {
-            // Add to smooth movement queue
-            this.movingObjects.set(obj.id, {
-                object: obj,
-                targetX: x,
-                targetY: y,
-                startX: obj.x,
-                startY: obj.y,
-                progress: 0
-            });
+            // Delegate to movement manager
+            this.movementManager.moveObjectTo(obj, x, y);
         } else {
             // Immediate positioning
-            this.setObjectPosition(obj, x, y);
+            this.movementManager.setObjectPosition(obj, x, y);
         }
     }
 
-    setObjectPosition(obj, x, y) {
-        if (!obj || !obj.active) return;
-        
-        // Set object position
-        obj.setPosition(x, y);
-        
-        // Update all component positions using stored relative offsets
-        if (obj.componentLayout) {
-            // Update all language words using stored layout
-            if (obj.componentLayout.allLanguageWords) {
-                obj.componentLayout.allLanguageWords.forEach(langGroup => {
-                    const actualWords = obj.allLanguageWords?.find(actual => 
-                        actual.languageCode === langGroup.languageCode
-                    )?.words || [];
-                    
-                    langGroup.words.forEach((layoutInfo, index) => {
-                        const wordObj = actualWords[index];
-                        if (wordObj && wordObj.active) {
-                            // Use stored offset to maintain relative positioning
-                            const newWordX = x + layoutInfo.offsetX - (wordObj.width / 2);
-                            const newWordY = y + layoutInfo.offsetY;
-                            wordObj.setPosition(newWordX, newWordY);
-                        }
-                    });
-                });
-            }
-        }
-    }
-
-    updateObjectMovements() {
-        for (const [objId, movement] of this.movingObjects.entries()) {
-            const { object, targetX, targetY, startX, startY } = movement;
-            
-            if (!object.active) {
-                this.movingObjects.delete(objId);
-                continue;
-            }
-            
-            movement.progress += this.lerpSpeed;
-            
-            if (movement.progress >= 1) {
-                // Movement complete
-                this.setObjectPosition(object, targetX, targetY);
-                this.movingObjects.delete(objId);
-            } else {
-                // Interpolate position
-                const currentX = this.lerp(startX, targetX, movement.progress);
-                const currentY = this.lerp(startY, targetY, movement.progress);
-                this.setObjectPosition(object, currentX, currentY);
-            }
-        }
-    }
-
-    lerp(start, end, progress) {
-        return start + (end - start) * progress;
-    }
 
     async spawnObjectAt(x, y, type = 'random') {
         try {
@@ -599,7 +535,7 @@ class GameScene extends Phaser.Scene {
         this.objects = [];
         
         // Clear movement queue
-        this.movingObjects.clear();
+        this.movementManager.clearAllMovements();
         
         // Reset state
         this.isDragging = false;
@@ -617,6 +553,7 @@ class GameScene extends Phaser.Scene {
         if (this.speechManager) this.speechManager.destroy();
         if (this.objectManager) this.objectManager.destroy();
         if (this.inputManager) this.inputManager.destroy();
+        if (this.movementManager) this.movementManager.destroy();
         
         // Clean up objects
         this.resetToyState();
