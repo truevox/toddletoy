@@ -25,7 +25,7 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting  
-        console.log('🎯 TODDLER TOY v0.2.19 - Improve Drag Interaction and Cleanup Debug - Build:', new Date().toISOString());
+        console.log('🎯 TODDLER TOY v0.2.20 - Fix Initialization Race Condition - Build:', new Date().toISOString());
         
         // Initialize configuration manager if not already provided
         if (!this.configManager) {
@@ -77,6 +77,47 @@ class GameScene extends Phaser.Scene {
         
         
         console.log('🎮 Game managers initialized successfully');
+        
+        // Pre-load critical data to avoid first-click delays
+        this.preloadGameData();
+    }
+
+    async preloadGameData() {
+        try {
+            // Pre-load emoji data
+            if (!this.emojiData) {
+                const response = await fetch('/emojis.json');
+                this.emojiData = await response.json();
+                console.log('📦 Emoji data preloaded:', this.emojiData.length, 'emojis');
+            }
+            
+            // Pre-load things data  
+            if (!this.thingsData) {
+                const response = await fetch('/things.json');
+                this.thingsData = await response.json();
+                console.log('📦 Things data preloaded');
+            }
+            
+            this.dataLoaded = true;
+            this.checkFullInitialization();
+        } catch (error) {
+            console.error('Error preloading game data:', error);
+            this.dataLoaded = true; // Continue anyway
+            this.checkFullInitialization();
+        }
+    }
+
+    checkFullInitialization() {
+        // Check if fonts are also loaded
+        this.fontsLoaded = document.fonts.check('1em Kaktovik') && document.fonts.check('1em Cistercian');
+        
+        if (this.dataLoaded && this.fontsLoaded) {
+            this.isFullyInitialized = true;
+            console.log('✅ Game fully initialized - ready for interactions');
+        } else if (this.dataLoaded) {
+            // Wait a bit more for fonts
+            setTimeout(() => this.checkFullInitialization(), 100);
+        }
     }
 
     setupInputHandlers() {
@@ -109,6 +150,11 @@ class GameScene extends Phaser.Scene {
     async onInputPointerDown(data) {
         console.log('🎯 onInputPointerDown called with data:', data);
         const { x, y } = data;
+        
+        // Warn if system not fully initialized (race condition debugging)
+        if (!this.isFullyInitialized) {
+            console.warn('⚠️ Input received before full initialization (data:', this.dataLoaded, 'fonts:', this.fontsLoaded, ')');
+        }
         
         // Check for existing object at pointer position
         const hitObject = this.getObjectUnderPointer(x, y);
@@ -668,11 +714,14 @@ class ResponsiveGameManager {
 
         this.gameInstance = new Phaser.Game(this.config);
         
-        // Pass configManager to the scene after creation
-        if (this.configManager && this.gameInstance.scene.scenes[0]) {
-            this.gameInstance.scene.scenes[0].configManager = this.configManager;
-            console.log('📋 ConfigManager passed to GameScene');
-        }
+        // Wait for scene to be ready, then pass configManager
+        this.gameInstance.events.once('ready', () => {
+            const scene = this.gameInstance.scene.getScene('GameScene');
+            if (scene && this.configManager) {
+                scene.configManager = this.configManager;
+                console.log('📋 ConfigManager passed to GameScene after ready event');
+            }
+        });
         
         // Global click debugging (remove in production)
         // window.addEventListener('click', (e) => {
