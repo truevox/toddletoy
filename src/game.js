@@ -102,10 +102,12 @@ class GameScene extends Phaser.Scene {
 
     // Input event handlers
     async onInputPointerDown(data) {
+        console.log('🎯 onInputPointerDown called with data:', data);
         const { x, y } = data;
         
         // Check for existing object at pointer position
         const hitObject = this.getObjectUnderPointer(x, y);
+        console.log('🎯 hitObject:', hitObject, 'isSpeaking:', this.speechManager.getIsSpeaking());
         
         if (hitObject && !this.speechManager.getIsSpeaking()) {
             // Start dragging existing object
@@ -123,10 +125,14 @@ class GameScene extends Phaser.Scene {
             this.moveObjectTo(this.speechManager.getCurrentSpeakingObject(), x, y);
         } else if (!this.speechManager.getIsSpeaking()) {
             // Spawn new object
+            console.log('🎯 Attempting to spawn object at', x, y);
             const obj = await this.spawnObjectAt(x, y, 'random');
-            this.speechManager.speakText(obj, 'both');
-            this.audioManager.generateContinuousTone(x, y, obj.id);
-            this.particleManager.createSpawnBurst(x, y);
+            console.log('🎯 Spawn result:', obj);
+            if (obj) {
+                this.speechManager.speakText(obj, 'both');
+                this.audioManager.generateContinuousTone(x, y, obj.id);
+                this.particleManager.createSpawnBurst(x, y);
+            }
         }
     }
 
