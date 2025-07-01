@@ -25,7 +25,7 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting  
-        console.log('🎯 TODDLER TOY v0.2.18 - Fix getRandomEmoji and Data Loading - Build:', new Date().toISOString());
+        console.log('🎯 TODDLER TOY v0.2.19 - Improve Drag Interaction and Cleanup Debug - Build:', new Date().toISOString());
         
         // Initialize configuration manager if not already provided
         if (!this.configManager) {
@@ -115,19 +115,19 @@ class GameScene extends Phaser.Scene {
         console.log('🎯 hitObject:', hitObject, 'isSpeaking:', this.speechManager.getIsSpeaking());
         
         if (hitObject && !this.speechManager.getIsSpeaking()) {
-            // Start dragging existing object
+            // Start dragging existing object when not speaking
             this.isDragging = true;
             this.draggedObject = hitObject;
             this.particleManager.startDragTrail(hitObject);
             this.autoCleanupManager.updateObjectTouchTime(hitObject);
-        } else if (hitObject && this.speechManager.getCurrentSpeakingObject() === hitObject) {
-            // Revoice the currently speaking object if clicked
-            this.speechManager.speakText(hitObject, 'both');
-            this.autoCleanupManager.updateObjectTouchTime(hitObject);
         } else if (hitObject && this.speechManager.getIsSpeaking()) {
-            // Move speaking object to click point
-            this.particleManager.startDragTrail(this.speechManager.getCurrentSpeakingObject());
-            this.moveObjectTo(this.speechManager.getCurrentSpeakingObject(), x, y);
+            // Allow dragging any object even during speech
+            this.isDragging = true;
+            this.draggedObject = hitObject;
+            this.particleManager.startDragTrail(hitObject);
+            this.autoCleanupManager.updateObjectTouchTime(hitObject);
+            // Re-voice the object being dragged
+            this.speechManager.speakText(hitObject, 'both');
         } else if (!this.speechManager.getIsSpeaking()) {
             // Spawn new object
             console.log('🎯 Attempting to spawn object at', x, y);
@@ -674,10 +674,10 @@ class ResponsiveGameManager {
             console.log('📋 ConfigManager passed to GameScene');
         }
         
-        // Add global click listener for debugging
-        window.addEventListener('click', (e) => {
-            console.log('🔍 GLOBAL CLICK DETECTED:', e.clientX, e.clientY, e.target.tagName, e.target.className);
-        });
+        // Global click debugging (remove in production)
+        // window.addEventListener('click', (e) => {
+        //     console.log('🔍 GLOBAL CLICK DETECTED:', e.clientX, e.clientY, e.target.tagName, e.target.className);
+        // });
         
         console.log('🎮 Responsive game initialized:', width, 'x', height);
     }

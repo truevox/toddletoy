@@ -1,20 +1,31 @@
 # PICK-UP-HERE.md
 **Context Recovery Document for Next Claude Session**
 
-## 🚨 CRITICAL ISSUES TO RESOLVE IMMEDIATELY
+## 🚨 CRITICAL ISSUE TO RESOLVE IMMEDIATELY
 
-### 1. **Auto-Cleanup System BROKEN** (HIGH PRIORITY)
-**Problem**: Zero auto-cleanup logs in console despite being enabled with 10-second timeout
-**Evidence**: Latest screenshot (2025-06-28 19:06) shows objects spawning normally but **complete silence from auto-cleanup system** - no cleanup logs after 10+ seconds
-**Root Cause**: Likely missing game loop integration - `checkAutoCleanup()` not being called regularly
-**Status**: Configuration defaults fixed (enabled=true, 10s timeout) but core system not running
-**CONFIRMED**: Auto-cleanup system is completely non-functional, not just configuration issue
+### **INPUT SYSTEM COMPLETELY BROKEN** (HIGHEST PRIORITY)
+**Problem**: Objects don't spawn when clicking - complete input system failure  
+**Current Version**: v0.2.16 - Canvas CSS Fix  
+**Status**: Game initializes perfectly but zero input events reach canvas
 
-### 2. **Route Protection FAILING** (HIGH PRIORITY) 
-**Problem**: Direct `/toy` access shows 404 instead of redirect to `/`
-**Evidence**: Screenshot shows "Cannot GET /toy" error
-**Root Cause**: Server not configured for SPA fallback - needs `historyApiFallback: true` in Vite config
-**Status**: Client-side router logic implemented but server-side fallback missing
+**Evidence from v0.2.16 console**:
+- ✅ Full routing flow works (config → Start Playing → /toy route → game init)
+- ✅ All managers initialize perfectly (Audio, Input, Render, Speech, etc.)
+- ✅ Canvas exists and Phaser input system reports as enabled
+- ❌ **ZERO input events fire** - no DOM, Phaser, or InputManager events when clicking
+
+**Failed Fixes Attempted**:
+- CSS fix: Added `pointer-events: auto !important; z-index: 10` to canvas - NO EFFECT
+- Deep debugging: Added extensive logging at DOM and Phaser levels - NO EVENTS DETECTED  
+- Automated testing: Playwright test incorrectly diagnosed issue and missed real problem
+
+**Root Cause Per Gemini Analysis**:
+- NOT a CSS/DOM issue (user completes full flow properly)
+- NOT a routing issue (game loads correctly after clicking Start Playing)  
+- Likely missing ToddlerToyGame wrapper class or canvas mounting issue
+- Input flow broken at fundamental level: DOM → Phaser → InputManager → GameScene
+
+### **PREVIOUS ISSUES (NOW LOWER PRIORITY)**
 
 ## 📋 COMPLETED RECENT WORK
 
@@ -48,23 +59,27 @@
 
 ## 🎯 IMMEDIATE NEXT STEPS
 
-### Phase 1: Fix Auto-Cleanup (HIGH PRIORITY)
+### Phase 1: Fix Input System (CRITICAL - BLOCKS ALL FUNCTIONALITY)
+1. **Check ToddlerToyGame wrapper**: `routes.js:117` instantiates `new ToddlerToyGame(this.configManager)` but this class may be missing from `game.js`
+2. **Verify canvas DOM mounting**: Canvas reports as existing but may not be in DOM tree to receive events  
+3. **Add global click test**: `window.addEventListener('click')` to isolate if it's canvas-specific or global
+4. **Check Phaser game mounting**: Ensure Phaser game properly mounted to `#game-container`
+5. **Test with minimal reproduction**: Simple DOM button to verify ANY click events work
+
+**Debug files to examine**:
+- `/src/routes.js` (line 117) - ToddlerToyGame instantiation
+- `/src/game.js` - GameScene class (missing ToddlerToyGame wrapper?)
+- `/src/game/systems/InputManager.js` - Input event setup
+- `/index.html` - Canvas CSS and container setup
+
+### Phase 2: Fix Auto-Cleanup (HIGH PRIORITY - ONCE INPUT WORKS)
 1. **Investigate game loop integration**: Check if `initAutoCleanupSystem()` called in game init
 2. **Verify timer integration**: Ensure `checkAutoCleanup()` runs every frame or on interval
 3. **Debug object tracking**: Verify `lastTouchedTime` assignment on object creation
-4. **Test with 1-second timeout**: For rapid debugging verification
-5. **Run existing tests**: `npm test -- tests/binary-hearts-cleanup.test.js`
 
-### Phase 2: Fix Route Protection (HIGH PRIORITY) 
+### Phase 3: Fix Route Protection (MEDIUM PRIORITY) 
 1. **Add SPA fallback**: Configure Vite dev server `historyApiFallback: true`
-2. **Test scenarios**: Direct URL access, browser refresh, navigation
-3. **Verify redirect logic**: Direct `/toy` → `/` redirection working
-
-### Phase 3: Implement Gemini CLI Integration (MEDIUM PRIORITY)
-1. **Add CLAUDE.md section**: Gemini CLI integration block with decision matrix
-2. **Create minimal tests**: Ultra-low token connectivity tests (`'Respond with: Duck'`)
-3. **Implement slash commands**: `/gtest` for basic connectivity verification
-4. **Token optimization**: Automatic delegation for >50k token tasks
+2. **Test direct URL access**: `/toy` should redirect to `/` properly
 
 ## 🧪 CURRENT TEST STATUS
 
@@ -108,7 +123,23 @@
 - **Route errors**: "Cannot GET /toy" = SPA fallback missing
 - **Import errors**: Jest/ES6 module conflicts in config tests
 
-### **For Auto-Cleanup Investigation**:
+### **For Input System Investigation (CRITICAL PRIORITY)**:
+```javascript
+// Add to routes.js or game.js to debug ToddlerToyGame instantiation
+console.log('🔍 ToddlerToyGame class exists:', typeof ToddlerToyGame);
+console.log('🔍 Game instance created:', !!this.game);
+
+// Add global click listener to test if ANY events work
+window.addEventListener('click', (e) => {
+  console.log('🔍 GLOBAL CLICK DETECTED:', e.clientX, e.clientY, e.target);
+});
+
+// Add to InputManager to debug canvas mounting
+console.log('🔍 Canvas in DOM:', document.contains(this.scene.game.canvas));
+console.log('🔍 Canvas parent:', this.scene.game.canvas.parentElement);
+```
+
+### **For Auto-Cleanup Investigation (SECONDARY)**:
 ```javascript
 // Add temporary debug logging
 console.log('initAutoCleanupSystem called:', !!this.autoCleanupConfig);
@@ -116,7 +147,7 @@ console.log('checkAutoCleanup running, objects count:', this.objects.length);
 console.log('Object lastTouchedTime:', obj.lastTouchedTime, 'now:', Date.now());
 ```
 
-### **For Route Protection Testing**:
+### **For Route Protection Testing (LOWEST PRIORITY)**:
 ```bash
 # Test direct access - should REDIRECT to config, not show 404
 # Navigate browser to http://localhost:4001/toy

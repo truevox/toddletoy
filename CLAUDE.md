@@ -18,6 +18,7 @@ This file configures Claude Code to follow a structured, TDD-first workflow tail
 - Use @CLAUDE-TODO.md as your personal todo list. It must be kept up to date.
 - Populate and update /CLAUDE-TODO.md with a structured plan to implement this project, and refer to it reguarlly. Update it indicating what parts are complete as you complete them.
 - Create or update .gitignore as approprate to avoid uploading secrets, test results, dist, libraries/frameworks, etc.
+- Do **not** make a commit without doublechecking to see if anything that should be in .gitignore is not.
 
 ### 2. TDD Cycle
 Repeat for each feature:

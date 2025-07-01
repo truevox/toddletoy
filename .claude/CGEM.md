@@ -1,6 +1,6 @@
 # Gemini CLI ✕ Claude Code Integration Guide
 
-> **Purpose**  Give Claude Code clear, token‑smart rules for orchestrating heavy‑lift tasks with Google Gemini CLI and only escalating to Claude Opus when strictly necessary.
+> **Purpose**  Give Claude Code clear, token‑smart rules for orchestrating heavy‑lift tasks with Google Gemini CLI and only escalating to Claude Opus when strictly necessary. You escalate to Claude Opus by providing the user with a prompt to provide to Claude Opus - the user will return Claude Opus's response shortly thereafter.
 
 ---
 
