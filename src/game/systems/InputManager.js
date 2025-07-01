@@ -37,6 +37,21 @@ export class InputManager {
         // Test if we can manually trigger input detection
         console.log('🎮 Scene canvas:', this.scene.game.canvas);
         
+        // Add a test listener to see if Phaser receives ANY events
+        this.scene.input.on('pointerover', () => console.log('🎮 PHASER RECEIVED: pointerover'));
+        this.scene.input.on('pointermove', () => console.log('🎮 PHASER RECEIVED: pointermove'));
+        this.scene.input.on('pointerdown', () => console.log('🎮 PHASER RECEIVED: pointerdown (raw)'));
+        
+        // Also test if the canvas itself receives DOM events
+        if (this.scene.game.canvas) {
+            this.scene.game.canvas.addEventListener('click', (e) => {
+                console.log('🎮 DOM CANVAS CLICK:', e.clientX, e.clientY);
+            });
+            this.scene.game.canvas.addEventListener('pointerdown', (e) => {
+                console.log('🎮 DOM CANVAS POINTERDOWN:', e.clientX, e.clientY);
+            });
+        }
+        
         // Keyboard input
         this.initKeyboardInput();
         
