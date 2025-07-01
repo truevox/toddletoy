@@ -62,8 +62,12 @@ export class AppRoutes {
         
         // Check if we should skip config and go straight to toy
         if (!forceShow && this.configManager.shouldSkipConfig()) {
-            console.log('Skipping config, redirecting to toy');
-            this.router.replace('/toy');
+            if (this.router.getCurrentRoute() !== '/toy') {
+                console.log('Skipping config, redirecting to toy');
+                this.router.replace('/toy');
+            } else {
+                console.log('Already on /toy, no redirect needed');
+            }
             return;
         }
 
@@ -96,8 +100,12 @@ export class AppRoutes {
         // Check if user has been through config - if not, redirect them
         const hasVisitedConfig = localStorage.getItem('toddleToyConfig') !== null;
         if (!hasVisitedConfig) {
-            console.log('No config found, redirecting to config screen');
-            this.router.replace('/');
+            if (this.router.getCurrentRoute() !== '/') {
+                console.log('No config found, redirecting to config screen');
+                this.router.replace('/');
+            } else {
+                console.log('Already on /, no redirect needed');
+            }
             return;
         }
         

@@ -52,37 +52,52 @@ self.addEventListener('fetch', (event) => {
     return; // Let browser handle Vite dev resources
   }
 
+  // Strategy for navigation requests (e.g., index.html)
+  if (event.request.mode === 'navigate') {
+    event.respondWith(
+      fetch(event.request) // Try network first
+        .then((response) => {
+          // If successful, cache and return
+          if (response && response.status === 200) {
+            const responseToCache = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // If network fails, try cache
+          console.log('[SW] Network failed for navigation, falling back to cache:', event.request.url);
+          return caches.match(event.request);
+        })
+    );
+    return;
+  }
+
+  // Default strategy for other requests (cache-first, then network)
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        // Return cached version or fetch from network
         if (response) {
           console.log('[SW] Serving from cache:', event.request.url);
           return response;
         }
-        
+
         console.log('[SW] Fetching from network:', event.request.url);
         return fetch(event.request).then((response) => {
-          // Don't cache non-successful responses
           if (!response || response.status !== 200 || response.type !== 'basic') {
             return response;
           }
-          
-          // Clone the response for caching
           const responseToCache = response.clone();
-          
-          caches.open(CACHE_NAME)
-            .then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
           return response;
         });
       })
       .catch((error) => {
         console.error('[SW] Fetch failed:', error);
-        
-        // Return a fallback for HTML requests
         if (event.request.destination === 'document') {
           return caches.match('/index.html');
         }
