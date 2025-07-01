@@ -36,6 +36,7 @@ export class InputManager {
     }
 
     onPointerDown(pointer) {
+        console.log('🎮 InputManager.onPointerDown called with pointer:', pointer.x, pointer.y);
         this.pointerIsDown = true;
         this.isHolding = false;
 
@@ -47,6 +48,7 @@ export class InputManager {
             }
         });
 
+        console.log('🎮 InputManager emitting input:pointerDown');
         this.emit('pointerDown', { x: pointer.x, y: pointer.y });
     }
 

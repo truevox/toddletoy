@@ -25,7 +25,7 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting  
-        console.log('🎯 TODDLER TOY v2.1.2 - Modular Refactor - Build:', new Date().toISOString());
+        console.log('🎯 TODDLER TOY v2.1.3 - Input Debug - Build:', new Date().toISOString());
         
         // Initialize configuration manager
         this.configManager = new ConfigManager();

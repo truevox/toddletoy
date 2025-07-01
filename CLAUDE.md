@@ -82,6 +82,14 @@ gemini -p "TASK_TYPE: [context] QUERY"
 - Keep commits small and focused.
 - Vite is our bundler - use it.
 
+### 📦 Version Management
+- **MANDATORY**: Bump version numbers with EVERY commit
+- Update version in relevant files (main.js, game.js, package.json, etc.)
+- Ensure version is announced in console logs for debugging
+- Use semantic versioning: MAJOR.MINOR.PATCH
+- Example: v2.1.2 → v2.1.3 for bug fixes, v2.2.0 for features, v3.0.0 for breaking changes
+- This ensures all team members know exactly which code version is running
+
 ---
 
 ## 🧪 Testing & CI
