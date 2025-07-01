@@ -25,10 +25,15 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting  
-        console.log('🎯 TODDLER TOY v0.2.16 - Canvas CSS Fix - Build:', new Date().toISOString());
+        console.log('🎯 TODDLER TOY v0.2.18 - Fix getRandomEmoji and Data Loading - Build:', new Date().toISOString());
         
-        // Initialize configuration manager
-        this.configManager = new ConfigManager();
+        // Initialize configuration manager if not already provided
+        if (!this.configManager) {
+            this.configManager = new ConfigManager();
+            console.log('📋 Created new ConfigManager in GameScene');
+        } else {
+            console.log('📋 Using provided ConfigManager in GameScene');
+        }
         
         // Initialize positioning system for collision detection
         try {
@@ -392,19 +397,127 @@ class GameScene extends Phaser.Scene {
     }
 
     async getRandomEmoji() {
-        return this.objectManager.getRandomEmoji();
+        try {
+            // Load emoji data if not already cached
+            if (!this.emojiData) {
+                const response = await fetch('/emojis.json');
+                this.emojiData = await response.json();
+            }
+            
+            // Get filtered emojis based on configuration
+            const config = this.configManager ? this.configManager.getConfig() : null;
+            let availableEmojis = this.emojiData;
+            
+            // Apply content filters if configured
+            if (config && config.contentFilters) {
+                // Filter by categories if specified
+                if (config.contentFilters.categories && config.contentFilters.categories.length > 0) {
+                    availableEmojis = availableEmojis.filter(emoji => 
+                        emoji.categories && emoji.categories.some(cat => 
+                            config.contentFilters.categories.includes(cat)
+                        )
+                    );
+                }
+            }
+            
+            // Fallback to all emojis if no valid ones after filtering
+            if (availableEmojis.length === 0) {
+                availableEmojis = this.emojiData;
+            }
+            
+            // Select random emoji
+            const randomIndex = Math.floor(Math.random() * availableEmojis.length);
+            return availableEmojis[randomIndex];
+            
+        } catch (error) {
+            console.error('Error loading emoji data:', error);
+            // Fallback emoji object
+            return {
+                emoji: '🎯',
+                en: 'Target',
+                type: 'emoji',
+                categories: ['fun'],
+                colors: ['red', 'white']
+            };
+        }
     }
 
-    getRandomShape() {
-        return this.objectManager.getRandomShape();
+    async getRandomShape() {
+        try {
+            // Load things data if not already cached
+            if (!this.thingsData) {
+                const response = await fetch('/things.json');
+                this.thingsData = await response.json();
+            }
+            
+            const shapes = this.thingsData.shapes || [];
+            if (shapes.length === 0) {
+                return { value: 'Circle', type: 'shape' };
+            }
+            
+            const randomIndex = Math.floor(Math.random() * shapes.length);
+            return { ...shapes[randomIndex], type: 'shape' };
+            
+        } catch (error) {
+            console.error('Error loading shape data:', error);
+            return { value: 'Circle', type: 'shape' };
+        }
     }
 
-    getRandomLetter(configType = 'uppercaseLetters') {
-        return this.objectManager.getRandomLetter(configType);
+    async getRandomLetter(configType = 'uppercaseLetters') {
+        try {
+            // Load things data if not already cached
+            if (!this.thingsData) {
+                const response = await fetch('/things.json');
+                this.thingsData = await response.json();
+            }
+            
+            const letters = this.thingsData.letters || [];
+            const isUppercase = configType === 'uppercaseLetters';
+            const filteredLetters = letters.filter(letter => 
+                isUppercase ? letter.case === 'upper' : letter.case === 'lower'
+            );
+            
+            if (filteredLetters.length === 0) {
+                return { value: isUppercase ? 'A' : 'a', type: 'letter' };
+            }
+            
+            const randomIndex = Math.floor(Math.random() * filteredLetters.length);
+            return { ...filteredLetters[randomIndex], type: 'letter' };
+            
+        } catch (error) {
+            console.error('Error loading letter data:', error);
+            return { value: 'A', type: 'letter' };
+        }
     }
 
     async getRandomNumber(configType = 'smallNumbers') {
-        return this.objectManager.getRandomNumber(configType);
+        try {
+            // Load things data if not already cached
+            if (!this.thingsData) {
+                const response = await fetch('/things.json');
+                this.thingsData = await response.json();
+            }
+            
+            const numbers = this.thingsData.numbers || [];
+            let filteredNumbers = numbers;
+            
+            // Filter by config type if specified
+            if (configType === 'smallNumbers') {
+                filteredNumbers = numbers.filter(num => num.value <= 10);
+            }
+            
+            if (filteredNumbers.length === 0) {
+                return { value: 1, type: 'number' };
+            }
+            
+            const randomIndex = Math.floor(Math.random() * filteredNumbers.length);
+            return { ...filteredNumbers[randomIndex], type: 'number' };
+            
+        } catch (error) {
+            console.error('Error loading number data:', error);
+            return { value: 1, type: 'number' };
+        }
     }
 
     // Auto-cleanup system
@@ -516,9 +629,10 @@ class GameScene extends Phaser.Scene {
 }
 
 class ResponsiveGameManager {
-    constructor() {
+    constructor(configManager = null) {
         this.gameInstance = null;
         this.config = null;
+        this.configManager = configManager;
         
         this.initGame();
         this.setupResizeHandler();
@@ -533,6 +647,7 @@ class ResponsiveGameManager {
             type: Phaser.AUTO,
             width: width,
             height: height,
+            parent: 'game-container',
             backgroundColor: '#2c3e50',
             scene: GameScene,
             scale: {
@@ -552,6 +667,18 @@ class ResponsiveGameManager {
         };
 
         this.gameInstance = new Phaser.Game(this.config);
+        
+        // Pass configManager to the scene after creation
+        if (this.configManager && this.gameInstance.scene.scenes[0]) {
+            this.gameInstance.scene.scenes[0].configManager = this.configManager;
+            console.log('📋 ConfigManager passed to GameScene');
+        }
+        
+        // Add global click listener for debugging
+        window.addEventListener('click', (e) => {
+            console.log('🔍 GLOBAL CLICK DETECTED:', e.clientX, e.clientY, e.target.tagName, e.target.className);
+        });
+        
         console.log('🎮 Responsive game initialized:', width, 'x', height);
     }
 
