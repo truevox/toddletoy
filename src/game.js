@@ -9,6 +9,7 @@ import { SpeechManager } from './game/systems/SpeechManager.js'
 import { ObjectManager } from './game/objects/ObjectManager.js'
 import { ObjectCountingRenderer } from './game/systems/ObjectCountingRenderer.js'
 import { MovementManager } from './game/systems/MovementManager.js'
+import { AutoCleanupManager } from './game/systems/AutoCleanupManager.js'
 
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -47,6 +48,7 @@ class GameScene extends Phaser.Scene {
         this.objectCountingRenderer = new ObjectCountingRenderer(this);
         this.inputManager = new InputManager(this);
         this.movementManager = new MovementManager(this);
+        this.autoCleanupManager = new AutoCleanupManager(this);
         
         // Set up input event handlers from InputManager
         this.setupInputHandlers();
@@ -68,9 +70,6 @@ class GameScene extends Phaser.Scene {
         this.isDragging = false;
         this.draggedObject = null;
         
-        
-        // Initialize auto-cleanup system
-        this.initAutoCleanupSystem();
         
         console.log('🎮 Game managers initialized successfully');
     }
@@ -98,7 +97,7 @@ class GameScene extends Phaser.Scene {
         this.movementManager.updateObjectMovements();
         
         // Check for auto-cleanup
-        this.checkAutoCleanup();
+        this.autoCleanupManager.checkAutoCleanup();
     }
 
     // Input event handlers
@@ -113,11 +112,11 @@ class GameScene extends Phaser.Scene {
             this.isDragging = true;
             this.draggedObject = hitObject;
             this.particleManager.startDragTrail(hitObject);
-            this.updateObjectTouchTime(hitObject);
+            this.autoCleanupManager.updateObjectTouchTime(hitObject);
         } else if (hitObject && this.speechManager.getCurrentSpeakingObject() === hitObject) {
             // Revoice the currently speaking object if clicked
             this.speechManager.speakText(hitObject, 'both');
-            this.updateObjectTouchTime(hitObject);
+            this.autoCleanupManager.updateObjectTouchTime(hitObject);
         } else if (hitObject && this.speechManager.getIsSpeaking()) {
             // Move speaking object to click point
             this.particleManager.startDragTrail(this.speechManager.getCurrentSpeakingObject());
@@ -183,7 +182,7 @@ class GameScene extends Phaser.Scene {
             this.audioManager.generateContinuousTone(position.x, position.y, obj.id);
             this.particleManager.createSpawnBurst(position.x, position.y);
         } else if (this.speechManager.getCurrentSpeakingObject()) {
-            this.updateObjectTouchTime(this.speechManager.getCurrentSpeakingObject());
+            this.autoCleanupManager.updateObjectTouchTime(this.speechManager.getCurrentSpeakingObject());
             this.moveObjectTo(this.speechManager.getCurrentSpeakingObject(), position.x, position.y);
             this.audioManager.updateTonePosition(position.x, position.y, this.speechManager.getCurrentSpeakingObject().id);
         }
@@ -403,55 +402,6 @@ class GameScene extends Phaser.Scene {
     }
 
     // Auto-cleanup system
-    initAutoCleanupSystem() {
-        this.autoCleanupConfig = null;
-        this.lastCleanupCheck = Date.now();
-        this.cleanupCheckInterval = 1000; // Check every second
-        
-        this.updateAutoCleanupConfig();
-    }
-
-    updateAutoCleanupConfig() {
-        const config = this.configManager ? this.configManager.getConfig() : null;
-        this.autoCleanupConfig = config?.autoCleanup || null;
-    }
-
-    checkAutoCleanup() {
-        const now = Date.now();
-        if (now - this.lastCleanupCheck < this.cleanupCheckInterval) return;
-        
-        this.lastCleanupCheck = now;
-        
-        if (!this.autoCleanupConfig?.enabled || !this.autoCleanupConfig?.timeoutSeconds) return;
-        
-        const timeoutMs = this.autoCleanupConfig.timeoutSeconds * 1000;
-        const objectsToCleanup = [];
-        
-        this.objects.forEach(obj => {
-            if (obj.active && obj.lastTouchedTime && 
-                (now - obj.lastTouchedTime) > timeoutMs &&
-                !this.speechManager.isObjectSpeaking(obj)) {
-                objectsToCleanup.push(obj);
-            }
-        });
-        
-        objectsToCleanup.forEach(obj => {
-            this.cleanupObjectWithEffects(obj);
-        });
-    }
-
-    cleanupObjectWithEffects(obj) {
-        if (!obj || !obj.active) return;
-        
-        // Create cleanup particle effect
-        this.particleManager.createCleanupParticleEffect(obj.x, obj.y);
-        
-        // Play cleanup sound (implement if needed)
-        // this.playCleanupSound();
-        
-        // Remove the object
-        this.removeObject(obj);
-    }
 
     removeObject(obj) {
         if (!obj) return;
@@ -512,11 +462,6 @@ class GameScene extends Phaser.Scene {
         }
     }
 
-    updateObjectTouchTime(obj) {
-        if (obj) {
-            obj.lastTouchedTime = Date.now();
-        }
-    }
 
     // Cleanup methods
     resetToyState() {
@@ -554,6 +499,7 @@ class GameScene extends Phaser.Scene {
         if (this.objectManager) this.objectManager.destroy();
         if (this.inputManager) this.inputManager.destroy();
         if (this.movementManager) this.movementManager.destroy();
+        if (this.autoCleanupManager) this.autoCleanupManager.destroy();
         
         // Clean up objects
         this.resetToyState();
