@@ -86,8 +86,9 @@ gemini -p "TASK_TYPE: [context] QUERY"
 - **MANDATORY**: Bump version numbers with EVERY commit
 - Update version in relevant files (main.js, game.js, package.json, etc.)
 - Ensure version is announced in console logs for debugging
-- Use semantic versioning: MAJOR.MINOR.PATCH
-- Example: v2.1.2 → v2.1.3 for bug fixes, v2.2.0 for features, v3.0.0 for breaking changes
+- **Pre-1.0 Development**: Use 0.x.x versioning (e.g., 0.2.13 → 0.2.14)
+- Stay below 1.0.0 until explicit launch approval from Marvin
+- **Post-1.0 Launch**: Switch to semantic versioning (MAJOR.MINOR.PATCH)
 - This ensures all team members know exactly which code version is running
 
 ---
