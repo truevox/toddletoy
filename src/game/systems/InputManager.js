@@ -23,10 +23,19 @@ export class InputManager {
     }
 
     initializeInputHandlers() {
+        console.log('🎮 InputManager.initializeInputHandlers called');
+        console.log('🎮 Scene input object:', this.scene.input);
+        console.log('🎮 Scene input enabled:', this.scene.input?.enabled);
+        
         // Pointer/touch input
         this.scene.input.on('pointerdown', this.onPointerDown, this);
         this.scene.input.on('pointermove', this.onPointerMove, this);
         this.scene.input.on('pointerup', this.onPointerUp, this);
+        
+        console.log('🎮 Input event listeners attached');
+        
+        // Test if we can manually trigger input detection
+        console.log('🎮 Scene canvas:', this.scene.game.canvas);
         
         // Keyboard input
         this.initKeyboardInput();

@@ -27,7 +27,7 @@ if ('serviceWorker' in navigator) {
 
 // Start the application with routing when DOM is loaded
 window.addEventListener('DOMContentLoaded', () => {
-    console.log('Starting ToddleToy v0.2.13 with Configuration System - Build:', new Date().toISOString());
+    console.log('Starting ToddleToy v0.2.14 with Configuration System - Build:', new Date().toISOString());
     
     // Initialize routing system
     window.appRoutes = new AppRoutes();
