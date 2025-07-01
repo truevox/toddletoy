@@ -286,7 +286,7 @@ describe('Grid Cross-Device Compatibility', () => {
 
         test('should support drag operations for desktop users', () => {
             const dragStart = { type: 'pointerdown', x: 200, y: 150 };
-            const dragMove = { type: pointermove', x: 300, y: 250 };
+            const dragMove = { type: 'pointermove', x: 300, y: 250 };
             const dragEnd = { type: 'pointerup', x: 300, y: 250 };
             
             gameScene.handleMouseInput(dragStart);
