@@ -37,6 +37,42 @@ Repeat for each feature:
 - **Verification Required**: Always verify line counts and content completeness before/after refactoring
 - **Rollback Plan**: Be prepared to restore from git if refactoring accidentally removes content
 
+### 🤖 Gemini CLI Sub-Agent Usage Guidelines
+
+#### When to Use Gemini CLI
+- **Large-scale analysis**: Files >1000 lines, complex architectural reviews
+- **Extensive data tasks**: Translation verification, bulk data processing
+- **Research-heavy tasks**: Educational theory, cultural considerations, best practices
+- **Context-heavy analysis**: Tasks requiring >200k tokens of context
+- **Boring but extensive jobs**: Repetitive data transformation, comprehensive documentation
+- **Anytime you can save tokens**: Basically, use Gemini for anything that let's you offload a bunch of tokens, saving yourself from having to process them. If invoking Gemini, giving it context, and recieving it's results would use more tokens that just doing it yourself, don't use Gemini. But if it WOULD save you a reasonable amount of tokens, DO use Gemini!
+- **Remeber, within it's limits, Gemini is almost free** But only almost - it still costs you what ever tokens you used to control it and recieve it's output. Use it to save tokens.
+
+#### Command Syntax
+```bash
+gemini -p "TASK_TYPE: [context] QUERY"
+```
+
+#### Task Types & Examples
+- **ANALYZE**: `gemini -p "ANALYZE: Review src/game.js (2,640 lines) for modular refactoring opportunities"`
+- **RESEARCH**: `gemini -p "RESEARCH: Educational game design principles for toddlers aged 2-4"`
+- **CULTURAL**: `gemini -p "CULTURAL: Verify Mandarin Chinese translations are culturally appropriate for toddlers"`
+- **TRANSLATE**: `gemini -p "TRANSLATE: Verify translation accuracy in public/things.json for all 11 languages"`
+- **PERFORMANCE**: `gemini -p "PERFORMANCE: Analyze browser test failures and suggest optimization strategies"`
+
+#### Collaboration Workflow
+1. **Claude**: Identifies need for large-scale analysis or research
+2. **Gemini**: Conducts analysis using 1M token context window
+3. **Claude**: Reviews Gemini's findings and implements recommendations
+4. **Documentation**: Record decisions and insights in relevant files
+
+#### Best Practices
+- Use Gemini for tasks that would exceed Claude's context limits
+- Delegate boring but extensive data processing tasks
+- Leverage Gemini's web search capabilities for current best practices
+- Always review and validate Gemini's suggestions before implementation
+- Use structured prompts with clear task types for consistent results
+
 ### 3. Visual/UI Iteration
 - After basic behavior works, ask Claude to provide screenshots or visual mockups.
 - Iterate UI elements (animations, layout) until polished :contentReference[oaicite:8]{index=8}.

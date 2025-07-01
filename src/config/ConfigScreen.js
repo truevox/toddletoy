@@ -1855,6 +1855,7 @@ export class ConfigScreen {
         // Allow toy access since user went through config
         this.router.allowToyAccess();
         
+        this.hide(); // Hide the configuration screen
         this.router.navigate('/toy');
     }
 

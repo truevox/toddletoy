@@ -59,6 +59,11 @@ export class Router {
         this.previousRoute = this.currentRoute;
         this.currentRoute = path;
         
+        // Reset toy access on every route change for security
+        if (path !== '/toy') {
+            this.resetToyAccess();
+        }
+        
         // Handling route change
         console.log(`Looking for handler for: "${path}"`);
         

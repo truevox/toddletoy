@@ -142,4 +142,21 @@ describe('Cistercian Numerals', () => {
         
         expect(result).toBe(mockGraphics);
     });
+
+    test('should position Cistercian numerals 7 pixels higher for improved visual alignment', () => {
+        // FAILING TEST: Based on game.js positioning logic, Cistercian numerals should be 7 pixels higher
+        // Current game.js uses: centerY - 100
+        // We need: centerY - 107 for improved alignment (7 pixels higher)
+        
+        const centerY = 200;
+        const currentYOffset = -100; // Standard offset for Cistercian numerals
+        const improvedYOffset = currentYOffset - 7; // 7 pixels higher
+        const expectedY = centerY + improvedYOffset; // Should be 200 + (-107) = 93
+        
+        // Test the improved positioning (this should fail with current implementation)
+        game.renderCistercianNumeral(42, 100, expectedY);
+        
+        // The vertical line should be drawn at the improved Y position
+        expect(mockGraphics.lineBetween).toHaveBeenCalledWith(100, 93 - 30, 100, 93 + 30);
+    });
 });

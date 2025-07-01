@@ -8,14 +8,14 @@
     { "value": "Red", "en-US": "Red", "en-GB": "Red", "es": "Rojo", "zh": "红色", "hi": "लाल", "ar": "أحمر", "fr": "Rouge", "bn": "লাল", "pt": "Vermelho", "ru": "Красный", "id": "Merah", "tlh": "Doq", "jbo": "xunre", "eo": "Ruĝa", "category": "primary", "hex": "#ff0000" },
     { "value": "Blue", "en-US": "Blue", "en-GB": "Blue", "es": "Azul", "zh": "蓝色", "hi": "नीला", "ar": "أزرق", "fr": "Bleu", "bn": "নীল", "pt": "Azul", "ru": "Синий", "id": "Biru", "tlh": "DIlo'", "jbo": "blanu", "eo": "Blua", "category": "primary", "hex": "#0000ff" },
     { "value": "Yellow", "en-US": "Yellow", "en-GB": "Yellow", "es": "Amarillo", "zh": "黄色", "hi": "पीला", "ar": "أصفر", "fr": "Jaune", "bn": "হলুদ", "pt": "Amarelo", "ru": "Жёлтый", "id": "Kuning", "tlh": "Hurgh", "jbo": "pelxu", "eo": "Flava", "category": "primary", "hex": "#ffff00" },
-    { "value": "Green", "en-US": "Green", "en-GB": "Green", "es": "Verde", "zh": "绿色", "hi": "हरा", "ar": "أخضر", "fr": "Vert", "bn": "সবুজ", "pt": "Verde", "ru": "Зелёный", "id": "Hijau", "tlh": "Doq", "jbo": "crino", "eo": "Verda", "category": "secondary", "hex": "#00ff00" },
+    { "value": "Green", "en-US": "Green", "en-GB": "Green", "es": "Verde", "zh": "绿色", "hi": "हरा", "ar": "أخضر", "fr": "Vert", "bn": "সবুজ", "pt": "Verde", "ru": "Зелёный", "id": "Hijau", "tlh": "vI'", "jbo": "crino", "eo": "Verda", "category": "secondary", "hex": "#00ff00" },
     { "value": "Orange", "en-US": "Orange", "en-GB": "Orange", "es": "Naranja", "zh": "橙色", "hi": "नारंगी", "ar": "برتقالي", "fr": "Orange", "bn": "কমলা", "pt": "Laranja", "ru": "Оранжевый", "id": "Oranye", "tlh": "Doq naDev", "jbo": "narju", "eo": "Oranĝa", "category": "secondary", "hex": "#ff8000" },
     { "value": "Purple", "en-US": "Purple", "en-GB": "Purple", "es": "Morado", "zh": "紫色", "hi": "बैंगनी", "ar": "بنفسجي", "fr": "Violet", "bn": "বেগুনি", "pt": "Roxo", "ru": "Фиолетовый", "id": "Ungu", "tlh": "Doq DIch", "jbo": "zirpu", "eo": "Purpura", "category": "secondary", "hex": "#8000ff" },
     { "value": "Black", "en-US": "Black", "en-GB": "Black", "es": "Negro", "zh": "黑色", "hi": "काला", "ar": "أسود", "fr": "Noir", "bn": "কালো", "pt": "Preto", "ru": "Чёрный", "id": "Hitam", "tlh": "ram", "jbo": "xekri", "eo": "Nigra", "category": "neutral", "hex": "#000000" },
     { "value": "White", "en-US": "White", "en-GB": "White", "es": "Blanco", "zh": "白色", "hi": "सफेद", "ar": "أبيض", "fr": "Blanc", "bn": "সাদা", "pt": "Branco", "ru": "Белый", "id": "Putih", "tlh": "chIS", "jbo": "blabi", "eo": "Blanka", "category": "neutral", "hex": "#ffffff" },
-    { "value": "Brown", "en-US": "Brown", "en-GB": "Brown", "es": "Marrón", "zh": "棕色", "hi": "भूरा", "ar": "بني", "fr": "Marron", "bn": "বাদামী", "pt": "Marrom", "ru": "Коричневый", "id": "Coklat", "tlh": "Doq DIch", "jbo": "bunre", "eo": "Bruna", "category": "neutral", "hex": "#8b4513" },
+    { "value": "Brown", "en-US": "Brown", "en-GB": "Brown", "es": "Marrón", "zh": "棕色", "hi": "भूरा", "ar": "بني", "fr": "Marron", "bn": "বাদামী", "pt": "Marrom", "ru": "Коричневый", "id": "Coklat", "tlh": "QI'", "jbo": "bunre", "eo": "Bruna", "category": "neutral", "hex": "#8b4513" },
     { "value": "Gray", "en-US": "Gray", "en-GB": "Grey", "es": "Gris", "zh": "灰色", "hi": "स्लेटी", "ar": "رمادي", "fr": "Gris", "bn": "ধূসর", "pt": "Cinza", "ru": "Серый", "id": "Abu-abu", "tlh": "DIch", "jbo": "grusi", "eo": "Griza", "category": "neutral", "hex": "#808080" },
-    { "value": "Pink", "en-US": "Pink", "en-GB": "Pink", "es": "Rosa", "zh": "粉红色", "hi": "गुलाबी", "ar": "وردي", "fr": "Rose", "bn": "গোলাপী", "pt": "Rosa", "ru": "Розовый", "id": "Merah muda", "tlh": "Doq DIch", "jbo": "xunre blabi", "eo": "Roza", "category": "secondary", "hex": "#ffc0cb" }
+    { "value": "Pink", "en-US": "Pink", "en-GB": "Pink", "es": "Rosa", "zh": "粉红色", "hi": "गुलाबী", "ar": "وردي", "fr": "Rose", "bn": "গোলাপী", "pt": "Rosa", "ru": "Розовый", "id": "Merah muda", "tlh": "Doq'chIS", "jbo": "xunre blabi", "eo": "Roza", "category": "secondary", "hex": "#ffc0cb" }
   ],
   "shapes": [
     { 
@@ -41,7 +41,7 @@
       "value": "Square", 
       "en-US": "Square", 
       "en-GB": "Square",
-      "es": "Cuadro",
+      "es": "Cuadrado",
       "zh": "正方形",
       "hi": "वर्ग", 
       "ar": "مربع",
@@ -127,7 +127,7 @@
       "ru": "Алмаз",
       "id": "Berlian",
       "tlh": "DIlmeH naQ",
-      "jbo": "blanu",
+      "jbo": "jgemu",
       "eo": "Diamanto",
       "categories": ["geometry", "fun"],
       "colors": ["primary", "secondary"]
