@@ -25,7 +25,7 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting  
-        console.log('🎯 TODDLER TOY v0.2.21 - Restore Original Black Background - Build:', new Date().toISOString());
+        console.log('🎯 TODDLER TOY v0.2.22 - Fix Object Size and Add Cache Busting - Build:', new Date().toISOString());
         
         // Initialize configuration manager if not already provided
         if (!this.configManager) {
@@ -58,9 +58,17 @@ class GameScene extends Phaser.Scene {
         // Set up input event handlers from InputManager
         this.setupInputHandlers();
         
-        // Create text style with emoji support
+        // Create text style with emoji support  
         this.textStyle = {
             fontSize: '32px',
+            fill: '#ffffff',
+            fontFamily: 'Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
+            align: 'center'
+        };
+        
+        // Create emoji-specific style (larger size)
+        this.emojiStyle = {
+            fontSize: '64px',
             fill: '#ffffff',
             fontFamily: 'Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
             align: 'center'
@@ -84,16 +92,19 @@ class GameScene extends Phaser.Scene {
 
     async preloadGameData() {
         try {
-            // Pre-load emoji data
+            // Cache busting timestamp
+            const timestamp = Date.now();
+            
+            // Pre-load emoji data with cache busting
             if (!this.emojiData) {
-                const response = await fetch('/emojis.json');
+                const response = await fetch(`/emojis.json?v=${timestamp}`);
                 this.emojiData = await response.json();
                 console.log('📦 Emoji data preloaded:', this.emojiData.length, 'emojis');
             }
             
-            // Pre-load things data  
+            // Pre-load things data with cache busting
             if (!this.thingsData) {
-                const response = await fetch('/things.json');
+                const response = await fetch(`/things.json?v=${timestamp}`);
                 this.thingsData = await response.json();
                 console.log('📦 Things data preloaded');
             }
@@ -317,8 +328,9 @@ class GameScene extends Phaser.Scene {
             // Get display text
             const displayText = this.renderManager.getDisplayText(selectedItem, actualType);
             
-            // Create the main object sprite
-            const obj = this.add.text(x, y, displayText, this.textStyle)
+            // Create the main object sprite with appropriate style
+            const style = actualType === 'emoji' ? this.emojiStyle : this.textStyle;
+            const obj = this.add.text(x, y, displayText, style)
                 .setOrigin(0.5, 0.5)
                 .setInteractive();
             
@@ -446,7 +458,7 @@ class GameScene extends Phaser.Scene {
         try {
             // Load emoji data if not already cached
             if (!this.emojiData) {
-                const response = await fetch('/emojis.json');
+                const response = await fetch(`/emojis.json?v=${Date.now()}`);
                 this.emojiData = await response.json();
             }
             
@@ -492,7 +504,7 @@ class GameScene extends Phaser.Scene {
         try {
             // Load things data if not already cached
             if (!this.thingsData) {
-                const response = await fetch('/things.json');
+                const response = await fetch(`/things.json?v=${Date.now()}`);
                 this.thingsData = await response.json();
             }
             
@@ -514,7 +526,7 @@ class GameScene extends Phaser.Scene {
         try {
             // Load things data if not already cached
             if (!this.thingsData) {
-                const response = await fetch('/things.json');
+                const response = await fetch(`/things.json?v=${Date.now()}`);
                 this.thingsData = await response.json();
             }
             
@@ -541,7 +553,7 @@ class GameScene extends Phaser.Scene {
         try {
             // Load things data if not already cached
             if (!this.thingsData) {
-                const response = await fetch('/things.json');
+                const response = await fetch(`/things.json?v=${Date.now()}`);
                 this.thingsData = await response.json();
             }
             
