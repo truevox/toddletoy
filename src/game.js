@@ -25,7 +25,7 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting  
-        console.log('🎯 TODDLER TOY v0.2.22 - Fix Object Size and Add Cache Busting - Build:', new Date().toISOString());
+        console.log('🎯 TODDLER TOY v0.2.23 - Comprehensive Cache Busting Fix - Build:', new Date().toISOString());
         
         // Initialize configuration manager if not already provided
         if (!this.configManager) {
@@ -85,6 +85,12 @@ class GameScene extends Phaser.Scene {
         
         
         console.log('🎮 Game managers initialized successfully');
+        
+        // Expose cache clearing utility in development mode
+        if (this.configManager.isDevelopmentMode()) {
+            window.clearToddleToyCache = () => this.configManager.clearAllCaches();
+            console.log('🔧 Development mode: Use clearToddleToyCache() to clear all caches');
+        }
         
         // Pre-load critical data to avoid first-click delays
         this.preloadGameData();

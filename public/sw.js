@@ -16,6 +16,20 @@ self.addEventListener('install', function(event) {
 });
 
 self.addEventListener('fetch', function(event) {
+  const url = new URL(event.request.url);
+  
+  // Skip cache for JSON files with cache busting parameters
+  if (url.pathname.endsWith('.json') && url.searchParams.has('v')) {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+  
+  // Skip cache for development server requests
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+  
   event.respondWith(
     caches.match(event.request)
       .then(function(response) {

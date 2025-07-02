@@ -75,6 +75,13 @@ export class ConfigManager {
      */
     loadConfig() {
         try {
+            // Clear cache in development mode if force refresh detected
+            if (this.isDevelopmentMode() && this.isForceRefresh()) {
+                console.log('🔄 Development mode force refresh detected - clearing localStorage cache');
+                localStorage.removeItem(this.storageKey);
+                return this.getDefaults();
+            }
+            
             const stored = localStorage.getItem(this.storageKey);
             if (stored) {
                 const parsed = JSON.parse(stored);
@@ -87,6 +94,34 @@ export class ConfigManager {
             console.warn('Failed to load config from localStorage:', error);
         }
         return this.getDefaults();
+    }
+
+    /**
+     * Check if running in development mode
+     */
+    isDevelopmentMode() {
+        return window.location.hostname === 'localhost' || 
+               window.location.hostname === '127.0.0.1' ||
+               window.location.port === '4000' ||
+               window.location.port === '4001';
+    }
+
+    /**
+     * Check if this is a force refresh (Ctrl+F5, Cmd+Shift+R)
+     */
+    isForceRefresh() {
+        // Check for cache-busting URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.has('fresh') || urlParams.has('nocache')) {
+            return true;
+        }
+        
+        // Check for performance navigation type indicating force refresh
+        if (performance.navigation && performance.navigation.type === 1) {
+            return true;
+        }
+        
+        return false;
     }
 
     /**
@@ -394,5 +429,40 @@ export class ConfigManager {
      */
     getAutoCleanupConfig() {
         return { ...this.config.advanced.autoCleanup };
+    }
+
+    /**
+     * Clear all caches (localStorage, Service Worker) - development utility
+     */
+    async clearAllCaches() {
+        try {
+            // Clear localStorage
+            localStorage.removeItem(this.storageKey);
+            console.log('✅ localStorage cache cleared');
+            
+            // Clear Service Worker caches
+            if ('caches' in window) {
+                const cacheNames = await caches.keys();
+                await Promise.all(
+                    cacheNames.map(cacheName => caches.delete(cacheName))
+                );
+                console.log('✅ Service Worker caches cleared');
+            }
+            
+            // Clear browser cache programmatically (if possible)
+            if ('serviceWorker' in navigator) {
+                const registration = await navigator.serviceWorker.getRegistration();
+                if (registration) {
+                    await registration.unregister();
+                    console.log('✅ Service Worker unregistered');
+                }
+            }
+            
+            console.log('🔄 All caches cleared - refresh page for clean state');
+            return true;
+        } catch (error) {
+            console.error('Failed to clear caches:', error);
+            return false;
+        }
     }
 }
