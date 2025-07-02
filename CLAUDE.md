@@ -8,7 +8,7 @@ This file configures Claude Code to follow a structured, TDD-first workflow tail
 
 ## FYI
 - FYI, use CLAUDE-TODO.md as your personal todo file.
-- Use /.claude/CGEM.md to implement a sub-agent named Gemini.
+- Use @.claude/CGEM.md to implement a sub-agent named Gemini.
 
 ## ⚙️ Workflow & Best Practices
 
@@ -49,9 +49,77 @@ Repeat for each feature:
 - **Anytime you can save tokens**: Basically, use Gemini for anything that let's you offload a bunch of tokens, saving yourself from having to process them. If invoking Gemini, giving it context, and recieving it's results would use more tokens that just doing it yourself, don't use Gemini. But if it WOULD save you a reasonable amount of tokens, DO use Gemini!
 - **Remeber, within it's limits, Gemini is almost free** But only almost - it still costs you what ever tokens you used to control it and recieve it's output. Use it to save tokens.
 
-#### Command Syntax
+#### File and Directory Inclusion Syntax
+
+Use the `@` syntax to include files and directories in your Gemini prompts. Paths are relative to where you run the gemini command:
+
+**Single file analysis:**
 ```bash
-gemini -p "TASK_TYPE: [context] QUERY"
+gemini -p "@src/main.py Explain this file's purpose and structure"
+```
+
+**Multiple files:**
+```bash
+gemini -p "@package.json @src/index.js Analyze the dependencies used in the code"
+```
+
+**Entire directory:**
+```bash
+gemini -p "@src/ Summarize the architecture of this codebase"
+```
+
+**Multiple directories:**
+```bash
+gemini -p "@src/ @tests/ Analyze test coverage for the source code"
+```
+
+**Current directory and subdirectories:**
+```bash
+gemini -p "@./ Give me an overview of this entire project"
+# Or use --all_files flag:
+gemini --all_files -p "Analyze the project structure and dependencies"
+```
+
+#### Implementation Verification Examples
+
+**Check if a feature is implemented:**
+```bash
+gemini -p "@src/ @lib/ Has dark mode been implemented in this codebase? Show me the relevant files and functions"
+```
+
+**Verify authentication implementation:**
+```bash
+gemini -p "@src/ @middleware/ Is JWT authentication implemented? List all auth-related endpoints and middleware"
+```
+
+**Check for specific patterns:**
+```bash
+gemini -p "@src/ Are there any React hooks that handle WebSocket connections? List them with file paths"
+```
+
+**Verify error handling:**
+```bash
+gemini -p "@src/ @api/ Is proper error handling implemented for all API endpoints? Show examples of try-catch blocks"
+```
+
+**Check for rate limiting:**
+```bash
+gemini -p "@backend/ @middleware/ Is rate limiting implemented for the API? Show the implementation details"
+```
+
+**Verify caching strategy:**
+```bash
+gemini -p "@src/ @lib/ @services/ Is Redis caching implemented? List all cache-related functions and their usage"
+```
+
+**Check for specific security measures:**
+```bash
+gemini -p "@src/ @api/ Are SQL injection protections implemented? Show how user inputs are sanitized"
+```
+
+**Verify test coverage for features:**
+```bash
+gemini -p "@src/payment/ @tests/ Is the payment processing module fully tested? List all test cases"
 ```
 
 #### Task Types & Examples
@@ -73,6 +141,14 @@ gemini -p "TASK_TYPE: [context] QUERY"
 - Leverage Gemini's web search capabilities for current best practices
 - Always review and validate Gemini's suggestions before implementation
 - Use structured prompts with clear task types for consistent results
+
+#### Development Cache Management
+- **Cache Issues**: Service Workers and localStorage can serve stale data during development
+- **Quick Cache Clear**: Use `clearToddleToyCache()` in browser console (development mode only)
+- **Force Refresh**: Ctrl+F5 (Windows) or Cmd+Shift+R (Mac) clears localStorage automatically
+- **Manual Cache Busting**: Add `?fresh` or `?nocache` to URL for guaranteed fresh data
+- **Service Worker**: Automatically bypasses cache for localhost and JSON files with version parameters
+- **localStorage Detection**: Auto-clears on force refresh in development mode (ports 4000/4001)
 
 ### 3. Visual/UI Iteration
 - After basic behavior works, ask Claude to provide screenshots or visual mockups.
@@ -114,7 +190,7 @@ Examples:
   Run full test + lint suite + build.
 
 - **/wakeup**
-  Refamiliarize yourself with this document (CLAUDE.md) and your todo document, CLAUDE-TODO.md.
+  Refamiliarize yourself with this document (@CLAUDE.md) and your todo document, CLAUDE-TODO.md.
 
 Each command uses `$ARGUMENTS` for flexibility :contentReference[oaicite:10]{index=10}.
 

@@ -121,6 +121,25 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - [ ] Test en-CA language switching and flag spawning
 - [ ] Add Canadian cultural content (maple syrup, hockey, etc.)
 
+### Phase 15.9: PWA Fullscreen & Refresh Prevention (Medium Priority)
+
+**Goal**: Prevent accidental page refreshes during fullscreen gaming sessions and improve PWA behavior for uninterrupted play.
+
+- [ ] Detect fullscreen mode on desktop browsers (document.fullscreenElement)
+- [ ] Detect PWA "pinned" mode on mobile devices (display-mode: standalone)
+- [ ] Implement refresh prevention during fullscreen/pinned sessions
+- [ ] Add beforeunload event handler to warn about leaving during active play
+- [ ] Create visual indicator showing refresh prevention is active
+- [ ] Add configuration toggle for refresh prevention feature
+- [ ] Handle edge cases: accidental F5, Ctrl+R, browser back button
+- [ ] Ensure emergency exit methods remain available (ESC key, browser UI)
+- [ ] Test across different browsers and mobile PWA implementations
+
+**Expected Outcome**: 
+- Toddlers can play in fullscreen without accidentally refreshing and losing progress
+- Parents can confidently hand device to child knowing page won't refresh unexpectedly
+- PWA maintains session state during extended play sessions
+
 ### Phase 16: Auto-Cleanup Timer Feature (Medium Priority)
 
 **Goal**: Implement a time-since-last-touched feature to automatically remove objects that haven't been interacted with in a configurable amount of time.
