@@ -92,27 +92,33 @@ export class MovementManager {
     }
 
     /**
-     * Start smooth movement animation for an object
+     * Move object to target position with optional smooth animation
      * @param {Object} obj - Phaser game object to move
      * @param {number} targetX - Target X position
      * @param {number} targetY - Target Y position
+     * @param {boolean} useSmooth - Whether to use smooth movement (default: true)
      */
-    moveObjectTo(obj, targetX, targetY) {
+    moveObjectTo(obj, targetX, targetY, useSmooth = true) {
         if (!obj || !obj.active) return;
 
-        // Store current position as start point for interpolation
-        const startX = obj.x;
-        const startY = obj.y;
+        if (useSmooth) {
+            // Store current position as start point for interpolation
+            const startX = obj.x;
+            const startY = obj.y;
 
-        // Add to smooth movement queue
-        this.movingObjects.set(obj.id, {
-            object: obj,
-            targetX: targetX,
-            targetY: targetY,
-            startX: startX,
-            startY: startY,
-            progress: 0
-        });
+            // Add to smooth movement queue
+            this.movingObjects.set(obj.id, {
+                object: obj,
+                targetX: targetX,
+                targetY: targetY,
+                startX: startX,
+                startY: startY,
+                progress: 0
+            });
+        } else {
+            // Immediate positioning (original functionality)
+            this.setObjectPosition(obj, targetX, targetY);
+        }
     }
 
     /**

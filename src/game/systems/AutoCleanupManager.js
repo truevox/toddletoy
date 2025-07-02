@@ -17,8 +17,8 @@ export class AutoCleanupManager {
      * Update auto-cleanup configuration from the scene's config manager
      */
     updateAutoCleanupConfig() {
-        const config = this.scene.configManager ? this.scene.configManager.getConfig() : null;
-        this.autoCleanupConfig = config?.autoCleanup || null;
+        const config = this.scene.configManager ? this.scene.configManager.getAutoCleanupConfig() : null;
+        this.autoCleanupConfig = config || null;
     }
 
     /**
@@ -31,15 +31,32 @@ export class AutoCleanupManager {
         
         this.lastCleanupCheck = now;
         
-        if (!this.autoCleanupConfig || !this.autoCleanupConfig.enabled || !this.autoCleanupConfig.timeout) {
+        if (!this.autoCleanupConfig || !this.autoCleanupConfig.enabled) {
+            return;
+        }
+        
+        // Support both timeoutSeconds (original) and timeout (converted to ms)
+        const timeoutMs = this.autoCleanupConfig.timeoutSeconds 
+            ? this.autoCleanupConfig.timeoutSeconds * 1000 
+            : this.autoCleanupConfig.timeout;
+            
+        if (!timeoutMs) {
             return;
         }
         
         const objectsToCleanup = this.scene.objects.filter(obj => {
             if (!obj || !obj.active) return false;
             
-            const timeSinceLastTouch = now - (obj.lastTouchedTime || obj.spawnTime || now);
-            return timeSinceLastTouch > this.autoCleanupConfig.timeout;
+            // CRITICAL: Don't cleanup objects that are currently speaking
+            if (this.scene.speechManager && this.scene.speechManager.isObjectSpeaking(obj)) {
+                return false;
+            }
+            
+            // Only cleanup objects that have a lastTouchedTime (were actually interacted with)
+            if (!obj.lastTouchedTime) return false;
+            
+            const timeSinceLastTouch = now - obj.lastTouchedTime;
+            return timeSinceLastTouch > timeoutMs;
         });
         
         objectsToCleanup.forEach(obj => {
@@ -87,7 +104,12 @@ export class AutoCleanupManager {
      * @returns {number|null} Timeout in milliseconds or null if not configured
      */
     getTimeout() {
-        return this.autoCleanupConfig ? this.autoCleanupConfig.timeout : null;
+        if (!this.autoCleanupConfig) return null;
+        
+        // Support both timeoutSeconds (original) and timeout (ms)
+        return this.autoCleanupConfig.timeoutSeconds 
+            ? this.autoCleanupConfig.timeoutSeconds * 1000 
+            : this.autoCleanupConfig.timeout;
     }
 
     /**
