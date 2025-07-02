@@ -10,6 +10,14 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 
 ## 🎯 ACTIVE TASKS
 
+### Phase 13.999: Implement some kind of analytics
+
+**Problem**
+- We need insight on who is using ToddleToy, and for what.
+
+**Possible solution**
+- Begin using an analytics service, like Google Analytics.
+
 ### Phase 14: Numeral Positioning & Base System Fixes (High Priority) 
 
 **Problem**: 
