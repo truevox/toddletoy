@@ -25,7 +25,7 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting  
-        console.log('🎯 TODDLER TOY v0.2.20 - Fix Initialization Race Condition - Build:', new Date().toISOString());
+        console.log('🎯 TODDLER TOY v0.2.21 - Restore Original Black Background - Build:', new Date().toISOString());
         
         // Initialize configuration manager if not already provided
         if (!this.configManager) {
@@ -694,7 +694,6 @@ class ResponsiveGameManager {
             width: width,
             height: height,
             parent: 'game-container',
-            backgroundColor: '#2c3e50',
             scene: GameScene,
             scale: {
                 mode: Phaser.Scale.RESIZE,
