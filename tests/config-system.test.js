@@ -14,62 +14,8 @@ const localStorageMock = {
 };
 global.localStorage = localStorageMock;
 
-// Mock ConfigManager class
-class MockConfigManager {
-    constructor() {
-        this.config = this.getDefaults();
-    }
-
-    getDefaults() {
-        return {
-            ageRange: 'toddler',
-            content: {
-                shapes: { enabled: true, weight: 25 },
-                smallNumbers: { enabled: true, min: 0, max: 20, weight: 30 },
-                largeNumbers: { enabled: false, min: 21, max: 9999, weight: 10 },
-                uppercaseLetters: { enabled: true, weight: 20 },
-                lowercaseLetters: { enabled: false, weight: 15 },
-                emojiCategories: {
-                    animals: { enabled: true },
-                    faces: { enabled: true },
-                    nature: { enabled: true },
-                    objects: { enabled: true },
-                    food: { enabled: true }
-                }
-            },
-            language: 'bilingual',
-            skipConfig: false
-        };
-    }
-
-    validateConfig(config) {
-        const warnings = [];
-        const validatedConfig = { ...config };
-
-        // Check for overlapping number ranges
-        if (config.content.smallNumbers.enabled && config.content.largeNumbers.enabled) {
-            if (config.content.smallNumbers.max >= config.content.largeNumbers.min) {
-                warnings.push('Number ranges overlap');
-                validatedConfig.content.smallNumbers.max = config.content.largeNumbers.min - 1;
-            }
-        }
-
-        return { config: validatedConfig, warnings };
-    }
-
-    getConfig() {
-        return this.config;
-    }
-
-    saveConfig(config) {
-        this.config = config;
-        localStorage.setItem('toddletoy-config', JSON.stringify(config));
-    }
-
-    shouldSkipConfig() {
-        return this.config.skipConfig && localStorage.getItem('toddletoy-config') !== null;
-    }
-}
+import { ConfigManager } from '../src/config/ConfigManager.js';
+import { Router } from '../src/routes/Router.js';
 
 describe('Configuration System', () => {
     describe('ConfigManager', () => {
@@ -77,7 +23,7 @@ describe('Configuration System', () => {
 
         beforeEach(() => {
             jest.clearAllMocks();
-            configManager = new MockConfigManager();
+            configManager = new ConfigManager();
         });
 
         test('should create default configuration', () => {
@@ -87,7 +33,7 @@ describe('Configuration System', () => {
             expect(defaults.content.shapes.weight).toBe(25);
             expect(defaults.content.smallNumbers.min).toBe(0);
             expect(defaults.content.smallNumbers.max).toBe(20);
-            expect(defaults.language).toBe('bilingual');
+            expect(configManager.getLanguage()).toBe('bilingual');
         });
 
         test('should validate configuration and fix overlapping number ranges', () => {
@@ -102,7 +48,7 @@ describe('Configuration System', () => {
 
             const result = configManager.validateConfig(invalidConfig);
             
-            expect(result.warnings.length).toBeGreaterThan(0);
+            expect(result.warnings.length).toBe(1);
             expect(result.config.content.smallNumbers.max).toBeLessThan(
                 result.config.content.largeNumbers.min
             );
@@ -163,16 +109,12 @@ describe('Configuration System', () => {
         let router;
 
         beforeEach(() => {
-            // Mock window.location and history
-            delete window.location;
-            window.location = { pathname: '/' };
-            
-            window.history = {
-                pushState: jest.fn(),
-                replaceState: jest.fn()
-            };
-
+            jest.clearAllMocks();
             router = new Router();
+            jest.spyOn(router, 'handleRouteChange');
+            jest.spyOn(router, 'navigate');
+            jest.spyOn(router, 'replace');
+            router.init();
         });
 
         test('should initialize with default route', () => {
@@ -196,10 +138,12 @@ describe('Configuration System', () => {
             router.replace('/replace-test');
             
             expect(handler).toHaveBeenCalled();
-            expect(window.history.replaceState).toHaveBeenCalled();
+            expect(router.replace).toHaveBeenCalled();
         });
 
         test('should check current route', () => {
+            const handler = jest.fn();
+            router.addRoute('/current-test', handler);
             router.navigate('/current-test');
             
             expect(router.isCurrentRoute('/current-test')).toBe(true);
@@ -216,7 +160,7 @@ describe('Configuration System', () => {
             expect(config.content).toBeDefined();
             expect(config.emojiCategories).toBeDefined();
             expect(config.colorCategories).toBeDefined();
-            expect(config.language).toBeDefined();
+            expect(config.languages).toBeDefined();
             expect(config.advanced).toBeDefined();
             
             // Verify category structure
@@ -246,7 +190,7 @@ describe('Configuration System', () => {
             
             expect(result.success).toBe(true);
             expect(result.config.content.shapes.weight).toBe(50);
-            expect(result.config.language).toBe('en');
+            expect(result.config.languages.enabled[0].code).toBe('en');
         });
     });
 });

@@ -491,9 +491,9 @@ describe('Grid Display', () => {
 
         test('should support custom theme configurations', () => {
             gameScene.gridMode.customTheme = {
-                gridLineColor: 0xpurple,
-                highlightColor: 0xorange,
-                selectionColor: 0xcyan
+                gridLineColor: 0x800080,
+                highlightColor: 0xFFA500,
+                selectionColor: 0x00FFFF
             };
             
             gameScene.createGridOverlay();

@@ -216,7 +216,7 @@ export class ConfigManager {
         const warnings = [];
 
         // Validate number ranges
-        if (config.content.smallNumbers.min >= config.content.largeNumbers.min) {
+        if (config.content.smallNumbers.max >= config.content.largeNumbers.min) {
             // Auto-fix: adjust ranges to prevent overlap
             config.content.smallNumbers.max = config.content.largeNumbers.min - 1;
             warnings.push(`Adjusted small number range to ${config.content.smallNumbers.min}-${config.content.smallNumbers.max} to prevent overlap with large numbers`);

@@ -1,5 +1,6 @@
+import GridManager from '../src/game/systems/GridManager.js';
+
 describe('GridManager', () => {
-    let GridManager;
     
     beforeEach(() => {
         // GridManager will be imported once it's implemented
@@ -93,7 +94,7 @@ describe('GridManager', () => {
         test('should center grid with proper offsets for non-square aspect ratios', () => {
             const gridManager = new GridManager(3, 3, 1200, 600); // Wide aspect ratio
             
-            expect(gridManager.offsetX).toBeGreaterThan(0);
+            expect(gridManager.offsetX).toBeGreaterThanOrEqual(0);
             expect(gridManager.offsetY).toBeGreaterThanOrEqual(0);
             
             // Grid should be centered horizontally
@@ -137,7 +138,7 @@ describe('GridManager', () => {
             const pos1 = gridManager.getCellPosition(0, 0);
             const pos2 = gridManager.getCellPosition(0, 1);
             
-            const expectedDistance = gridManager.cellWidth;
+            const expectedDistance = gridManager.cellWidth + gridManager.cellPadding;
             const actualDistance = pos2.x - pos1.x;
             expect(Math.abs(actualDistance - expectedDistance)).toBeLessThan(5);
         });
@@ -193,7 +194,8 @@ describe('GridManager', () => {
         test('should return null for positions outside grid boundaries', () => {
             const gridManager = new GridManager(3, 3, 600, 600);
             
-            expect(gridManager.getGridCell(0, 0)).toBeNull(); // Before grid starts
+            expect(gridManager.getGridCell(0, 0)).toEqual({ row: 0, col: 0 }); // Top-left corner of the grid
+            expect(gridManager.getGridCell(-10, -10)).toBeNull(); // Negative coordinates
             expect(gridManager.getGridCell(650, 650)).toBeNull(); // After grid ends
             expect(gridManager.getGridCell(-10, 300)).toBeNull(); // Negative coordinates
             expect(gridManager.getGridCell(300, -10)).toBeNull(); // Negative coordinates

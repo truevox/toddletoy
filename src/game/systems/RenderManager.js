@@ -30,9 +30,9 @@ export class RenderManager {
     }
 
     displayTextLabels(obj) {
-        if (!obj || !obj.data) return;
+        if (!obj || !obj.itemData) return;
         
-        const data = obj.data;
+        const data = obj.itemData;
         const x = obj.x;
         const y = obj.y;
         

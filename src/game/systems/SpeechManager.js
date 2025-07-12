@@ -25,7 +25,7 @@ export class SpeechManager {
     }
 
     speakText(obj, language = 'en') {
-        if (!obj || !obj.data) {
+        if (!obj || !obj.itemData) {
             console.warn('Invalid object for speech');
             return;
         }
@@ -44,7 +44,7 @@ export class SpeechManager {
         this.isSpeaking = true;
         this.currentSpeakingObject = obj;
 
-        const data = obj.data;
+        const data = obj.itemData;
         let textsToSpeak = [];
 
         // Get enabled languages from config

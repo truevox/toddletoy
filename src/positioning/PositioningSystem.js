@@ -149,9 +149,7 @@ export class PositioningSystem {
             { count: ones, name: 'ones' }
         ].filter(place => place.count > 0);
         
-        if (placeValues.length === 0) return { width: 0, height: 0 };
-        
-        const maxCount = Math.max(...placeValues.map(p => p.count));
+        const maxCount = placeValues.length > 0 ? Math.max(...placeValues.map(p => p.count)) : 0;
         const numRows = placeValues.length;
         const spacing = 35;
         

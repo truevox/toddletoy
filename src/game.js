@@ -25,7 +25,7 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting  
-        console.log('🎯 TODDLER TOY v0.2.24 - Fix Zero-Loss Refactoring Violations - Build:', new Date().toISOString());
+        console.log('🎯 TODDLER TOY v0.2.25 - Fix Auto-Cleanup Data Property Conflict - Build:', new Date().toISOString());
         
         // Initialize configuration manager if not already provided
         if (!this.configManager) {
@@ -341,7 +341,7 @@ class GameScene extends Phaser.Scene {
                 .setInteractive();
             
             // Store object data and metadata
-            obj.data = selectedItem;
+            obj.itemData = selectedItem;
             obj.type = actualType;
             obj.id = `object_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             obj.lastTouchedTime = Date.now();
