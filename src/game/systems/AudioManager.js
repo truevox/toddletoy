@@ -45,6 +45,13 @@ export class AudioManager {
             return null;
         }
 
+        // Check if audio is muted in config
+        const audioConfig = this.scene.configManager ? this.scene.configManager.getAudioConfig() : null;
+        if (audioConfig && audioConfig.mute) {
+            console.log('🔇 Audio tones are muted');
+            return null;
+        }
+
         try {
             // Resume audio context if needed
             this.resumeAudioContext();
@@ -63,8 +70,9 @@ export class AudioManager {
             // Set waveform based on X/Y position
             oscillator.type = this.getWaveformFromPosition(x, y);
 
-            // Set volume (lower than speech)
-            gainNode.gain.value = 0.1;
+            // Set volume from config (0-100 scale to 0-1 scale)
+            const volumeMultiplier = audioConfig ? (audioConfig.volume / 100) : 0.1;
+            gainNode.gain.value = volumeMultiplier;
 
             // Connect audio nodes
             oscillator.connect(gainNode);

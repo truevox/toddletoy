@@ -30,6 +30,13 @@ export class SpeechManager {
             return;
         }
 
+        // Check if speech is muted in config
+        const speechConfig = this.scene.configManager ? this.scene.configManager.getSpeechConfig() : null;
+        if (speechConfig && speechConfig.mute) {
+            console.log('🔇 Speech is muted');
+            return;
+        }
+
         // Reset auto-cleanup timer when object is voiced
         if (this.scene.updateObjectTouchTime) {
             this.scene.updateObjectTouchTime(obj);
@@ -121,8 +128,10 @@ export class SpeechManager {
 
         utterance.lang = languageMap[currentLangCode] || 'en-US';
 
-        utterance.rate = 0.8;
-        utterance.volume = 0.7;
+        // Get speech config for volume and rate
+        const speechConfig = this.scene.configManager ? this.scene.configManager.getSpeechConfig() : null;
+        utterance.rate = speechConfig ? speechConfig.rate : 1.0;
+        utterance.volume = speechConfig ? (speechConfig.volume / 100) : 0.7;
 
         // Trigger word highlighting animation
         if (this.currentSpeakingObject) {

@@ -25,7 +25,7 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting  
-        console.log('🎯 TODDLER TOY v0.2.25 - Fix Auto-Cleanup Data Property Conflict - Build:', new Date().toISOString());
+        console.log('🎯 TODDLER TOY v0.2.26 - Refresh State Preservation - Build:', new Date().toISOString());
         
         // Initialize configuration manager if not already provided
         if (!this.configManager) {
@@ -94,6 +94,9 @@ class GameScene extends Phaser.Scene {
         
         // Pre-load critical data to avoid first-click delays
         this.preloadGameData();
+        
+        // Restore game state from previous session if available
+        this.restoreGameState();
     }
 
     async preloadGameData() {
@@ -191,6 +194,13 @@ class GameScene extends Phaser.Scene {
             this.autoCleanupManager.updateObjectTouchTime(hitObject);
             // Re-voice the object being dragged
             this.speechManager.speakText(hitObject, 'both');
+        } else if (this.speechManager.getIsSpeaking() && this.speechManager.getCurrentSpeakingObject()) {
+            // Jump speaking object to tap location (matches keyboard/gamepad behavior)
+            const speakingObj = this.speechManager.getCurrentSpeakingObject();
+            this.moveObjectTo(speakingObj, x, y);
+            this.audioManager.updateTonePosition(x, y, speakingObj.id);
+            this.particleManager.createSpawnBurst(x, y);
+            this.autoCleanupManager.updateObjectTouchTime(speakingObj);
         } else if (!this.speechManager.getIsSpeaking()) {
             // Spawn new object
             console.log('🎯 Attempting to spawn object at', x, y);
@@ -358,6 +368,10 @@ class GameScene extends Phaser.Scene {
             }
             
             console.log(`✨ Spawned ${actualType}:`, displayText, 'at', x, y);
+            
+            // Save game state after spawning
+            this.saveGameState();
+            
             return obj;
             
         } catch (error) {
@@ -643,8 +657,112 @@ class GameScene extends Phaser.Scene {
         } catch (error) {
             console.warn('Error removing object:', error);
         }
+        
+        // Save game state after removing object
+        this.saveGameState();
     }
 
+
+    // State preservation methods
+    saveGameState() {
+        if (!this.objects || this.objects.length === 0) {
+            // Clear saved state if no objects exist
+            localStorage.removeItem('toddleToyGameState');
+            return;
+        }
+        
+        const gameState = {
+            objects: this.objects.map(obj => ({
+                id: obj.id,
+                x: obj.x,
+                y: obj.y,
+                text: obj.text,
+                itemData: obj.itemData,
+                type: obj.type,
+                lastTouchedTime: obj.lastTouchedTime || Date.now()
+            })),
+            timestamp: Date.now()
+        };
+        
+        try {
+            localStorage.setItem('toddleToyGameState', JSON.stringify(gameState));
+            console.log('💾 Game state saved:', gameState.objects.length, 'objects');
+        } catch (error) {
+            console.warn('Failed to save game state:', error);
+        }
+    }
+    
+    async restoreGameState() {
+        try {
+            const savedState = localStorage.getItem('toddleToyGameState');
+            if (!savedState) return;
+            
+            const gameState = JSON.parse(savedState);
+            
+            // Check if saved state is recent (within 1 hour to avoid stale data)
+            const ageHours = (Date.now() - gameState.timestamp) / (1000 * 60 * 60);
+            if (ageHours > 1) {
+                console.log('🕐 Saved state too old, clearing');
+                localStorage.removeItem('toddleToyGameState');
+                return;
+            }
+            
+            // Wait for game to be fully initialized before restoring
+            if (!this.isFullyInitialized) {
+                setTimeout(() => this.restoreGameState(), 100);
+                return;
+            }
+            
+            console.log('📦 Restoring game state:', gameState.objects.length, 'objects');
+            
+            // Restore each object
+            for (const objData of gameState.objects) {
+                try {
+                    await this.restoreObject(objData);
+                } catch (error) {
+                    console.warn('Failed to restore object:', objData, error);
+                }
+            }
+            
+            console.log('✨ Game state restoration complete');
+            
+        } catch (error) {
+            console.warn('Failed to restore game state:', error);
+            localStorage.removeItem('toddleToyGameState');
+        }
+    }
+    
+    async restoreObject(objData) {
+        if (!objData || !objData.itemData || !objData.type) return;
+        
+        // Get display text using the same logic as spawnObjectAt
+        const displayText = this.renderManager.getDisplayText(objData.itemData, objData.type);
+        
+        // Create the main object sprite with appropriate style
+        const style = objData.type === 'emoji' ? this.emojiStyle : this.textStyle;
+        const obj = this.add.text(objData.x, objData.y, displayText, style)
+            .setOrigin(0.5, 0.5)
+            .setInteractive();
+        
+        // Restore object data and metadata
+        obj.itemData = objData.itemData;
+        obj.type = objData.type;
+        obj.id = objData.id;
+        obj.lastTouchedTime = objData.lastTouchedTime || Date.now();
+        
+        // Add to objects array
+        this.objects.push(obj);
+        
+        // Display text labels for all enabled languages
+        this.renderManager.displayTextLabels(obj);
+        
+        // Render number modes if this is a number
+        if (objData.type === 'number' && objData.itemData.value) {
+            this.renderAllNumberModes(obj, objData.itemData.value, objData.x, objData.y);
+        }
+        
+        console.log(`✨ Restored ${objData.type}:`, displayText, 'at', objData.x, objData.y);
+    }
 
     // Cleanup methods
     resetToyState() {

@@ -53,11 +53,20 @@ export class ConfigManager {
                     { code: 'zh', name: 'Mandarin Chinese', nativeName: '中文', difficultyRank: 13, learningHours: '2200h+', colors: ['#DE2910', '#FFDE00'] } // Chinese Red & Yellow 🇨🇳
                 ]
             },
+            audio: {
+                volume: 10,      // 0-100, matches current 0.1 gain (10%)
+                mute: false
+            },
+            speech: {
+                volume: 70,      // 0-100, matches current 0.7 volume
+                mute: false,
+                rate: 1.0        // 0.25-2.0, changing from hardcoded 0.8 to standard 1.0
+            },
             advanced: {
                 skipConfig: false,
-                numberModes: { 
-                    cistercian: true, 
-                    kaktovik: true, 
+                numberModes: {
+                    cistercian: true,
+                    kaktovik: true,
                     binary: true,
                     objectCounting: false,
                     onlyApples: true
@@ -242,6 +251,20 @@ export class ConfigManager {
         validateWeights(config.content);
         validateWeights(config.emojiCategories);
         validateWeights(config.colorCategories);
+
+        // Validate audio settings
+        if (config.audio) {
+            if (config.audio.volume < 0) config.audio.volume = 0;
+            if (config.audio.volume > 100) config.audio.volume = 100;
+        }
+
+        // Validate speech settings
+        if (config.speech) {
+            if (config.speech.volume < 0) config.speech.volume = 0;
+            if (config.speech.volume > 100) config.speech.volume = 100;
+            if (config.speech.rate < 0.25) config.speech.rate = 0.25;
+            if (config.speech.rate > 2.0) config.speech.rate = 2.0;
+        }
 
         return { config, errors, warnings };
     }
@@ -429,6 +452,20 @@ export class ConfigManager {
      */
     getAutoCleanupConfig() {
         return { ...this.config.advanced.autoCleanup };
+    }
+
+    /**
+     * Get audio configuration
+     */
+    getAudioConfig() {
+        return { ...this.config.audio };
+    }
+
+    /**
+     * Get speech configuration
+     */
+    getSpeechConfig() {
+        return { ...this.config.speech };
     }
 
     /**

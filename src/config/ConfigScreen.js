@@ -43,6 +43,24 @@ export class ConfigScreen {
                 </main>
 
                 <footer class="config-footer">
+                    <div class="usage-guidance">
+                        <h3 class="guidance-title">👨‍👩‍👧 Using ToddleToy with Your Child</h3>
+                        <div class="guidance-content">
+                            <p class="guidance-text">
+                                <strong>ToddleToy works best when an adult supervises and plays along!</strong>
+                                Encourage your child to explore, ask questions, and discover new words together.
+                            </p>
+                            <p class="guidance-note">
+                                ⚠️ <strong>Note:</strong> The free web version allows easy navigation back to this config screen.
+                                Toddlers may accidentally tap the browser back button. We recommend staying nearby to help if needed.
+                            </p>
+                            <p class="guidance-premium">
+                                🚀 <strong>Coming Soon:</strong> Premium version with full-screen toy mode, enhanced parental controls,
+                                and offline play without browser navigation!
+                            </p>
+                        </div>
+                    </div>
+
                     <button class="start-button" id="start-playing-btn">
                         ▶️ START PLAYING
                     </button>
@@ -341,21 +359,73 @@ export class ConfigScreen {
                 <div class="auto-cleanup-section">
                     <h3 class="subsection-title">🧹 Auto-Cleanup Timer</h3>
                     <p class="section-help">Objects that haven't been touched will automatically disappear with cute effects!</p>
-                    
+
                     <div class="cleanup-controls">
                         <label class="advanced-option">
                             <input type="checkbox" id="auto-cleanup-enabled" checked>
                             ⏰ Enable Auto-Cleanup
                             <span class="advanced-note">Objects disappear after not being touched for a while</span>
                         </label>
-                        
+
                         <div class="cleanup-timer-control">
                             <label class="timer-label">
-                                Objects disappear after: 
+                                Objects disappear after:
                                 <input type="number" id="cleanup-timer-seconds" class="timer-input" min="5" max="300" step="5" value="10">
                                 seconds of no interaction
                             </label>
                             <p class="timer-note">⭐ Each object gets its own timer that resets when touched, clicked, or voiced. When the timer expires, the object disappears with a fun pop sound and firework effects!</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="audio-controls-section">
+                    <h3 class="subsection-title">🔊 Audio & Voice Controls</h3>
+                    <p class="section-help">Adjust volume levels and speech speed for the perfect experience.</p>
+
+                    <div class="audio-controls">
+                        <div class="audio-control-group">
+                            <h4 class="control-group-title">🎵 Audio Tones (Position-Based Sounds)</h4>
+                            <div class="volume-control">
+                                <label class="volume-label">
+                                    <span class="label-text">Volume:</span>
+                                    <input type="range" id="audio-volume" class="volume-slider" min="0" max="100" value="10">
+                                    <span class="volume-value" id="audio-volume-value">10%</span>
+                                </label>
+                                <label class="mute-checkbox">
+                                    <input type="checkbox" id="audio-mute">
+                                    🔇 Mute Audio Tones
+                                </label>
+                            </div>
+                            <p class="advanced-note">Audio tones change based on where objects are positioned on screen</p>
+                        </div>
+
+                        <div class="audio-control-group">
+                            <h4 class="control-group-title">🗣️ Speech Voice (Words & Labels)</h4>
+                            <div class="volume-control">
+                                <label class="volume-label">
+                                    <span class="label-text">Volume:</span>
+                                    <input type="range" id="speech-volume" class="volume-slider" min="0" max="100" value="70">
+                                    <span class="volume-value" id="speech-volume-value">70%</span>
+                                </label>
+                                <label class="mute-checkbox">
+                                    <input type="checkbox" id="speech-mute">
+                                    🔇 Mute Speech
+                                </label>
+                            </div>
+                            <div class="speech-rate-control">
+                                <label class="rate-label">
+                                    <span class="label-text">Speech Speed:</span>
+                                    <select id="speech-rate" class="rate-dropdown">
+                                        <option value="0.25">0.25x (Very Slow)</option>
+                                        <option value="0.5">0.5x (Slow)</option>
+                                        <option value="0.75">0.75x (Slightly Slow)</option>
+                                        <option value="1.0" selected>1x (Normal)</option>
+                                        <option value="1.5">1.5x (Fast)</option>
+                                        <option value="2.0">2x (Very Fast)</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <p class="advanced-note">Speech is how objects announce themselves when spawned or clicked</p>
                         </div>
                     </div>
                 </div>
@@ -1524,10 +1594,86 @@ export class ConfigScreen {
         // Object counting mutual exclusivity
         this.setupObjectCountingMutualExclusivity();
 
+        // Audio controls volume/mute sync
+        this.setupAudioControls();
+
         // Save configuration on any change
-        const allInputs = this.container.querySelectorAll('input');
+        const allInputs = this.container.querySelectorAll('input, select');
         allInputs.forEach(input => {
             input.addEventListener('change', () => this.saveCurrentConfig());
+        });
+    }
+
+    /**
+     * Set up audio controls with volume/mute sync
+     */
+    setupAudioControls() {
+        // Audio volume controls
+        const audioVolumeSlider = this.container.querySelector('#audio-volume');
+        const audioVolumeValue = this.container.querySelector('#audio-volume-value');
+        const audioMuteCheckbox = this.container.querySelector('#audio-mute');
+
+        // Speech volume controls
+        const speechVolumeSlider = this.container.querySelector('#speech-volume');
+        const speechVolumeValue = this.container.querySelector('#speech-volume-value');
+        const speechMuteCheckbox = this.container.querySelector('#speech-mute');
+
+        // Audio volume slider - update display and sync mute
+        audioVolumeSlider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            audioVolumeValue.textContent = `${value}%`;
+
+            // Auto-engage mute when volume hits 0
+            if (value === 0) {
+                audioMuteCheckbox.checked = true;
+            } else if (audioMuteCheckbox.checked) {
+                // Auto-disengage mute when volume goes above 0
+                audioMuteCheckbox.checked = false;
+            }
+        });
+
+        // Audio mute checkbox - sync with volume
+        audioMuteCheckbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                // Store current volume before muting
+                audioVolumeSlider.dataset.previousVolume = audioVolumeSlider.value;
+                audioVolumeSlider.value = 0;
+                audioVolumeValue.textContent = '0%';
+            } else {
+                // Restore previous volume or set to 50 if was 0
+                const previousVolume = audioVolumeSlider.dataset.previousVolume || '50';
+                audioVolumeSlider.value = previousVolume;
+                audioVolumeValue.textContent = `${previousVolume}%`;
+            }
+        });
+
+        // Speech volume slider - update display and sync mute
+        speechVolumeSlider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            speechVolumeValue.textContent = `${value}%`;
+
+            // Auto-engage mute when volume hits 0
+            if (value === 0) {
+                speechMuteCheckbox.checked = true;
+            } else if (speechMuteCheckbox.checked) {
+                // Auto-disengage mute when volume goes above 0
+                speechMuteCheckbox.checked = false;
+            }
+        });
+
+        // Speech mute checkbox - sync with volume
+        speechMuteCheckbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                // Store current volume before muting
+                speechVolumeSlider.dataset.previousVolume = speechVolumeSlider.value;
+                speechVolumeSlider.value = 0;
+                speechVolumeValue.textContent = '0%';
+            } else {
+                // Restore previous volume or set to 70 if was 0
+                const previousVolume = speechVolumeSlider.dataset.previousVolume || '70';
+                speechVolumeSlider.value = previousVolume;
+                speechVolumeValue.textContent = `${previousVolume}%`;
+            }
         });
     }
 
@@ -1704,6 +1850,23 @@ export class ConfigScreen {
         // Auto-cleanup configuration
         this.setCheckboxValue('#auto-cleanup-enabled', config.advanced.autoCleanup.enabled);
         this.setInputValue('#cleanup-timer-seconds', config.advanced.autoCleanup.timeoutSeconds);
+
+        // Audio configuration
+        if (config.audio) {
+            this.setSliderValue('#audio-volume', config.audio.volume);
+            this.setCheckboxValue('#audio-mute', config.audio.mute);
+            const audioVolumeValue = this.container.querySelector('#audio-volume-value');
+            if (audioVolumeValue) audioVolumeValue.textContent = `${config.audio.volume}%`;
+        }
+
+        // Speech configuration
+        if (config.speech) {
+            this.setSliderValue('#speech-volume', config.speech.volume);
+            this.setCheckboxValue('#speech-mute', config.speech.mute);
+            this.setSelectValue('#speech-rate', config.speech.rate);
+            const speechVolumeValue = this.container.querySelector('#speech-volume-value');
+            if (speechVolumeValue) speechVolumeValue.textContent = `${config.speech.volume}%`;
+        }
     }
 
     /**
@@ -1731,6 +1894,11 @@ export class ConfigScreen {
     setRadioValue(name, value) {
         const element = this.container.querySelector(`input[name="${name}"][value="${value}"]`);
         if (element) element.checked = true;
+    }
+
+    setSelectValue(selector, value) {
+        const element = this.container.querySelector(selector);
+        if (element) element.value = value;
     }
 
     /**
@@ -1824,6 +1992,15 @@ export class ConfigScreen {
             },
             colorCategories: this.configManager.getConfig().colorCategories,
             languages: this.configManager.getConfig().languages,
+            audio: {
+                volume: parseInt(this.container.querySelector('#audio-volume').value),
+                mute: this.container.querySelector('#audio-mute').checked
+            },
+            speech: {
+                volume: parseInt(this.container.querySelector('#speech-volume').value),
+                mute: this.container.querySelector('#speech-mute').checked,
+                rate: parseFloat(this.container.querySelector('#speech-rate').value)
+            },
             advanced: {
                 skipConfig: this.container.querySelector('#skip-config-checkbox').checked,
                 numberModes: {
