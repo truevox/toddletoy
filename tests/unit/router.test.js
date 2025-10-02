@@ -253,11 +253,16 @@ describe('Router', () => {
             router.navigate('/toy');
             expect(router.isToyAccessAllowed()).toBe(true);
 
+            // NOTE: With locked toy mode, popstate is now BLOCKED
             // Simulate browser back button (popstate)
             mockLocation.pathname = '/';
             popstateListeners.forEach(handler => handler({ state: null }));
 
-            expect(router.isToyAccessAllowed()).toBe(false);
+            // Should be BLOCKED and stay in /toy (locked mode)
+            expect(router.getCurrentRoute()).toBe('/toy');
+            expect(router.isToyLocked()).toBe(true);
+            // Access is still allowed because we're still on /toy
+            expect(router.isToyAccessAllowed()).toBe(true);
         });
     });
 

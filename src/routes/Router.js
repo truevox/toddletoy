@@ -9,15 +9,19 @@ export class Router {
         this.defaultRoute = '/';
         this.previousRoute = null;
         this.allowDirectToyAccess = false; // Track if toy access is allowed
-        
+        this.toyLocked = false; // Track if toy mode is locked (prevents escape)
+        this.isPopstateNavigation = false; // Track if current navigation is from popstate
+
         // Check if this is a refresh from toy route
         this.isRefreshFromToy = this.detectRefreshFromToy();
-        
+
         // Listen for browser back/forward navigation
         window.addEventListener('popstate', (event) => {
+            this.isPopstateNavigation = true;
             this.handleRouteChange(window.location.pathname);
+            this.isPopstateNavigation = false;
         });
-        
+
         // Don't call init() immediately - let AppRoutes set up routes first
         // init() will be called manually after routes are registered
     }
@@ -80,31 +84,63 @@ export class Router {
      * Handle route changes
      */
     handleRouteChange(path) {
+        // LOCKED TOY MODE: Check if we're locked in toy and trying to escape
+        if (this.toyLocked && path !== '/toy') {
+            // Check if this is a popstate (back/forward button) - BLOCK
+            if (this.isPopstateNavigation) {
+                console.log('🔒 Locked in toy: blocking popstate navigation to', path);
+                this.replace('/toy');
+                return;
+            }
+
+            // Check if route exists - if yes, ALLOW and unlock; if no, BLOCK
+            if (this.routes.has(path)) {
+                console.log('🔓 Unlocking toy: manual navigation to registered route', path);
+                this.toyLocked = false;
+                // Continue to handle the route below
+            } else {
+                console.log('🔒 Locked in toy: blocking navigation to unknown route', path);
+                this.replace('/toy');
+                return;
+            }
+        }
+
         this.previousRoute = this.currentRoute;
         this.currentRoute = path;
-        
-        // Handle toy access logic
+
+        // Handle toy locking
         if (path === '/toy') {
-            // If this is a refresh from toy route, preserve access
+            // Lock toy mode when entering
+            if (!this.toyLocked) {
+                console.log('🔒 Entering toy: locking mode');
+                this.toyLocked = true;
+            }
+
+            // If this is a refresh from toy route, preserve access and lock
             if (this.isRefreshFromToy) {
-                console.log('🔄 Detected refresh from toy route, preserving access');
+                console.log('🔄 Detected refresh from toy route, preserving access and lock');
                 this.allowDirectToyAccess = true;
+                this.toyLocked = true;
                 this.isRefreshFromToy = false; // Reset flag after use
             }
             // Don't reset toy access when staying on toy route
         } else {
-            // Reset toy access when leaving toy route
+            // Unlock and reset toy access when leaving toy route
+            if (this.toyLocked) {
+                console.log('🔓 Leaving toy: unlocking mode');
+                this.toyLocked = false;
+            }
             this.resetToyAccess();
         }
-        
+
         // Handling route change
         console.log(`Looking for handler for: "${path}"`);
-        
+
         // Find matching route
         const handler = this.routes.get(path);
-        
+
         console.log(`Handler found:`, !!handler);
-        
+
         if (handler) {
             try {
                 // Executing route handler
@@ -169,5 +205,12 @@ export class Router {
      */
     isCurrentRoute(path) {
         return this.currentRoute === path;
+    }
+
+    /**
+     * Check if toy mode is currently locked
+     */
+    isToyLocked() {
+        return this.toyLocked;
     }
 }
