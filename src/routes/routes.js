@@ -64,6 +64,9 @@ export class AppRoutes {
         if (!forceShow && this.configManager.shouldSkipConfig()) {
             if (this.router.getCurrentRoute() !== '/toy') {
                 console.log('Skipping config, redirecting to toy');
+                // CRITICAL: Allow toy access before redirecting to prevent redirect loop
+                // User has saved config, so toy access should be granted
+                this.router.allowToyAccess();
                 this.router.replace('/toy');
             } else {
                 console.log('Already on /toy, no redirect needed');
