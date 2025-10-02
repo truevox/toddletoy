@@ -136,8 +136,34 @@ export class SpeechManager {
 
         // Get speech config for volume and rate
         const speechConfig = this.scene.configManager ? this.scene.configManager.getSpeechConfig() : null;
-        utterance.rate = speechConfig ? speechConfig.rate : 1.0;
-        utterance.volume = speechConfig ? (speechConfig.volume / 100) : 0.7;
+
+        console.log('🗣️ Raw speechConfig:', speechConfig);
+
+        // Ensure rate is a valid finite number (Android fix)
+        let rate = 1.0;
+        if (speechConfig && speechConfig.rate !== undefined && speechConfig.rate !== null) {
+            const configRate = Number(speechConfig.rate);
+            if (isFinite(configRate) && configRate > 0) {
+                rate = configRate;
+            } else {
+                console.warn('🗣️ Invalid speech rate in config:', speechConfig.rate, '- using default 1.0');
+            }
+        }
+        utterance.rate = rate;
+
+        // Ensure volume is a valid finite number
+        let volume = 0.7;
+        if (speechConfig && speechConfig.volume !== undefined && speechConfig.volume !== null) {
+            const configVolume = Number(speechConfig.volume);
+            if (isFinite(configVolume) && configVolume >= 0 && configVolume <= 100) {
+                volume = configVolume / 100;
+            } else {
+                console.warn('🗣️ Invalid speech volume in config:', speechConfig.volume, '- using default 70');
+            }
+        }
+        utterance.volume = volume;
+
+        console.log('🗣️ Using speech rate:', rate, 'volume:', volume);
 
         // Trigger word highlighting animation
         if (this.currentSpeakingObject) {
