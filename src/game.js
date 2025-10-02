@@ -24,8 +24,8 @@ class GameScene extends Phaser.Scene {
     }
 
     create() {
-        // Version logging for troubleshooting  
-        console.log('🎯 TODDLER TOY v0.2.26 - Refresh State Preservation - Build:', new Date().toISOString());
+        // Version logging for troubleshooting
+        console.log('🎯 TODDLER TOY v1.0.15 - Range-Respecting Numbers Patch - Build:', new Date().toISOString());
         
         // Initialize configuration manager if not already provided
         if (!this.configManager) {
@@ -319,7 +319,7 @@ class GameScene extends Phaser.Scene {
                     break;
                 case 'uppercaseLetters':
                 case 'lowercaseLetters':
-                    selectedItem = this.getRandomLetter(spawnType);
+                    selectedItem = await this.getRandomLetter(spawnType);
                     actualType = 'letter';
                     break;
                 case 'smallNumbers':
@@ -328,7 +328,7 @@ class GameScene extends Phaser.Scene {
                     actualType = 'number';
                     break;
                 case 'shapes':
-                    selectedItem = this.getRandomShape();
+                    selectedItem = await this.getRandomShape();
                     actualType = 'shape';
                     break;
                 default:
@@ -343,9 +343,15 @@ class GameScene extends Phaser.Scene {
             
             // Get display text
             const displayText = this.renderManager.getDisplayText(selectedItem, actualType);
-            
+
             // Create the main object sprite with appropriate style
-            const style = actualType === 'emoji' ? this.emojiStyle : this.textStyle;
+            let style = actualType === 'emoji' ? this.emojiStyle : this.textStyle;
+
+            // Apply color to numbers
+            if (actualType === 'number' && selectedItem.color && selectedItem.color.hex) {
+                style = { ...this.textStyle, fill: selectedItem.color.hex };
+            }
+
             const obj = this.add.text(x, y, displayText, style)
                 .setOrigin(0.5, 0.5)
                 .setInteractive();
@@ -421,16 +427,17 @@ class GameScene extends Phaser.Scene {
         
         // Render object counting numerals (above main number)
         if (numberModes.objectCounting) {
-            const countingComponents = this.objectCountingRenderer.renderObjectCountingNumeralAtPosition(
+            const countingComponents = this.objectCountingRenderer.renderObjectCountingNumeral(
                 numberValue, centerX, centerY
             );
             if (countingComponents && countingComponents.length > 0) {
-                countingComponents.forEach(comp => {
-                    components.push({ 
-                        type: 'objectCounting', 
-                        object: comp.object, 
-                        offsetX: comp.offsetX, 
-                        offsetY: comp.offsetY 
+                countingComponents.forEach(compObj => {
+                    // Object counting returns positioned text objects, wrap them in component structure
+                    components.push({
+                        type: 'objectCounting',
+                        object: compObj,
+                        offsetX: compObj.x - centerX,
+                        offsetY: compObj.y - centerY
                     });
                 });
             }
@@ -447,16 +454,16 @@ class GameScene extends Phaser.Scene {
     selectSpawnType() {
         const config = this.configManager ? this.configManager.getConfig() : null;
         if (!config) return 'emoji';
-        
-        const types = config.contentTypes || {};
+
+        const types = config.content || {};
         const weights = [];
-        
-        if (types.shapes?.weight > 0) weights.push({ type: 'shapes', weight: types.shapes.weight });
-        if (types.smallNumbers?.weight > 0) weights.push({ type: 'smallNumbers', weight: types.smallNumbers.weight });
-        if (types.largeNumbers?.weight > 0) weights.push({ type: 'largeNumbers', weight: types.largeNumbers.weight });
-        if (types.uppercaseLetters?.weight > 0) weights.push({ type: 'uppercaseLetters', weight: types.uppercaseLetters.weight });
-        if (types.lowercaseLetters?.weight > 0) weights.push({ type: 'lowercaseLetters', weight: types.lowercaseLetters.weight });
-        if (types.emojis?.weight > 0) weights.push({ type: 'emoji', weight: types.emojis.weight });
+
+        if (types.shapes?.enabled && types.shapes?.weight > 0) weights.push({ type: 'shapes', weight: types.shapes.weight });
+        if (types.smallNumbers?.enabled && types.smallNumbers?.weight > 0) weights.push({ type: 'smallNumbers', weight: types.smallNumbers.weight });
+        if (types.largeNumbers?.enabled && types.largeNumbers?.weight > 0) weights.push({ type: 'largeNumbers', weight: types.largeNumbers.weight });
+        if (types.uppercaseLetters?.enabled && types.uppercaseLetters?.weight > 0) weights.push({ type: 'uppercaseLetters', weight: types.uppercaseLetters.weight });
+        if (types.lowercaseLetters?.enabled && types.lowercaseLetters?.weight > 0) weights.push({ type: 'lowercaseLetters', weight: types.lowercaseLetters.weight });
+        if (types.emojis?.enabled && types.emojis?.weight > 0) weights.push({ type: 'emoji', weight: types.emojis.weight });
         
         if (weights.length === 0) return 'emoji';
         
@@ -569,6 +576,44 @@ class GameScene extends Phaser.Scene {
         }
     }
 
+    async getRandomColor() {
+        try {
+            // Load things data if not already cached
+            if (!this.thingsData) {
+                const response = await fetch(`/things.json?v=${Date.now()}`);
+                this.thingsData = await response.json();
+            }
+
+            // Get enabled color categories from config
+            const config = this.configManager ? this.configManager.getConfig() : null;
+            const colorCategories = config?.colorCategories || {};
+
+            // Get enabled category names
+            const enabledCategories = Object.entries(colorCategories)
+                .filter(([key, value]) => value.enabled)
+                .map(([key, value]) => key);
+
+            // Filter colors by enabled categories
+            const colors = this.thingsData.colors || [];
+            const availableColors = colors.filter(color =>
+                enabledCategories.includes(color.category)
+            );
+
+            // Fallback to all colors if none available
+            if (availableColors.length === 0) {
+                return colors.length > 0 ? colors[0] : { value: 'White', en: 'White', hex: '#ffffff' };
+            }
+
+            // Select random color
+            const randomIndex = Math.floor(Math.random() * availableColors.length);
+            return availableColors[randomIndex];
+
+        } catch (error) {
+            console.error('Error loading color data:', error);
+            return { value: 'White', en: 'White', hex: '#ffffff' };
+        }
+    }
+
     async getRandomNumber(configType = 'smallNumbers') {
         try {
             // Load things data if not already cached
@@ -576,22 +621,78 @@ class GameScene extends Phaser.Scene {
                 const response = await fetch(`/things.json?v=${Date.now()}`);
                 this.thingsData = await response.json();
             }
-            
+
             const numbers = this.thingsData.numbers || [];
-            let filteredNumbers = numbers;
-            
-            // Filter by config type if specified
-            if (configType === 'smallNumbers') {
-                filteredNumbers = numbers.filter(num => num.value <= 10);
-            }
-            
-            if (filteredNumbers.length === 0) {
+
+            if (numbers.length === 0) {
                 return { value: 1, type: 'number' };
             }
-            
+
+            const getRangeForType = () => {
+                if (!this.configManager) return null;
+
+                if (configType === 'smallNumbers' && this.configManager.getSmallNumberRange) {
+                    return this.configManager.getSmallNumberRange();
+                }
+
+                if (configType === 'largeNumbers' && this.configManager.getLargeNumberRange) {
+                    return this.configManager.getLargeNumberRange();
+                }
+
+                return null;
+            };
+
+            const range = getRangeForType();
+
+            const normaliseBound = (value, fallback) => (
+                typeof value === 'number' && !Number.isNaN(value) ? value : fallback
+            );
+
+            const min = normaliseBound(range?.min, undefined);
+            const max = normaliseBound(range?.max, undefined);
+
+            let filteredNumbers = numbers;
+
+            if (min !== undefined || max !== undefined) {
+                filteredNumbers = numbers.filter(num => {
+                    const value = typeof num.value === 'number' ? num.value : Number(num.value);
+
+                    if (Number.isNaN(value)) {
+                        return false;
+                    }
+
+                    if (min !== undefined && value < min) return false;
+                    if (max !== undefined && value > max) return false;
+                    return true;
+                });
+            }
+
+            if (filteredNumbers.length === 0) {
+                // Fall back to legacy behaviour to avoid empty pools, but log for debugging.
+                if (range) {
+                    console.warn(`No numbers available for ${configType} in range ${min ?? '-∞'}-${max ?? '+∞'}. Falling back to default dataset filtering.`);
+                }
+
+                if (configType === 'smallNumbers') {
+                    filteredNumbers = numbers.filter(num => num.value <= 10);
+                } else if (configType === 'largeNumbers') {
+                    filteredNumbers = numbers.filter(num => num.value >= 12);
+                }
+
+                if (filteredNumbers.length === 0) {
+                    filteredNumbers = numbers;
+                }
+            }
+
             const randomIndex = Math.floor(Math.random() * filteredNumbers.length);
-            return { ...filteredNumbers[randomIndex], type: 'number' };
-            
+            const number = { ...filteredNumbers[randomIndex], type: 'number' };
+
+            // Assign a random color to the number
+            const color = await this.getRandomColor();
+            number.color = color;
+
+            return number;
+
         } catch (error) {
             console.error('Error loading number data:', error);
             return { value: 1, type: 'number' };
@@ -737,9 +838,15 @@ class GameScene extends Phaser.Scene {
         
         // Get display text using the same logic as spawnObjectAt
         const displayText = this.renderManager.getDisplayText(objData.itemData, objData.type);
-        
+
         // Create the main object sprite with appropriate style
-        const style = objData.type === 'emoji' ? this.emojiStyle : this.textStyle;
+        let style = objData.type === 'emoji' ? this.emojiStyle : this.textStyle;
+
+        // Apply color to numbers
+        if (objData.type === 'number' && objData.itemData.color && objData.itemData.color.hex) {
+            style = { ...this.textStyle, fill: objData.itemData.color.hex };
+        }
+
         const obj = this.add.text(objData.x, objData.y, displayText, style)
             .setOrigin(0.5, 0.5)
             .setInteractive();
