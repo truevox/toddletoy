@@ -644,48 +644,130 @@ class GameScene extends Phaser.Scene {
 
             const range = getRangeForType();
 
-            const normaliseBound = (value, fallback) => (
-                typeof value === 'number' && !Number.isNaN(value) ? value : fallback
-            );
+            const normaliseBound = (value, fallback) => {
+                if (value === undefined || value === null) {
+                    return fallback;
+                }
+
+                const numeric = Number(value);
+                return Number.isFinite(numeric) ? numeric : fallback;
+            };
 
             const min = normaliseBound(range?.min, undefined);
             const max = normaliseBound(range?.max, undefined);
 
-            let filteredNumbers = numbers;
+            const applyRangeFilter = (list) => {
+                if (min === undefined && max === undefined) {
+                    return list;
+                }
 
-            if (min !== undefined || max !== undefined) {
-                filteredNumbers = numbers.filter(num => {
+                return list.filter(num => {
                     const value = typeof num.value === 'number' ? num.value : Number(num.value);
-
-                    if (Number.isNaN(value)) {
-                        return false;
-                    }
-
+                    if (Number.isNaN(value)) return false;
                     if (min !== undefined && value < min) return false;
                     if (max !== undefined && value > max) return false;
                     return true;
                 });
-            }
+            };
+
+            const generateRangeFallback = () => {
+                // Only attempt generation when we have a valid numeric span
+                const fallbackMin = normaliseBound(min, configType === 'smallNumbers' ? 0 : 12);
+                const fallbackMax = normaliseBound(max, configType === 'smallNumbers' ? 10 : 9999);
+
+                if (fallbackMin > fallbackMax) {
+                    return null;
+                }
+
+                const randomValue = Math.floor(Math.random() * (fallbackMax - fallbackMin + 1)) + fallbackMin;
+
+                const languageLocales = {
+                    en: 'en-US',
+                    es: 'es-ES',
+                    zh: 'zh-CN',
+                    hi: 'hi-IN',
+                    ar: 'ar-SA',
+                    fr: 'fr-FR',
+                    bn: 'bn-BD',
+                    pt: 'pt-PT',
+                    ru: 'ru-RU',
+                    id: 'id-ID'
+                };
+
+                const enabledLanguages = this.configManager?.getConfig()?.languages?.enabled || [];
+                const generated = {
+                    value: randomValue,
+                    type: 'number',
+                    categories: ['counting', 'generated'],
+                    source: 'generated-range'
+                };
+
+                const ensureEntry = (code, formatter) => {
+                    try {
+                        generated[code] = formatter ? formatter.format(randomValue) : String(randomValue);
+                    } catch (fmtError) {
+                        console.warn('Failed to format number for language', code, fmtError);
+                        generated[code] = String(randomValue);
+                    }
+                };
+
+                // Always provide English fallback even if not explicitly enabled
+                const getFormatter = (locale) => {
+                    if (!locale || typeof Intl === 'undefined' || !Intl.NumberFormat) {
+                        return null;
+                    }
+
+                    try {
+                        return new Intl.NumberFormat(locale);
+                    } catch (err) {
+                        console.warn('Failed to create number formatter for locale', locale, err);
+                        return null;
+                    }
+                };
+
+                ensureEntry('en', getFormatter(languageLocales.en));
+
+                enabledLanguages.forEach(lang => {
+                    const locale = languageLocales[lang.code];
+                    ensureEntry(lang.code, getFormatter(locale));
+                });
+
+                return generated;
+            };
+
+            let filteredNumbers = applyRangeFilter(numbers);
+            let selectedNumber;
 
             if (filteredNumbers.length === 0) {
-                // Fall back to legacy behaviour to avoid empty pools, but log for debugging.
                 if (range) {
-                    console.warn(`No numbers available for ${configType} in range ${min ?? '-∞'}-${max ?? '+∞'}. Falling back to default dataset filtering.`);
+                    console.warn(`No numbers available for ${configType} in range ${min ?? '-∞'}-${max ?? '+∞'}. Attempting to generate values.`);
                 }
 
-                if (configType === 'smallNumbers') {
-                    filteredNumbers = numbers.filter(num => num.value <= 10);
-                } else if (configType === 'largeNumbers') {
-                    filteredNumbers = numbers.filter(num => num.value >= 12);
-                }
+                selectedNumber = generateRangeFallback();
 
-                if (filteredNumbers.length === 0) {
-                    filteredNumbers = numbers;
+                if (!selectedNumber) {
+                    // Fall back to legacy heuristics before finally resorting to the raw dataset
+                    if (configType === 'smallNumbers') {
+                        filteredNumbers = numbers.filter(num => num.value <= 10);
+                    } else if (configType === 'largeNumbers') {
+                        filteredNumbers = numbers.filter(num => num.value >= 12);
+                    }
+
+                    if (filteredNumbers.length > 0) {
+                        const legacyIndex = Math.floor(Math.random() * filteredNumbers.length);
+                        selectedNumber = { ...filteredNumbers[legacyIndex], type: 'number' };
+                    }
                 }
             }
 
-            const randomIndex = Math.floor(Math.random() * filteredNumbers.length);
-            const number = { ...filteredNumbers[randomIndex], type: 'number' };
+            if (!selectedNumber) {
+                // Normal path: use filtered dataset values
+                const pool = filteredNumbers.length > 0 ? filteredNumbers : numbers;
+                const randomIndex = Math.floor(Math.random() * pool.length);
+                selectedNumber = { ...pool[randomIndex], type: 'number' };
+            }
+
+            const number = { ...selectedNumber };
 
             // Assign a random color to the number
             const color = await this.getRandomColor();
