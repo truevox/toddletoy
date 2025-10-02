@@ -99,6 +99,12 @@ export class SpeechManager {
             this.currentSpeech = null;
             this.isSpeaking = false;
             this.currentSpeakingObject = null;
+
+            // Clear any pending timeout
+            if (this.speechTimeoutId) {
+                clearTimeout(this.speechTimeoutId);
+                this.speechTimeoutId = null;
+            }
             return;
         }
 
@@ -162,18 +168,46 @@ export class SpeechManager {
             }
         }
 
-        utterance.onend = () => {
+        // Mobile fallback: estimate speech duration and set timeout
+        // This fixes Android bug where onend doesn't fire reliably
+        const text = texts[index];
+        const estimatedDuration = (text.length * 100) + 1000; // ~100ms per char + 1s buffer
+
+        let speechCompleted = false;
+
+        const completeAndNext = () => {
+            if (speechCompleted) return; // Prevent double-firing
+            speechCompleted = true;
+
+            // Clear timeout if it exists
+            if (this.speechTimeoutId) {
+                clearTimeout(this.speechTimeoutId);
+                this.speechTimeoutId = null;
+            }
+
+            console.log(`🗣️ Speech completed (${index + 1}/${texts.length})`);
             this.speakTextSequence(texts, index + 1);
         };
 
-        utterance.onerror = () => {
-            // Handle speech errors by unlocking the queue
-            this.isSpeaking = false;
-            this.currentSpeakingObject = null;
-            this.currentSpeech = null;
+        utterance.onend = () => {
+            console.log('🗣️ onend fired');
+            completeAndNext();
         };
 
+        utterance.onerror = (error) => {
+            console.error('🗣️ Speech error:', error);
+            completeAndNext(); // Continue even on error
+        };
+
+        // MOBILE FALLBACK: Set timeout in case onend never fires (Android bug)
+        this.speechTimeoutId = setTimeout(() => {
+            console.warn('🗣️ Speech timeout - onend did not fire (mobile bug)');
+            completeAndNext();
+        }, estimatedDuration);
+
         this.currentSpeech = utterance;
+
+        console.log(`🗣️ Speaking text ${index + 1}/${texts.length}: "${text}" (${utterance.lang})`);
         speechSynthesis.speak(utterance);
     }
 
@@ -229,6 +263,12 @@ export class SpeechManager {
             this.isSpeaking = false;
             this.currentSpeakingObject = null;
             this.currentSpeech = null;
+        }
+
+        // Clear any pending timeout
+        if (this.speechTimeoutId) {
+            clearTimeout(this.speechTimeoutId);
+            this.speechTimeoutId = null;
         }
     }
 
