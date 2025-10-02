@@ -10,6 +10,9 @@ export class Router {
         this.previousRoute = null;
         this.allowDirectToyAccess = false; // Track if toy access is allowed
         
+        // Check if this is a refresh from toy route
+        this.isRefreshFromToy = this.detectRefreshFromToy();
+        
         // Listen for browser back/forward navigation
         window.addEventListener('popstate', (event) => {
             this.handleRouteChange(window.location.pathname);
@@ -17,6 +20,27 @@ export class Router {
         
         // Don't call init() immediately - let AppRoutes set up routes first
         // init() will be called manually after routes are registered
+    }
+
+    /**
+     * Detect if this is a refresh from the toy route
+     */
+    detectRefreshFromToy() {
+        const currentPath = window.location.pathname;
+        
+        // Check if we're on toy route AND there's saved game state (indicates user was playing)
+        if (currentPath === '/toy') {
+            const hasGameState = localStorage.getItem('toddleToyGameState') !== null;
+            const hasConfig = localStorage.getItem('toddleToyConfig') !== null;
+            
+            // If we have both game state and config, user was likely on toy route before refresh
+            if (hasGameState && hasConfig) {
+                console.log('🔍 Refresh from toy detected: found game state and config');
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     /**
@@ -59,8 +83,17 @@ export class Router {
         this.previousRoute = this.currentRoute;
         this.currentRoute = path;
         
-        // Reset toy access on every route change for security
-        if (path !== '/toy') {
+        // Handle toy access logic
+        if (path === '/toy') {
+            // If this is a refresh from toy route, preserve access
+            if (this.isRefreshFromToy) {
+                console.log('🔄 Detected refresh from toy route, preserving access');
+                this.allowDirectToyAccess = true;
+                this.isRefreshFromToy = false; // Reset flag after use
+            }
+            // Don't reset toy access when staying on toy route
+        } else {
+            // Reset toy access when leaving toy route
             this.resetToyAccess();
         }
         

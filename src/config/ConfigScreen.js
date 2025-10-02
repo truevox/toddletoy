@@ -8,7 +8,9 @@ export class ConfigScreen {
         this.router = router;
         this.container = null;
         this.isVisible = false;
-        
+        this.configBeforeReset = null; // Store config before reset for undo
+        this.isUndoMode = false; // Track if button is in undo mode
+
         this.createUI();
         this.loadCurrentConfig();
     }
@@ -29,6 +31,11 @@ export class ConfigScreen {
         this.container.innerHTML = `
             <div class="config-container">
                 <header class="config-header">
+                    <div class="header-top-right">
+                        <div class="version-display" id="app-version">v${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0'}</div>
+                        <button class="update-button" id="update-app-btn">Check for Updates</button>
+                        <div id="update-status-msg" class="update-status"></div>
+                    </div>
                     <h1 class="config-title">
                         <span class="title-letter t">T</span><span class="title-letter o1">o</span><span class="title-letter d1">d</span><span class="title-letter d2">d</span><span class="title-letter l">l</span><span class="title-letter e">e</span><span class="title-letter t2">T</span><span class="title-letter o2">o</span><span class="title-letter y">y</span>
                     </h1>
@@ -65,12 +72,12 @@ export class ConfigScreen {
                         ▶️ START PLAYING
                     </button>
                     <div class="config-actions">
-                        <button class="secondary-button" id="reset-defaults-btn">Reset to Defaults</button>
                         <label class="skip-config-checkbox">
                             <input type="checkbox" id="skip-config-checkbox">
                             ⚡ Skip this screen next time
                         </label>
                     </div>
+                    <button class="reset-undo-button" id="reset-undo-btn">Reset to Defaults</button>
                 </footer>
             </div>
         `;
@@ -893,8 +900,41 @@ export class ConfigScreen {
             }
 
             .config-header {
+                position: relative;
                 text-align: center;
                 margin-bottom: 30px;
+            }
+            .header-top-right {
+                position: absolute;
+                top: 10px;
+                right: 10px;
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 8px;
+            }
+            .version-display {
+                font-size: 0.9rem;
+                color: rgba(255, 255, 255, 0.6);
+                font-weight: normal;
+            }
+            .update-button {
+                background: rgba(255, 255, 255, 0.15);
+                color: white;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                padding: 6px 12px;
+                border-radius: 6px;
+                font-size: 0.85rem;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                white-space: nowrap;
+            }
+            .update-button:hover {
+                background: rgba(255, 255, 255, 0.25);
+            }
+            .update-button:disabled {
+                opacity: 0.5;
+                cursor: not-allowed;
             }
 
             .config-title {
@@ -1375,6 +1415,7 @@ export class ConfigScreen {
             }
 
             .config-footer {
+                position: relative;
                 text-align: center;
                 margin-top: 30px;
             }
@@ -1452,6 +1493,36 @@ export class ConfigScreen {
             .skip-config-checkbox input {
                 margin-right: 8px;
                 transform: scale(1.1);
+            }
+
+            .update-status {
+                font-size: 0.75rem;
+                color: rgba(255, 255, 255, 0.8);
+                min-height: 16px;
+                text-align: right;
+            }
+            .reset-undo-button {
+                position: absolute;
+                bottom: 20px;
+                left: 20px;
+                background: rgba(255, 255, 255, 0.15);
+                color: white;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                padding: 10px 20px;
+                border-radius: 8px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                font-size: 0.9rem;
+            }
+            .reset-undo-button:hover {
+                background: rgba(255, 255, 255, 0.25);
+            }
+            .reset-undo-button.undo-mode {
+                background: rgba(255, 193, 7, 0.3);
+                border-color: rgba(255, 193, 7, 0.6);
+            }
+            .reset-undo-button.undo-mode:hover {
+                background: rgba(255, 193, 7, 0.4);
             }
 
             /* Mobile responsiveness */
@@ -1556,9 +1627,20 @@ export class ConfigScreen {
         const startBtn = this.container.querySelector('#start-playing-btn');
         startBtn.addEventListener('click', () => this.startPlaying());
 
-        // Reset defaults button
-        const resetBtn = this.container.querySelector('#reset-defaults-btn');
-        resetBtn.addEventListener('click', () => this.resetToDefaults());
+        // Reset/Undo button
+        const resetUndoBtn = this.container.querySelector('#reset-undo-btn');
+        if (resetUndoBtn) {
+            resetUndoBtn.addEventListener('click', () => this.handleResetUndo());
+        }
+
+        // Update app button (handler will be enhanced by main.js service worker logic)
+        const updateBtn = this.container.querySelector('#update-app-btn');
+        if (updateBtn) {
+            // Dispatch custom event that main.js will handle
+            updateBtn.addEventListener('click', () => {
+                window.dispatchEvent(new CustomEvent('app-update-requested'));
+            });
+        }
 
         // Weight sliders - update display values
         const sliders = this.container.querySelectorAll('.weight-slider');
@@ -1568,13 +1650,17 @@ export class ConfigScreen {
                 if (valueSpan) {
                     valueSpan.textContent = e.target.value;
                 }
+                this.switchToResetMode(); // Any change switches back to reset mode
             });
         });
 
         // Number range inputs - validate and auto-adjust
         const rangeInputs = this.container.querySelectorAll('.range-input');
         rangeInputs.forEach(input => {
-            input.addEventListener('change', () => this.validateNumberRanges());
+            input.addEventListener('change', () => {
+                this.validateNumberRanges();
+                this.switchToResetMode();
+            });
         });
 
         // Cleanup timer validation
@@ -1600,7 +1686,10 @@ export class ConfigScreen {
         // Save configuration on any change
         const allInputs = this.container.querySelectorAll('input, select');
         allInputs.forEach(input => {
-            input.addEventListener('change', () => this.saveCurrentConfig());
+            input.addEventListener('change', () => {
+                this.saveCurrentConfig();
+                this.switchToResetMode();
+            });
         });
     }
 
@@ -2039,11 +2128,60 @@ export class ConfigScreen {
     /**
      * Reset to defaults
      */
-    resetToDefaults() {
-        if (confirm('Reset all settings to defaults? This will undo your current configuration.')) {
-            this.configManager.resetToDefaults();
-            this.loadCurrentConfig();
+    /**
+     * Handle reset/undo button click
+     */
+    handleResetUndo() {
+        if (this.isUndoMode) {
+            // Undo the reset - restore previous config
+            if (this.configBeforeReset) {
+                this.configManager.saveConfig(this.configBeforeReset);
+                this.loadCurrentConfig();
+                this.configBeforeReset = null;
+                this.switchToResetMode();
+            }
+        } else {
+            // Reset to defaults
+            if (confirm('Reset all settings to defaults? This will undo your current configuration.')) {
+                // Save current config for undo
+                this.configBeforeReset = this.configManager.getConfig();
+                this.configManager.resetToDefaults();
+                this.loadCurrentConfig();
+                this.switchToUndoMode();
+            }
         }
+    }
+
+    /**
+     * Switch button to undo mode
+     */
+    switchToUndoMode() {
+        this.isUndoMode = true;
+        const btn = this.container.querySelector('#reset-undo-btn');
+        if (btn) {
+            btn.textContent = '↶ Undo Reset';
+            btn.classList.add('undo-mode');
+        }
+    }
+
+    /**
+     * Switch button to reset mode
+     */
+    switchToResetMode() {
+        if (!this.isUndoMode) return; // Already in reset mode
+
+        this.isUndoMode = false;
+        this.configBeforeReset = null;
+        const btn = this.container.querySelector('#reset-undo-btn');
+        if (btn) {
+            btn.textContent = 'Reset to Defaults';
+            btn.classList.remove('undo-mode');
+        }
+    }
+
+    resetToDefaults() {
+        // Deprecated - use handleResetUndo instead
+        this.handleResetUndo();
     }
 
     /**
