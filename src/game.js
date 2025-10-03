@@ -8,6 +8,7 @@ import { RenderManager } from './game/systems/RenderManager.js'
 import { SpeechManager } from './game/systems/SpeechManager.js'
 import { ObjectManager } from './game/objects/ObjectManager.js'
 import { ObjectCountingRenderer } from './game/systems/ObjectCountingRenderer.js'
+import { ResourceBar } from './ui/ResourceBar.js'
 import { MovementManager } from './game/systems/MovementManager.js'
 import { AutoCleanupManager } from './game/systems/AutoCleanupManager.js'
 
@@ -25,7 +26,7 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting
-        console.log('🎯 TODDLER TOY v1.0.16 - Range-Respecting Numbers Patch - Build:', new Date().toISOString());
+        console.log('🎯 TODDLER TOY v1.0.19 - Horizontal Resource Bar - Build:', new Date().toISOString());
         
         // Initialize configuration manager if not already provided
         if (!this.configManager) {
@@ -450,22 +451,42 @@ class GameScene extends Phaser.Scene {
             }
         }
 
-        // Render object counting numerals BELOW labels
+        // Render object counting as horizontal resource bar BELOW labels
         if (numberModes.objectCounting) {
-            const countingComponents = this.objectCountingRenderer.renderObjectCountingNumeral(
-                numberValue, centerX, centerY + objectCountingYOffset
-            );
-            if (countingComponents && countingComponents.length > 0) {
-                countingComponents.forEach(compObj => {
-                    // Object counting returns positioned text objects, wrap them in component structure
-                    components.push({
-                        type: 'objectCounting',
-                        object: compObj,
-                        offsetX: compObj.x - centerX,
-                        offsetY: compObj.y - centerY
-                    });
-                });
-            }
+            // Decompose number into place values
+            const placeValues = {
+                thousands: Math.floor(numberValue / 1000),
+                hundreds: Math.floor((numberValue % 1000) / 100),
+                tens: Math.floor((numberValue % 100) / 10),
+                ones: numberValue % 10
+            };
+
+            // Create ResourceBar instance positioned below labels
+            const resourceBar = new ResourceBar(this, {
+                x: centerX,
+                y: centerY + objectCountingYOffset,
+                iconSize: { w: 32, h: 32 },
+                iconGapX: 4,
+                groupGapX: 12,
+                maxIconsPerType: 5, // Show max 5 of each type, then use "×N" label
+                fontSize: 16
+            });
+
+            // Set the counts (apples=ones, bags=tens, crates=hundreds, trucks=thousands)
+            resourceBar.setCounts({
+                apples: placeValues.ones,
+                bags: placeValues.tens,
+                crates: placeValues.hundreds,
+                trucks: placeValues.thousands
+            });
+
+            // Add the entire ResourceBar container as a single component
+            components.push({
+                type: 'objectCounting',
+                object: resourceBar,
+                offsetX: 0,
+                offsetY: objectCountingYOffset
+            });
         }
 
         // Store component layout (no label offset needed - labels stay in normal position)
