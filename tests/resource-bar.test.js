@@ -120,8 +120,8 @@ describe('ResourceBar - Horizontal Resource Display', () => {
         });
     });
 
-    describe('Horizontal Layout', () => {
-        test('renders all resource types in horizontal sequence', () => {
+    describe('Horizontal Rows Layout (Keyboard Style)', () => {
+        test('renders all resource types in horizontal rows', () => {
             resourceBar = new ResourceBar(mockScene, {
                 iconSize: { w: 32, h: 32 },
                 iconGapX: 4,
@@ -129,7 +129,7 @@ describe('ResourceBar - Horizontal Resource Display', () => {
             });
 
             resourceBar.setCounts({
-                apples: 2,
+                apples: 3,
                 bags: 2,
                 crates: 2,
                 trucks: 2
@@ -137,64 +137,74 @@ describe('ResourceBar - Horizontal Resource Display', () => {
 
             const bounds = resourceBar.getLayoutBounds();
 
-            // Should have 8 total icons (2 of each type)
-            expect(bounds.length).toBe(8);
+            // Should have 9 total icons (3 apples + 2 bags + 2 crates + 2 trucks)
+            expect(bounds.length).toBe(9);
 
-            // Verify horizontal sequence: apples → bags → crates → trucks
+            // Verify rows: apples → bags → crates → trucks (top to bottom)
             const apples = bounds.filter(b => b.type === 'apples');
             const bags = bounds.filter(b => b.type === 'bags');
             const crates = bounds.filter(b => b.type === 'crates');
             const trucks = bounds.filter(b => b.type === 'trucks');
 
-            expect(apples.length).toBe(2);
+            expect(apples.length).toBe(3);
             expect(bags.length).toBe(2);
             expect(crates.length).toBe(2);
             expect(trucks.length).toBe(2);
 
-            // Verify apples come first (leftmost X positions)
-            const maxAppleX = Math.max(...apples.map(a => a.x));
-            const minBagX = Math.min(...bags.map(b => b.x));
-            expect(minBagX).toBeGreaterThan(maxAppleX);
+            // Verify apples row comes first (topmost Y)
+            const appleY = apples[0].y;
+            const bagY = bags[0].y;
+            expect(bagY).toBeGreaterThan(appleY);
         });
 
-        test('all icons share the same Y coordinate', () => {
+        test('icons within each row are arranged horizontally', () => {
             resourceBar = new ResourceBar(mockScene);
 
             resourceBar.setCounts({
-                apples: 3,
+                apples: 5,
+                bags: 0,
+                crates: 0,
+                trucks: 0
+            });
+
+            const bounds = resourceBar.getLayoutBounds();
+            const apples = bounds.filter(b => b.type === 'apples');
+
+            // All apples should have the same Y (horizontal row)
+            const yCoords = [...new Set(apples.map(a => a.y))];
+            expect(yCoords.length).toBe(1);
+
+            // X coordinates should increase left-to-right
+            const xCoords = apples.map(a => a.x);
+            for (let i = 1; i < xCoords.length; i++) {
+                expect(xCoords[i]).toBeGreaterThan(xCoords[i - 1]);
+            }
+        });
+
+        test('rows are stacked top-to-bottom', () => {
+            resourceBar = new ResourceBar(mockScene);
+
+            resourceBar.setCounts({
+                apples: 2,
                 bags: 2,
-                crates: 1,
+                crates: 2,
                 trucks: 2
             });
 
             const bounds = resourceBar.getLayoutBounds();
-            const yCoords = [...new Set(bounds.map(b => b.y))];
 
-            // All icons should be on the same horizontal baseline
-            expect(yCoords.length).toBe(1);
-            expect(yCoords[0]).toBe(0); // Default Y is 0
+            const appleY = bounds.filter(b => b.type === 'apples')[0].y;
+            const bagY = bounds.filter(b => b.type === 'bags')[0].y;
+            const crateY = bounds.filter(b => b.type === 'crates')[0].y;
+            const truckY = bounds.filter(b => b.type === 'trucks')[0].y;
+
+            // Rows should be ordered top to bottom
+            expect(appleY).toBeLessThan(bagY);
+            expect(bagY).toBeLessThan(crateY);
+            expect(crateY).toBeLessThan(truckY);
         });
 
-        test('X coordinates increase monotonically left-to-right', () => {
-            resourceBar = new ResourceBar(mockScene);
-
-            resourceBar.setCounts({
-                apples: 3,
-                bags: 2,
-                crates: 2,
-                trucks: 1
-            });
-
-            const bounds = resourceBar.getLayoutBounds();
-            const xCoords = bounds.map(b => b.x);
-
-            // Verify each X is greater than or equal to the previous
-            for (let i = 1; i < xCoords.length; i++) {
-                expect(xCoords[i]).toBeGreaterThanOrEqual(xCoords[i - 1]);
-            }
-        });
-
-        test('group gaps separate resource types', () => {
+        test('rows start at X=0', () => {
             resourceBar = new ResourceBar(mockScene, {
                 iconSize: { w: 32, h: 32 },
                 iconGapX: 4,
@@ -202,22 +212,20 @@ describe('ResourceBar - Horizontal Resource Display', () => {
             });
 
             resourceBar.setCounts({
-                apples: 2,
-                bags: 1,
+                apples: 3,
+                bags: 2,
                 crates: 0,
                 trucks: 0
             });
 
             const bounds = resourceBar.getLayoutBounds();
 
-            // 2 apples: X=0, X=36
-            // 1 bag: X=0+36+4+12=52 (last apple X + iconSize + iconGap + groupGap)
+            // Each row starts at X=0
             const apples = bounds.filter(b => b.type === 'apples');
             const bags = bounds.filter(b => b.type === 'bags');
 
             expect(apples[0].x).toBe(0);
-            expect(apples[1].x).toBe(36); // 32 + 4
-            expect(bags[0].x).toBe(84); // 36 + 32 + 4 + 12
+            expect(bags[0].x).toBe(0);
         });
     });
 

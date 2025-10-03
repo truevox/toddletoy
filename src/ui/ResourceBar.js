@@ -80,14 +80,14 @@ export class ResourceBar extends Phaser.GameObjects.Container {
     }
 
     /**
-     * Layout all resources horizontally in a single line
+     * Layout all resources in horizontal rows stacked top-to-bottom
+     * Like keyboard rows: apples (top/number row) down to trucks (bottom/ZXCVB row)
      */
     layout() {
         // Hide all active sprites first
         this.hideAllSprites();
 
         const order = ['apples', 'bags', 'crates', 'trucks'];
-        let cursorX = 0;
         let cursorY = 0;
 
         for (const key of order) {
@@ -96,30 +96,25 @@ export class ResourceBar extends Phaser.GameObjects.Container {
 
             const visible = Math.min(count, this.cfg.maxIconsPerType);
 
-            // Render visible icons
+            // Render icons horizontally in this row
+            let rowX = 0;
             for (let i = 0; i < visible; i++) {
                 const sprite = this.getSprite(key);
-                sprite.setPosition(cursorX, cursorY);
+                sprite.setPosition(rowX, cursorY);
                 sprite.setVisible(true);
                 sprite.setScale(this.cfg.iconSize.w / 32); // Normalize to 32px base size
 
-                cursorX += this.cfg.iconSize.w + this.cfg.iconGapX;
-
-                // Wrap to next line if needed
-                if (this.cfg.wrap && cursorX > this.cfg.width) {
-                    cursorX = 0;
-                    cursorY += this.cfg.iconSize.h + 4;
-                }
+                // Move right for next icon in this row
+                rowX += this.cfg.iconSize.w + this.cfg.iconGapX;
             }
 
             // Render overflow label if count exceeds max
             if (count > visible) {
-                this.renderCountLabel(key, count, cursorX, cursorY);
-                cursorX += 30; // Space for label
+                this.renderCountLabel(key, count, rowX, cursorY);
             }
 
-            // Add group gap after each type
-            cursorX += this.cfg.groupGapX;
+            // Move down to next row
+            cursorY += this.cfg.iconSize.h + 4;
         }
     }
 
