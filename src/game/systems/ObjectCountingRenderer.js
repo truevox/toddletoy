@@ -31,28 +31,41 @@ export class ObjectCountingRenderer {
         // Decompose number into place values
         const placeValues = this.decomposePlaceValues(number);
 
-        // VERTICAL STACKING: Stack all place values vertically in a single column
-        // Order from top to bottom: thousands, hundreds, tens, ones
+        // PHYSICAL STACKING: Stack like building blocks from bottom to top
+        // Order from BOTTOM to TOP: trucks (thousands), boxes (hundreds), bags (tens), apples (ones)
+        // Each layer sits ON TOP of the layer below with slight horizontal offset
         const components = [];
-        let currentY = y; // Start at the given Y position
 
-        // Stack from highest to lowest place value
+        // Calculate total height to position from bottom up
+        const totalHeight = this.calculateTotalHeight(number);
+        let currentY = y + (totalHeight / 2); // Start at bottom
+
+        // Stack from BOTTOM to TOP (reverse order: thousands → hundreds → tens → ones)
         const places = ['thousands', 'hundreds', 'tens', 'ones'];
+        const offsets = [0, 0.25, 0.5, 0.75]; // Horizontal offset multiplier per layer
 
-        places.forEach(place => {
+        // Render from bottom (thousands) to top (ones)
+        places.forEach((place, layerIndex) => {
             const count = placeValues[place];
             if (count > 0) {
+                const stackHeight = this.calculatePlaceStackHeight(place, count);
+
+                // Position this layer ABOVE the previous layer
+                currentY -= stackHeight;
+
+                // Apply horizontal offset for visual stacking effect
+                const offsetX = x + (offsets[layerIndex] * this.emojiSize);
+
                 const placeComponents = this.renderPlaceValueStack(
                     place,
                     count,
-                    x, // Center X for all place values
+                    offsetX,
                     currentY
                 );
                 components.push(...placeComponents);
 
-                // Move Y downward for next place value
-                const stackHeight = this.calculatePlaceStackHeight(place, count);
-                currentY += stackHeight + this.spacing.vertical; // Add spacing between place values
+                // Add spacing between layers
+                currentY -= this.spacing.vertical;
             }
         });
 

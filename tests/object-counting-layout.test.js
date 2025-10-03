@@ -25,23 +25,27 @@ describe('ObjectCountingRenderer vertical stacking layout', () => {
         renderer = new ObjectCountingRenderer(mockScene);
     });
 
-    test('stacks place values vertically for multi-digit numbers', () => {
+    test('stacks place values with horizontal offset (like building blocks)', () => {
         // 3307 = 3 thousands, 3 hundreds, 0 tens, 7 ones
         const components = renderer.renderObjectCountingNumeral(3307, 400, 200);
 
         // Should have: 3 trucks + 3 boxes + 7 apples = 13 components
         expect(components.length).toBe(13);
 
-        // Verify all non-grid components (trucks, boxes) are centered at X=400
-        const trucksAndBoxes = components.slice(0, 6); // First 6 are trucks and boxes
-        trucksAndBoxes.forEach(comp => {
-            expect(comp.x).toBe(400);
-        });
-
-        // Verify apples are centered around X=400
+        // Verify layers have increasing X offsets (stacked like building blocks)
+        const trucks = components.slice(0, 3); // First 3 are trucks
+        const boxes = components.slice(3, 6); // Next 3 are boxes
         const apples = components.slice(6); // Last 7 are apples
-        const avgX = apples.reduce((sum, c) => sum + c.x, 0) / apples.length;
-        expect(avgX).toBeCloseTo(400, -1); // Within 10px of center
+
+        // Trucks at base (X+0)
+        expect(trucks[0].x).toBe(400);
+
+        // Boxes offset by 0.25 * emojiSize (X+8)
+        expect(boxes[0].x).toBe(408);
+
+        // Apples offset by 0.75 * emojiSize (X+24), centered around this offset
+        const avgAppleX = apples.reduce((sum, c) => sum + c.x, 0) / apples.length;
+        expect(Math.abs(avgAppleX - 424)).toBeLessThan(20); // Within 20px of X+24
     });
 
     test('centers single place value at requested position', () => {
