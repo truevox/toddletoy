@@ -24,22 +24,25 @@ export class RenderManager {
         if (type === 'emoji') {
             console.log('Displaying emoji:', item.emoji, 'Unicode:', item.emoji.charCodeAt(0));
             return item.emoji;
+        } else if (type === 'number') {
+            return String(item.value);
         } else {
-            return item.symbol;
+            // For letters, shapes, etc. - use value property
+            return item.value;
         }
     }
 
-    displayTextLabels(obj) {
+    displayTextLabels(obj, verticalOffset = 0) {
         if (!obj || !obj.itemData) return;
-        
+
         const data = obj.itemData;
         const x = obj.x;
         const y = obj.y;
-        
+
         // Get enabled languages from configuration
         const languagesConfig = this.scene.configManager ? this.scene.configManager.getLanguages() : null;
         const enabledLanguages = languagesConfig?.enabled || [{ code: 'en' }, { code: 'es' }];
-        
+
         // Get responsive text style from TextLayoutManager
         const styleInfo = this.textLayoutManager.calculateResponsiveTextStyle();
         const labelStyle = {
@@ -50,8 +53,9 @@ export class RenderManager {
             stroke: styleInfo.stroke,
             strokeThickness: styleInfo.strokeThickness
         };
-        
-        const labelOffset = styleInfo.labelOffset;
+
+        // Apply dynamic vertical offset for object counting layout adjustment
+        const labelOffset = styleInfo.labelOffset + verticalOffset;
         const lineSpacing = styleInfo.lineSpacing;
         
         // Store word objects for all enabled languages
@@ -61,7 +65,15 @@ export class RenderManager {
         
         // Create text labels for all enabled languages
         enabledLanguages.forEach((language, index) => {
-            const text = data[language.code] || data.en; // Fallback to English if language not available
+            let text = data[language.code] || data.en; // Fallback to English if language not available
+
+            // For numbers with colors, combine color + number word
+            if (data.color && data.value !== undefined) {
+                const colorWord = data.color[language.code] || data.color.en || data.color.value;
+                const numberWord = data[language.code] || String(data.value);
+                text = `${colorWord} ${numberWord}`;
+            }
+
             const yPosition = y + labelOffset + (index * lineSpacing);
             const wordObjects = this.textLayoutManager.createWordObjects(text, x, yPosition, labelStyle);
             

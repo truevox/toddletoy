@@ -25,7 +25,7 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting
-        console.log('🎯 TODDLER TOY v1.0.15 - Range-Respecting Numbers Patch - Build:', new Date().toISOString());
+        console.log('🎯 TODDLER TOY v1.0.16 - Range-Respecting Numbers Patch - Build:', new Date().toISOString());
         
         // Initialize configuration manager if not already provided
         if (!this.configManager) {
@@ -364,14 +364,15 @@ class GameScene extends Phaser.Scene {
             
             // Add to objects array
             this.objects.push(obj);
-            
-            // Display text labels for all enabled languages
-            this.renderManager.displayTextLabels(obj);
-            
-            // Render number modes if this is a number
+
+            // Render number modes FIRST if this is a number (to calculate layout offset)
             if (actualType === 'number') {
                 this.renderAllNumberModes(obj, selectedItem.value, x, y);
             }
+
+            // Display text labels with dynamic vertical offset (for object counting layout)
+            const verticalOffset = obj.componentLayout?.labelVerticalOffset || 0;
+            this.renderManager.displayTextLabels(obj, verticalOffset);
             
             console.log(`✨ Spawned ${actualType}:`, displayText, 'at', x, y);
             
@@ -388,47 +389,71 @@ class GameScene extends Phaser.Scene {
 
     renderAllNumberModes(obj, numberValue, centerX, centerY) {
         if (!obj || typeof numberValue !== 'number') return;
-        
+
         const numberModes = this.configManager ? this.configManager.getNumberModes() : {};
         const components = [];
-        
-        // Render Cistercian numerals (furthest from center)
-        // POSITIONING FIX: Move Cistercian numerals 7 pixels higher for improved visual alignment
+
+        // VERTICAL LAYOUT STACK (from top to bottom):
+        // 1. Cistercian numerals (top, above main object)
+        // 2. Kaktovik numerals (above main object)
+        // 3. Binary hearts (above main object)
+        // 4. Main emoji/number (at centerY)
+        // 5. Text labels (below main object, ~60px down)
+        // 6. Object counting (BELOW labels, with proper spacing)
+
+        // Calculate object counting position BELOW text labels
+        let objectCountingYOffset = 0;
+        if (numberModes.objectCounting) {
+            // Get language count to calculate label area height
+            const languagesConfig = this.configManager ? this.configManager.getLanguages() : null;
+            const enabledLanguages = languagesConfig?.enabled || [{ code: 'en' }, { code: 'es' }];
+            const languageCount = enabledLanguages.length;
+
+            // Position object counting below all labels with proper spacing:
+            // Base label offset: 60px
+            // Line spacing per language: 30px
+            // Buffer for safety: 40px
+            const labelAreaHeight = 60 + (languageCount * 30);
+            objectCountingYOffset = labelAreaHeight + 40; // Plenty of space below labels
+
+            console.log(`📐 Layout for ${numberValue}: ${languageCount} languages, object counting at Y+${objectCountingYOffset}px`);
+        }
+
+        // Render Cistercian numerals (furthest from center, above labels)
         if (numberModes.cistercian) {
-            const cistercianYOffset = -107; // Was -100, now 7 pixels higher
+            const cistercianYOffset = -107;
             const cistercianObj = this.renderManager.renderCistercianNumeral(numberValue, centerX, centerY + cistercianYOffset);
             if (cistercianObj) {
                 components.push({ type: 'cistercian', object: cistercianObj, offsetX: 0, offsetY: cistercianYOffset });
             }
         }
-        
-        // Render Kaktovik numerals (middle distance)
-        // POSITIONING FIX: Move Kaktovik numerals 4 pixels higher for improved visual alignment
+
+        // Render Kaktovik numerals (middle distance, above labels)
         if (numberModes.kaktovik) {
             const baseOffset = numberModes.cistercian ? -60 : -80;
-            const kaktovikYOffset = baseOffset - 4; // 4 pixels higher: -64 or -84
+            const kaktovikYOffset = baseOffset - 4;
             const kaktovikObj = this.renderManager.renderKaktovikNumeral(numberValue, centerX, centerY + kaktovikYOffset);
             if (kaktovikObj) {
                 components.push({ type: 'kaktovik', object: kaktovikObj, offsetX: 0, offsetY: kaktovikYOffset });
             }
         }
-        
-        // Render binary hearts (closest to center)
+
+        // Render binary hearts (above labels)
         if (numberModes.binary) {
             let yOffset = -40;
             if (numberModes.cistercian) yOffset = -20;
             if (numberModes.kaktovik) yOffset = -20;
-            
+
             const binaryObj = this.renderManager.renderBinaryHearts(numberValue, centerX, centerY + yOffset);
             if (binaryObj) {
                 components.push({ type: 'binary', object: binaryObj, offsetX: 0, offsetY: yOffset });
             }
         }
-        
-        // Render object counting numerals (above main number)
+
+        // Render object counting numerals BELOW labels
         if (numberModes.objectCounting) {
             const countingComponents = this.objectCountingRenderer.renderObjectCountingNumeral(
-                numberValue, centerX, centerY
+                numberValue, centerX, centerY + objectCountingYOffset
             );
             if (countingComponents && countingComponents.length > 0) {
                 countingComponents.forEach(compObj => {
@@ -442,12 +467,13 @@ class GameScene extends Phaser.Scene {
                 });
             }
         }
-        
-        // Store component layout
+
+        // Store component layout (no label offset needed - labels stay in normal position)
         if (!obj.componentLayout) {
             obj.componentLayout = {};
         }
         obj.componentLayout.numberModes = components;
+        obj.componentLayout.labelVerticalOffset = 0; // Labels stay in normal position
     }
 
     // Configuration and content selection methods
@@ -941,14 +967,15 @@ class GameScene extends Phaser.Scene {
         
         // Add to objects array
         this.objects.push(obj);
-        
-        // Display text labels for all enabled languages
-        this.renderManager.displayTextLabels(obj);
-        
-        // Render number modes if this is a number
+
+        // Render number modes FIRST if this is a number (to calculate layout offset)
         if (objData.type === 'number' && objData.itemData.value) {
             this.renderAllNumberModes(obj, objData.itemData.value, objData.x, objData.y);
         }
+
+        // Display text labels with dynamic vertical offset (for object counting layout)
+        const verticalOffset = obj.componentLayout?.labelVerticalOffset || 0;
+        this.renderManager.displayTextLabels(obj, verticalOffset);
         
         console.log(`✨ Restored ${objData.type}:`, displayText, 'at', objData.x, objData.y);
     }

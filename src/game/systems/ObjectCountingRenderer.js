@@ -32,29 +32,17 @@ export class ObjectCountingRenderer {
         const placeValues = this.decomposePlaceValues(number);
         
         // Calculate total width needed for all columns
-        const totalWidth = this.calculateTotalWidth(placeValues);
-        const startX = x - (totalWidth / 2);
-        
+        const layout = this.calculateColumnLayout(placeValues, x);
         const components = [];
-        let currentX = startX;
-        
-        // Render from left to right: thousands, hundreds, tens, ones
-        const places = ['thousands', 'hundreds', 'tens', 'ones'];
-        
-        places.forEach(place => {
-            const count = placeValues[place];
-            if (count > 0) {
-                const columnComponents = this.renderPlaceValueColumn(
-                    place, 
-                    count, 
-                    currentX, 
-                    y
-                );
-                components.push(...columnComponents);
-                
-                // Move to next column position
-                currentX += this.getColumnWidth(place, count) + this.spacing.horizontal;
-            }
+
+        layout.columns.forEach(column => {
+            const columnComponents = this.renderPlaceValueColumn(
+                column.place,
+                column.count,
+                column.centerX,
+                y
+            );
+            components.push(...columnComponents);
         });
 
         return components;
@@ -86,6 +74,39 @@ export class ObjectCountingRenderer {
         });
         
         return totalWidth;
+    }
+
+    calculateColumnLayout(placeValues, centerX) {
+        const totalWidth = this.calculateTotalWidth(placeValues);
+        const startX = centerX - (totalWidth / 2);
+        const activePlaces = ['thousands', 'hundreds', 'tens', 'ones']
+            .filter(place => placeValues[place] > 0);
+        const columns = [];
+        let currentX = startX;
+
+        activePlaces.forEach((place, index) => {
+            const count = placeValues[place];
+            const columnWidth = this.getColumnWidth(place, count);
+            const columnCenterX = currentX + (columnWidth / 2);
+
+            columns.push({
+                place,
+                count,
+                centerX: columnCenterX,
+                width: columnWidth
+            });
+
+            currentX += columnWidth;
+            if (index < activePlaces.length - 1) {
+                currentX += this.spacing.horizontal;
+            }
+        });
+
+        return {
+            totalWidth,
+            startX,
+            columns
+        };
     }
 
     getColumnWidth(place, count) {
@@ -296,6 +317,84 @@ export class ObjectCountingRenderer {
                 oscillator.stop(this.scene.audioManager.audioContext.currentTime + 0.2);
             } catch (error) {
                 console.warn('Could not play counting sound:', error);
+            }
+        }
+    }
+
+    /**
+     * Calculate the total vertical height of object counting display for a given number
+     * Returns the maximum height needed to accommodate all place value columns
+     */
+    calculateTotalHeight(number) {
+        if (number === 0 || number < 0) return 0;
+        if (number > 9999) {
+            console.warn('Object counting supports numbers 0-9999 only');
+            return 0;
+        }
+
+        const placeValues = this.decomposePlaceValues(number);
+        return this.getMaxColumnHeight(placeValues);
+    }
+
+    /**
+     * Calculate total height with padding buffer for visual spacing
+     * Adds padding above and below the object counting display
+     */
+    calculateTotalHeightWithPadding(number) {
+        const baseHeight = this.calculateTotalHeight(number);
+        if (baseHeight === 0) return 0;
+
+        // Add 20px padding above and 20px below = 40px total
+        const paddingTop = 20;
+        const paddingBottom = 20;
+        return baseHeight + paddingTop + paddingBottom;
+    }
+
+    /**
+     * Find the maximum height among all place value columns
+     * This determines the overall vertical extent of the object counting display
+     */
+    getMaxColumnHeight(placeValues) {
+        let maxHeight = 0;
+        const places = ['thousands', 'hundreds', 'tens', 'ones'];
+
+        places.forEach(place => {
+            const count = placeValues[place];
+            if (count > 0) {
+                const columnHeight = this.calculateColumnHeight(place, count);
+                if (columnHeight > maxHeight) {
+                    maxHeight = columnHeight;
+                }
+            }
+        });
+
+        return maxHeight;
+    }
+
+    /**
+     * Calculate the height of a single place value column
+     */
+    calculateColumnHeight(place, count) {
+        if (count === 0) return 0;
+
+        if (place === 'ones') {
+            // Apples use smart stacking layout
+            const layout = this.calculateOptimalStackingLayout(count);
+            if (layout.rows === 1) {
+                // Single row: just the emoji size
+                return this.emojiSize;
+            } else {
+                // Multiple rows: rows * vertical spacing
+                return layout.rows * this.spacing.vertical;
+            }
+        } else {
+            // Higher place values use simple vertical stacking
+            if (count === 1) {
+                // Single item: just the emoji size
+                return this.emojiSize;
+            } else {
+                // Multiple items: count * vertical spacing
+                return count * this.spacing.vertical;
             }
         }
     }
