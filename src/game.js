@@ -26,7 +26,7 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting
-        console.log('🎯 TODDLER TOY v1.0.19 - Horizontal Resource Bar - Build:', new Date().toISOString());
+        console.log('🎯 TODDLER TOY v1.0.20 - Show All Resource Icons - Build:', new Date().toISOString());
         
         // Initialize configuration manager if not already provided
         if (!this.configManager) {
@@ -468,7 +468,7 @@ class GameScene extends Phaser.Scene {
                 iconSize: { w: 32, h: 32 },
                 iconGapX: 4,
                 groupGapX: 12,
-                maxIconsPerType: 5, // Show max 5 of each type, then use "×N" label
+                maxIconsPerType: Infinity, // Show all icons for educational counting
                 fontSize: 16
             });
 
