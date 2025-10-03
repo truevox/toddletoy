@@ -1,5 +1,6 @@
 import { FontManager } from './FontManager.js';
 import { TextLayoutManager } from './TextLayoutManager.js';
+import { buildColorizedLabel } from '../utils/localization.js';
 
 /**
  * RenderManager - Handles all rendering operations including text labels, numerals, and display systems
@@ -65,13 +66,9 @@ export class RenderManager {
         
         // Create text labels for all enabled languages
         enabledLanguages.forEach((language, index) => {
-            let text = data[language.code] || data.en; // Fallback to English if language not available
-
-            // For numbers with colors, combine color + number word
-            if (data.color && data.value !== undefined) {
-                const colorWord = data.color[language.code] || data.color.en || data.color.value;
-                const numberWord = data[language.code] || String(data.value);
-                text = `${colorWord} ${numberWord}`;
+            const text = buildColorizedLabel(data, language.code);
+            if (!text) {
+                return;
             }
 
             const yPosition = y + labelOffset + (index * lineSpacing);

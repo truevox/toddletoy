@@ -26,7 +26,7 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting
-        console.log('🎯 TODDLER TOY v1.0.22 - Centered ResourceBar Rows - Build:', new Date().toISOString());
+        console.log('🎯 TODDLER TOY v1.0.24 - Shape Scaling Tuning - Build:', new Date().toISOString());
         
         // Initialize configuration manager if not already provided
         if (!this.configManager) {
@@ -306,6 +306,116 @@ class GameScene extends Phaser.Scene {
     }
 
 
+    createPrimaryDisplayObject(actualType, itemData, displayText, x, y) {
+        if (actualType === 'shape') {
+            return this.createShapeObject(itemData, x, y, displayText);
+        }
+
+        let style = actualType === 'emoji' ? this.emojiStyle : this.textStyle;
+        if ((actualType === 'number' || actualType === 'letter') && itemData?.color?.hex) {
+            style = { ...style, fill: itemData.color.hex };
+        }
+
+        const obj = this.add.text(x, y, displayText, style)
+            .setOrigin(0.5, 0.5)
+            .setInteractive();
+
+        obj.text = displayText;
+        return obj;
+    }
+
+    createShapeObject(itemData, x, y, labelText = '') {
+        const fallbackWidth = typeof window !== 'undefined' ? window.innerWidth : 800;
+        const fallbackHeight = typeof window !== 'undefined' ? window.innerHeight : 600;
+        const minDimension = Math.min(this.scale.width || fallbackWidth, this.scale.height || fallbackHeight);
+        const dynamicSize = Math.round(minDimension * 0.04);
+        const size = Math.max(28, Math.min(40, dynamicSize || 32));
+        const container = this.add.container(x, y);
+
+        const colorHex = itemData?.color?.hex || '#ffffff';
+        let fillColorInt = 0xffffff;
+        try {
+            fillColorInt = Phaser.Display.Color.HexStringToColor(colorHex).color;
+        } catch (error) {
+            console.warn('Failed to parse shape color hex:', colorHex, error);
+        }
+
+        const strokeColor = 0xffffff;
+        const strokeAlpha = 0.85;
+        const strokeWidth = Math.max(2, Math.round(size * 0.15));
+        const normalizedValue = (itemData?.value || '').toLowerCase();
+        let shape = null;
+
+        const addShape = (gameObject, { skipStroke = false } = {}) => {
+            if (!gameObject) return;
+            gameObject.setPosition(0, 0);
+            if (gameObject.setOrigin) {
+                gameObject.setOrigin(0.5, 0.5);
+            }
+            if (!skipStroke && gameObject.setStrokeStyle) {
+                gameObject.setStrokeStyle(strokeWidth, strokeColor, strokeAlpha);
+            }
+            container.add(gameObject);
+            shape = gameObject;
+        };
+
+        switch (normalizedValue) {
+            case 'circle':
+                addShape(this.add.circle(0, 0, size / 2, fillColorInt));
+                break;
+            case 'square':
+                addShape(this.add.rectangle(0, 0, size * 0.9, size * 0.9, fillColorInt));
+                break;
+            case 'triangle':
+                addShape(this.add.polygon(0, 0, [
+                    0, -size / 2,
+                    size / 2, size / 2,
+                    -size / 2, size / 2
+                ], fillColorInt));
+                break;
+            case 'star':
+                addShape(this.add.star(0, 0, 5, size * 0.5, size * 0.2, fillColorInt));
+                break;
+            case 'diamond':
+                addShape(this.add.polygon(0, 0, [
+                    0, -size / 2,
+                    size / 2, 0,
+                    0, size / 2,
+                    -size / 2, 0
+                ], fillColorInt));
+                break;
+            case 'heart': {
+                const graphics = this.add.graphics({ x: 0, y: 0 });
+                graphics.fillStyle(fillColorInt, 1);
+                graphics.lineStyle(strokeWidth, strokeColor, strokeAlpha);
+                const curveDepth = size * 0.35;
+                graphics.beginPath();
+                graphics.moveTo(0, size / 2);
+                graphics.bezierCurveTo(size / 2, size / 2 - curveDepth, size / 2, -size / 6, 0, -size / 3);
+                graphics.bezierCurveTo(-size / 2, -size / 6, -size / 2, size / 2 - curveDepth, 0, size / 2);
+                graphics.closePath();
+                graphics.fillPath();
+                graphics.strokePath();
+                addShape(graphics, { skipStroke: true });
+                break;
+            }
+            default:
+                addShape(this.add.circle(0, 0, size / 2, fillColorInt));
+                break;
+        }
+
+        container.mainShape = shape;
+        container.shapeSize = size;
+        container.text = labelText || itemData?.value || '';
+        container.componentLayout = container.componentLayout || {};
+        container.componentLayout.labelVerticalOffset = Math.round(size * 1.2);
+        const hitSize = size + 12;
+        container.setSize(hitSize, hitSize);
+        container.setInteractive(new Phaser.Geom.Rectangle(-hitSize / 2, -hitSize / 2, hitSize, hitSize), Phaser.Geom.Rectangle.Contains);
+
+        return container;
+    }
+
     async spawnObjectAt(x, y, type = 'random') {
         try {
             // Get spawn type based on configuration
@@ -341,22 +451,26 @@ class GameScene extends Phaser.Scene {
                 console.warn('No item selected for spawn');
                 return null;
             }
-            
-            // Get display text
-            const displayText = this.renderManager.getDisplayText(selectedItem, actualType);
 
-            // Create the main object sprite with appropriate style
-            let style = actualType === 'emoji' ? this.emojiStyle : this.textStyle;
-
-            // Apply color to numbers
-            if (actualType === 'number' && selectedItem.color && selectedItem.color.hex) {
-                style = { ...this.textStyle, fill: selectedItem.color.hex };
+            if (actualType === 'letter') {
+                const letterColor = await this.getRandomColor();
+                selectedItem.color = letterColor;
+            } else if (actualType === 'shape') {
+                const allowedCategories = Array.isArray(selectedItem.colors) ? selectedItem.colors : null;
+                const shapeColor = await this.getRandomColor(allowedCategories);
+                selectedItem.color = shapeColor;
             }
 
-            const obj = this.add.text(x, y, displayText, style)
-                .setOrigin(0.5, 0.5)
-                .setInteractive();
-            
+            selectedItem.type = actualType;
+
+            const displayText = this.renderManager.getDisplayText(selectedItem, actualType);
+            const obj = this.createPrimaryDisplayObject(actualType, selectedItem, displayText, x, y);
+
+            if (!obj) {
+                console.warn('Failed to create object for type:', actualType);
+                return null;
+            }
+
             // Store object data and metadata
             obj.itemData = selectedItem;
             obj.type = actualType;
@@ -623,7 +737,7 @@ class GameScene extends Phaser.Scene {
         }
     }
 
-    async getRandomColor() {
+    async getRandomColor(allowedCategories = null) {
         try {
             // Load things data if not already cached
             if (!this.thingsData) {
@@ -642,18 +756,41 @@ class GameScene extends Phaser.Scene {
 
             // Filter colors by enabled categories
             const colors = this.thingsData.colors || [];
-            const availableColors = colors.filter(color =>
-                enabledCategories.includes(color.category)
+            const allowedSet = Array.isArray(allowedCategories) && allowedCategories.length > 0
+                ? new Set(allowedCategories)
+                : null;
+
+            const matchesAllowed = (color) => {
+                if (!allowedSet) return true;
+                if (color.category && allowedSet.has(color.category)) return true;
+                if (Array.isArray(color.categories)) {
+                    return color.categories.some(cat => allowedSet.has(cat));
+                }
+                return false;
+            };
+
+            let availableColors = colors.filter(color =>
+                (enabledCategories.length === 0 || enabledCategories.includes(color.category)) && matchesAllowed(color)
             );
+
+            // If filtering by enabled categories removed all options, fallback to allowed categories regardless of config
+            if (availableColors.length === 0 && allowedSet) {
+                availableColors = colors.filter(matchesAllowed);
+            }
 
             // Fallback to all colors if none available
             if (availableColors.length === 0) {
-                return colors.length > 0 ? colors[0] : { value: 'White', en: 'White', hex: '#ffffff' };
+                availableColors = colors;
             }
 
             // Select random color
+            if (availableColors.length === 0) {
+                return { value: 'White', en: 'White', hex: '#ffffff' };
+            }
+
             const randomIndex = Math.floor(Math.random() * availableColors.length);
-            return availableColors[randomIndex];
+            const chosenColor = availableColors[randomIndex];
+            return { ...chosenColor };
 
         } catch (error) {
             console.error('Error loading color data:', error);
@@ -965,21 +1102,24 @@ class GameScene extends Phaser.Scene {
     async restoreObject(objData) {
         if (!objData || !objData.itemData || !objData.type) return;
         
+        // Ensure restored items have color information when expected
+        if (objData.type === 'letter' && (!objData.itemData.color || !objData.itemData.color.hex)) {
+            objData.itemData.color = await this.getRandomColor();
+        } else if (objData.type === 'shape' && (!objData.itemData.color || !objData.itemData.color.hex)) {
+            const allowedCategories = Array.isArray(objData.itemData.colors) ? objData.itemData.colors : null;
+            objData.itemData.color = await this.getRandomColor(allowedCategories);
+        }
+
         // Get display text using the same logic as spawnObjectAt
         const displayText = this.renderManager.getDisplayText(objData.itemData, objData.type);
 
-        // Create the main object sprite with appropriate style
-        let style = objData.type === 'emoji' ? this.emojiStyle : this.textStyle;
+        const obj = this.createPrimaryDisplayObject(objData.type, objData.itemData, displayText, objData.x, objData.y);
 
-        // Apply color to numbers
-        if (objData.type === 'number' && objData.itemData.color && objData.itemData.color.hex) {
-            style = { ...this.textStyle, fill: objData.itemData.color.hex };
+        if (!obj) {
+            console.warn('Failed to restore object of type:', objData.type);
+            return;
         }
 
-        const obj = this.add.text(objData.x, objData.y, displayText, style)
-            .setOrigin(0.5, 0.5)
-            .setInteractive();
-        
         // Restore object data and metadata
         obj.itemData = objData.itemData;
         obj.type = objData.type;

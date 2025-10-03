@@ -2,6 +2,8 @@
  * SpeechManager - Handles speech synthesis with multilingual support
  * Manages speech queue, highlighting animations, and language sequencing
  */
+import { buildColorizedLabel } from '../utils/localization.js';
+
 export class SpeechManager {
     constructor(scene) {
         this.scene = scene;
@@ -63,23 +65,24 @@ export class SpeechManager {
         console.log('🗣️ Speech debug - object data:', data);
 
         // Determine what to speak based on language parameter
+        const fallbackValue = data.value !== undefined && data.value !== null
+            ? String(data.value)
+            : '';
+
+        const getTextForLanguage = (code) => {
+            const composed = buildColorizedLabel(data, code) || buildColorizedLabel(data, 'en');
+            if (composed && composed.trim()) {
+                return composed;
+            }
+            return fallbackValue;
+        };
+
         if (language === 'both' || language === 'all') {
             // Use all enabled languages in order
             textsToSpeak = [];
             this.currentLanguageCodes = []; // Store corresponding language codes
             enabledLanguages.forEach(lang => {
-                let text;
-
-                // For numbers with colors, combine color + number word
-                if (data.color && data.value !== undefined) {
-                    const colorWord = data.color[lang.code] || data.color.en || data.color.value;
-                    const numberWord = data[lang.code] || String(data.value);
-                    text = `${colorWord} ${numberWord}`;
-                } else {
-                    // For numbers without colors, just use the value or language-specific text
-                    text = data.value !== undefined ? String(data.value) : (data[lang.code] || data.en);
-                }
-
+                const text = getTextForLanguage(lang.code);
                 if (text) {
                     textsToSpeak.push(text);
                     this.currentLanguageCodes.push(lang.code);
@@ -89,18 +92,7 @@ export class SpeechManager {
             console.log('🗣️ Speech debug - language codes:', this.currentLanguageCodes);
         } else {
             // Use specific language
-            let text;
-
-            // For numbers with colors, combine color + number word
-            if (data.color && data.value !== undefined) {
-                const colorWord = data.color[language] || data.color.en || data.color.value;
-                const numberWord = data[language] || String(data.value);
-                text = `${colorWord} ${numberWord}`;
-            } else {
-                // For numbers without colors, just use the value or language-specific text
-                text = data.value !== undefined ? String(data.value) : (data[language] || data.en);
-            }
-
+            const text = getTextForLanguage(language);
             textsToSpeak = [text];
             this.currentLanguageCodes = [language];
         }
