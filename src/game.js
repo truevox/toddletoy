@@ -26,7 +26,7 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting
-        console.log('🎯 TODDLER TOY v1.0.21 - Vertical Stack ResourceBar - Build:', new Date().toISOString());
+        console.log('🎯 TODDLER TOY v1.0.22 - Centered ResourceBar Rows - Build:', new Date().toISOString());
         
         // Initialize configuration manager if not already provided
         if (!this.configManager) {

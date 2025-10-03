@@ -82,6 +82,7 @@ export class ResourceBar extends Phaser.GameObjects.Container {
     /**
      * Layout all resources in horizontal rows stacked top-to-bottom
      * Like keyboard rows: apples (top/number row) down to trucks (bottom/ZXCVB row)
+     * Each row is centered horizontally around X=0
      */
     layout() {
         // Hide all active sprites first
@@ -96,8 +97,12 @@ export class ResourceBar extends Phaser.GameObjects.Container {
 
             const visible = Math.min(count, this.cfg.maxIconsPerType);
 
-            // Render icons horizontally in this row
-            let rowX = 0;
+            // Calculate total row width to center it
+            const totalWidth = (visible * this.cfg.iconSize.w) + ((visible - 1) * this.cfg.iconGapX);
+            const startX = -totalWidth / 2;
+
+            // Render icons horizontally in this row, centered
+            let rowX = startX;
             for (let i = 0; i < visible; i++) {
                 const sprite = this.getSprite(key);
                 sprite.setPosition(rowX, cursorY);
@@ -108,7 +113,7 @@ export class ResourceBar extends Phaser.GameObjects.Container {
                 rowX += this.cfg.iconSize.w + this.cfg.iconGapX;
             }
 
-            // Render overflow label if count exceeds max
+            // Render overflow label if count exceeds max (positioned at end of row)
             if (count > visible) {
                 this.renderCountLabel(key, count, rowX, cursorY);
             }

@@ -204,7 +204,7 @@ describe('ResourceBar - Horizontal Resource Display', () => {
             expect(crateY).toBeLessThan(truckY);
         });
 
-        test('rows start at X=0', () => {
+        test('rows are centered horizontally', () => {
             resourceBar = new ResourceBar(mockScene, {
                 iconSize: { w: 32, h: 32 },
                 iconGapX: 4,
@@ -212,20 +212,31 @@ describe('ResourceBar - Horizontal Resource Display', () => {
             });
 
             resourceBar.setCounts({
-                apples: 3,
-                bags: 2,
+                apples: 4, // 4 icons: width = 4*32 + 3*4 = 140px, centered = -70 to +70
+                bags: 2,   // 2 icons: width = 2*32 + 1*4 = 68px, centered = -34 to +34
                 crates: 0,
                 trucks: 0
             });
 
             const bounds = resourceBar.getLayoutBounds();
 
-            // Each row starts at X=0
             const apples = bounds.filter(b => b.type === 'apples');
             const bags = bounds.filter(b => b.type === 'bags');
 
-            expect(apples[0].x).toBe(0);
-            expect(bags[0].x).toBe(0);
+            // 4 apples: total width = 140px, should start at -70
+            expect(apples[0].x).toBe(-70);
+
+            // 2 bags: total width = 68px, should start at -34
+            expect(bags[0].x).toBe(-34);
+
+            // Check that rows are centered (average center should be close to 0)
+            // Note: X is left edge, so add half icon width to get center
+            const iconHalfWidth = 32 / 2;
+            const appleAvgCenter = apples.reduce((sum, a) => sum + (a.x + iconHalfWidth), 0) / apples.length;
+            const bagAvgCenter = bags.reduce((sum, b) => sum + (b.x + iconHalfWidth), 0) / bags.length;
+
+            expect(Math.abs(appleAvgCenter)).toBeLessThan(1); // Close to 0
+            expect(Math.abs(bagAvgCenter)).toBeLessThan(1);   // Close to 0
         });
     });
 
