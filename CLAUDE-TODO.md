@@ -195,7 +195,7 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - [ ] Create `renderObjectCountingNumeral()` method in game.js
 - [ ] Implement place value decomposition (extract 1s, 10s, 100s, 1000s digits)
 - [ ] Create vertical stacking layout for each place value column
-- [ ] Add proper spacing between place value columns (left to right: 1000s, 100s, 10s, 1s)
+- [x] Add proper spacing between place value columns (left to right: 1000s, 100s, 10s, 1s) (v1.0.16)
 - [ ] Ensure objects are properly sized and aligned for readability
 
 #### Phase 17.2: Configuration Integration  

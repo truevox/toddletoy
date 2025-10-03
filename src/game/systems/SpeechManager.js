@@ -68,7 +68,18 @@ export class SpeechManager {
             textsToSpeak = [];
             this.currentLanguageCodes = []; // Store corresponding language codes
             enabledLanguages.forEach(lang => {
-                const text = data[lang.code] || data.en; // Fallback to English if translation missing
+                let text;
+
+                // For numbers with colors, combine color + number word
+                if (data.color && data.value !== undefined) {
+                    const colorWord = data.color[lang.code] || data.color.en || data.color.value;
+                    const numberWord = data[lang.code] || String(data.value);
+                    text = `${colorWord} ${numberWord}`;
+                } else {
+                    // For numbers without colors, just use the value or language-specific text
+                    text = data.value !== undefined ? String(data.value) : (data[lang.code] || data.en);
+                }
+
                 if (text) {
                     textsToSpeak.push(text);
                     this.currentLanguageCodes.push(lang.code);
@@ -78,7 +89,18 @@ export class SpeechManager {
             console.log('🗣️ Speech debug - language codes:', this.currentLanguageCodes);
         } else {
             // Use specific language
-            const text = data[language] || data.en;
+            let text;
+
+            // For numbers with colors, combine color + number word
+            if (data.color && data.value !== undefined) {
+                const colorWord = data.color[language] || data.color.en || data.color.value;
+                const numberWord = data[language] || String(data.value);
+                text = `${colorWord} ${numberWord}`;
+            } else {
+                // For numbers without colors, just use the value or language-specific text
+                text = data.value !== undefined ? String(data.value) : (data[language] || data.en);
+            }
+
             textsToSpeak = [text];
             this.currentLanguageCodes = [language];
         }

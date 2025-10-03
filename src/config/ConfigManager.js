@@ -68,7 +68,7 @@ export class ConfigManager {
                     cistercian: true,
                     kaktovik: true,
                     binary: true,
-                    objectCounting: false,
+                    objectCounting: true,
                     onlyApples: true
                 },
                 autoCleanup: {
@@ -109,28 +109,22 @@ export class ConfigManager {
      * Check if running in development mode
      */
     isDevelopmentMode() {
-        return window.location.hostname === 'localhost' || 
+        return window.location.hostname === 'localhost' ||
                window.location.hostname === '127.0.0.1' ||
                window.location.port === '4000' ||
-               window.location.port === '4001';
+               window.location.port === '4001' ||
+               window.location.port === '4002';
     }
 
     /**
      * Check if this is a force refresh (Ctrl+F5, Cmd+Shift+R)
+     * IMPORTANT: This should ONLY return true for actual hard refreshes, not normal navigation
      */
     isForceRefresh() {
-        // Check for cache-busting URL parameter
+        // Only check for explicit cache-busting URL parameters
+        // DO NOT use performance.navigation.type as it triggers on normal page loads
         const urlParams = new URLSearchParams(window.location.search);
-        if (urlParams.has('fresh') || urlParams.has('nocache')) {
-            return true;
-        }
-        
-        // Check for performance navigation type indicating force refresh
-        if (performance.navigation && performance.navigation.type === 1) {
-            return true;
-        }
-        
-        return false;
+        return urlParams.has('fresh') || urlParams.has('nocache');
     }
 
     /**
@@ -262,8 +256,13 @@ export class ConfigManager {
         if (config.speech) {
             if (config.speech.volume < 0) config.speech.volume = 0;
             if (config.speech.volume > 100) config.speech.volume = 100;
-            if (config.speech.rate < 0.25) config.speech.rate = 0.25;
-            if (config.speech.rate > 2.0) config.speech.rate = 2.0;
+            // Handle NaN or invalid rate values - default to 1.0 (normal speed)
+            if (isNaN(config.speech.rate) || config.speech.rate == null) {
+                config.speech.rate = 1.0;
+            } else {
+                if (config.speech.rate < 0.25) config.speech.rate = 0.25;
+                if (config.speech.rate > 2.0) config.speech.rate = 2.0;
+            }
         }
 
         return { config, errors, warnings };

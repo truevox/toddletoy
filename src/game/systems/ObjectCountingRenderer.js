@@ -30,19 +30,30 @@ export class ObjectCountingRenderer {
 
         // Decompose number into place values
         const placeValues = this.decomposePlaceValues(number);
-        
-        // Calculate total width needed for all columns
-        const layout = this.calculateColumnLayout(placeValues, x);
-        const components = [];
 
-        layout.columns.forEach(column => {
-            const columnComponents = this.renderPlaceValueColumn(
-                column.place,
-                column.count,
-                column.centerX,
-                y
-            );
-            components.push(...columnComponents);
+        // VERTICAL STACKING: Stack all place values vertically in a single column
+        // Order from top to bottom: thousands, hundreds, tens, ones
+        const components = [];
+        let currentY = y; // Start at the given Y position
+
+        // Stack from highest to lowest place value
+        const places = ['thousands', 'hundreds', 'tens', 'ones'];
+
+        places.forEach(place => {
+            const count = placeValues[place];
+            if (count > 0) {
+                const placeComponents = this.renderPlaceValueStack(
+                    place,
+                    count,
+                    x, // Center X for all place values
+                    currentY
+                );
+                components.push(...placeComponents);
+
+                // Move Y downward for next place value
+                const stackHeight = this.calculatePlaceStackHeight(place, count);
+                currentY += stackHeight + this.spacing.vertical; // Add spacing between place values
+            }
         });
 
         return components;
@@ -57,87 +68,103 @@ export class ObjectCountingRenderer {
         };
     }
 
-    calculateTotalWidth(placeValues) {
-        let totalWidth = 0;
-        const places = ['thousands', 'hundreds', 'tens', 'ones'];
-        let hasContent = false;
-        
-        places.forEach((place, index) => {
-            const count = placeValues[place];
-            if (count > 0) {
-                if (hasContent) {
-                    totalWidth += this.spacing.horizontal;
-                }
-                totalWidth += this.getColumnWidth(place, count);
-                hasContent = true;
-            }
-        });
-        
-        return totalWidth;
-    }
-
-    calculateColumnLayout(placeValues, centerX) {
-        const totalWidth = this.calculateTotalWidth(placeValues);
-        const startX = centerX - (totalWidth / 2);
-        const activePlaces = ['thousands', 'hundreds', 'tens', 'ones']
-            .filter(place => placeValues[place] > 0);
-        const columns = [];
-        let currentX = startX;
-
-        activePlaces.forEach((place, index) => {
-            const count = placeValues[place];
-            const columnWidth = this.getColumnWidth(place, count);
-            const columnCenterX = currentX + (columnWidth / 2);
-
-            columns.push({
-                place,
-                count,
-                centerX: columnCenterX,
-                width: columnWidth
-            });
-
-            currentX += columnWidth;
-            if (index < activePlaces.length - 1) {
-                currentX += this.spacing.horizontal;
-            }
-        });
-
-        return {
-            totalWidth,
-            startX,
-            columns
-        };
-    }
-
-    getColumnWidth(place, count) {
-        if (place === 'ones') {
-            // Use smart stacking layout for ones (apples)
-            const layout = this.calculateOptimalStackingLayout(count);
-            return layout.columns * this.emojiSize;
-        } else {
-            // Single column for higher place values
-            return this.emojiSize;
-        }
-    }
-
-    renderPlaceValueColumn(place, count, x, y) {
+    /**
+     * Render a vertical stack for a specific place value
+     * All items are centered at the given X coordinate
+     */
+    renderPlaceValueStack(place, count, centerX, startY) {
         const emoji = this.placeValueEmojis[place];
         const components = [];
-        
+
         if (place === 'ones') {
-            // Use smart stacking for apples with interactivity
-            const stackedComponents = this.renderStackedApples(count, x, y);
-            
+            // Apples use square grid layout
+            const gridLayout = this.calculateSquareGridLayout(count);
+            const gridComponents = this.renderGridApples(count, centerX, startY, gridLayout);
+
             // Make apples interactive for educational counting
-            this.makeApplesInteractive(stackedComponents, count);
-            
-            components.push(...stackedComponents);
+            this.makeApplesInteractive(gridComponents, count);
+
+            components.push(...gridComponents);
         } else {
-            // Simple vertical stack for higher place values
-            const stackComponents = this.renderSimpleVerticalStack(emoji, count, x, y);
-            components.push(...stackComponents);
+            // Higher place values: simple vertical stack (single column)
+            for (let i = 0; i < count; i++) {
+                const itemY = startY + (i * this.spacing.vertical);
+
+                const item = this.scene.add.text(centerX, itemY, emoji, {
+                    fontSize: `${this.emojiSize}px`,
+                    fontFamily: 'Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif'
+                }).setOrigin(0.5, 0.5);
+
+                components.push(item);
+            }
         }
-        
+
+        return components;
+    }
+
+    /**
+     * Calculate the height of a place value stack
+     */
+    calculatePlaceStackHeight(place, count) {
+        if (count === 0) return 0;
+        if (count === 1) return this.emojiSize; // Single item: just emoji size
+
+        if (place === 'ones') {
+            const gridLayout = this.calculateSquareGridLayout(count);
+            return gridLayout.rows * this.spacing.vertical;
+        } else {
+            // Simple stack: count * vertical spacing
+            return count * this.spacing.vertical;
+        }
+    }
+
+    /**
+     * Calculate square grid layout for apples
+     * Makes the grid as square as possible
+     */
+    calculateSquareGridLayout(count) {
+        if (count === 0) return { rows: 0, columns: 0 };
+        if (count === 1) return { rows: 1, columns: 1 };
+
+        // Find the most square-like arrangement
+        const sqrt = Math.sqrt(count);
+        const columns = Math.ceil(sqrt);
+        const rows = Math.ceil(count / columns);
+
+        return { rows, columns };
+    }
+
+    /**
+     * Render apples in a square grid pattern
+     */
+    renderGridApples(count, centerX, centerY, gridLayout) {
+        const components = [];
+
+        // Calculate grid dimensions
+        const gridWidth = gridLayout.columns * this.emojiSize;
+        const gridHeight = gridLayout.rows * this.spacing.vertical;
+        const startX = centerX - (gridWidth / 2) + (this.emojiSize / 2);
+        const startY = centerY;
+
+        let appleIndex = 0;
+
+        // Fill the grid
+        for (let row = 0; row < gridLayout.rows && appleIndex < count; row++) {
+            for (let col = 0; col < gridLayout.columns && appleIndex < count; col++) {
+                const x = startX + (col * this.emojiSize);
+                const y = startY + (row * this.spacing.vertical);
+
+                const apple = this.scene.add.text(x, y, '🍎', {
+                    fontSize: `${this.emojiSize}px`,
+                    fontFamily: 'Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif'
+                }).setOrigin(0.5, 0.5);
+
+                components.push(apple);
+                appleIndex++;
+            }
+        }
+
+        console.log(`🍎 Rendered ${count} apples in ${gridLayout.rows}x${gridLayout.columns} square grid`);
         return components;
     }
 
@@ -323,7 +350,7 @@ export class ObjectCountingRenderer {
 
     /**
      * Calculate the total vertical height of object counting display for a given number
-     * Returns the maximum height needed to accommodate all place value columns
+     * Now calculates the TOTAL stacked height of all place values vertically
      */
     calculateTotalHeight(number) {
         if (number === 0 || number < 0) return 0;
@@ -333,7 +360,26 @@ export class ObjectCountingRenderer {
         }
 
         const placeValues = this.decomposePlaceValues(number);
-        return this.getMaxColumnHeight(placeValues);
+
+        // Sum up all place value heights (they stack vertically now)
+        let totalHeight = 0;
+        const places = ['thousands', 'hundreds', 'tens', 'ones'];
+        let addedPlaces = 0;
+
+        places.forEach(place => {
+            const count = placeValues[place];
+            if (count > 0) {
+                totalHeight += this.calculatePlaceStackHeight(place, count);
+                addedPlaces++;
+            }
+        });
+
+        // Add spacing between place values
+        if (addedPlaces > 1) {
+            totalHeight += (addedPlaces - 1) * this.spacing.vertical;
+        }
+
+        return totalHeight;
     }
 
     /**
@@ -351,52 +397,37 @@ export class ObjectCountingRenderer {
     }
 
     /**
-     * Find the maximum height among all place value columns
-     * This determines the overall vertical extent of the object counting display
+     * DEPRECATED: This method is kept for backward compatibility with tests
+     * Now returns the same as calculateTotalHeight since we stack vertically
      */
     getMaxColumnHeight(placeValues) {
-        let maxHeight = 0;
+        // Calculate total stacked height
+        let totalHeight = 0;
         const places = ['thousands', 'hundreds', 'tens', 'ones'];
+        let addedPlaces = 0;
 
         places.forEach(place => {
             const count = placeValues[place];
             if (count > 0) {
-                const columnHeight = this.calculateColumnHeight(place, count);
-                if (columnHeight > maxHeight) {
-                    maxHeight = columnHeight;
-                }
+                totalHeight += this.calculatePlaceStackHeight(place, count);
+                addedPlaces++;
             }
         });
 
-        return maxHeight;
+        // Add spacing between place values
+        if (addedPlaces > 1) {
+            totalHeight += (addedPlaces - 1) * this.spacing.vertical;
+        }
+
+        return totalHeight;
     }
 
     /**
-     * Calculate the height of a single place value column
+     * DEPRECATED: This method is kept for backward compatibility with tests
+     * Now just calls calculatePlaceStackHeight
      */
     calculateColumnHeight(place, count) {
-        if (count === 0) return 0;
-
-        if (place === 'ones') {
-            // Apples use smart stacking layout
-            const layout = this.calculateOptimalStackingLayout(count);
-            if (layout.rows === 1) {
-                // Single row: just the emoji size
-                return this.emojiSize;
-            } else {
-                // Multiple rows: rows * vertical spacing
-                return layout.rows * this.spacing.vertical;
-            }
-        } else {
-            // Higher place values use simple vertical stacking
-            if (count === 1) {
-                // Single item: just the emoji size
-                return this.emojiSize;
-            } else {
-                // Multiple items: count * vertical spacing
-                return count * this.spacing.vertical;
-            }
-        }
+        return this.calculatePlaceStackHeight(place, count);
     }
 
     destroy() {

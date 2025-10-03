@@ -34,64 +34,79 @@ describe('ObjectCountingRenderer - Height Calculation', () => {
 
     describe('calculateTotalHeight()', () => {
         test('calculates height for single digit (1-5 apples)', () => {
-            // Single row of apples: 1 row * emojiSize
+            // Square grid layout
             const height1 = renderer.calculateTotalHeight(1);
             const height5 = renderer.calculateTotalHeight(5);
 
-            // Single row: emojiSize (32px)
+            // 1 apple: 1x1 grid = 1 row (single item, no spacing calc) = 32px
             expect(height1).toBe(32);
-            expect(height5).toBe(32);
+            // 5 apples: 3x2 grid = 2 rows * 36px = 72px
+            expect(height5).toBe(72);
         });
 
-        test('calculates height for ten-frame layout (6-9 apples)', () => {
-            // Ten-frame: 2 rows of 5 apples (6-9 apples render in ten-frame pattern)
-            // Height = 2 rows * spacing (36px per row)
+        test('calculates height for square grid layout (6-9 apples)', () => {
+            // Square grid: 6 apples = 3x2 grid, 9 apples = 3x3 grid
             const height6 = renderer.calculateTotalHeight(6);
             const height9 = renderer.calculateTotalHeight(9);
 
-            // 2 rows with 36px vertical spacing = 72px
+            // 6 apples: 3x2 grid = 2 rows * 36px = 72px
             expect(height6).toBe(72);
-            expect(height9).toBe(72);
+            // 9 apples: 3x3 grid = 3 rows * 36px = 108px
+            expect(height9).toBe(108);
         });
 
         test('calculates height for two-digit numbers with tens place', () => {
-            // Example: 23 = 2 shopping bags + 3 apples
-            // Shopping bags: 2 * 36px spacing = 72px
-            // Need to account for tallest column
+            // Example: 23 = 2 shopping bags + 3 apples STACKED VERTICALLY
+            // 2 bags: 2 * 36px = 72px
+            // Spacing between place values: 36px
+            // 3 apples: 2x2 grid = 2 rows * 36px = 72px
             const height23 = renderer.calculateTotalHeight(23);
 
-            // 2 bags vertically: 2 * 36px = 72px
-            // 3 apples single row: 32px
-            // Max height = 72px
-            expect(height23).toBe(72);
+            // Total stacked: 72px (bags) + 36px (spacing) + 72px (apples) = 180px
+            expect(height23).toBe(180);
         });
 
         test('calculates height for three-digit numbers with hundreds place', () => {
-            // Example: 234 = 2 boxes + 3 bags + 4 apples
-            // Boxes: 2 * 36px = 72px
+            // Example: 234 = 2 boxes + 3 bags + 4 apples STACKED VERTICALLY
+            // 2 boxes: 2 * 36px = 72px
+            // Spacing: 36px
+            // 3 bags: 3 * 36px = 108px
+            // Spacing: 36px
+            // 4 apples: 2x2 grid = 2 rows * 36px = 72px
             const height234 = renderer.calculateTotalHeight(234);
 
-            // Max stack of 4 apples (single row) = 32px
-            // But we also have 3 bags = 108px and 2 boxes = 72px
-            // Tallest column determines height
-            expect(height234).toBeGreaterThanOrEqual(72);
+            // Total: 72 + 36 + 108 + 36 + 72 = 324px
+            expect(height234).toBe(324);
         });
 
         test('calculates height for four-digit numbers with thousands place', () => {
-            // Example: 4425 from screenshot
-            // 4 trucks, 4 hundreds, 2 tens, 5 ones
+            // Example: 4425 STACKED VERTICALLY
+            // 4 trucks: 4 * 36px = 144px
+            // Spacing: 36px
+            // 4 boxes: 4 * 36px = 144px
+            // Spacing: 36px
+            // 2 bags: 2 * 36px = 72px
+            // Spacing: 36px
+            // 5 apples: 3x2 grid = 2 rows * 36px = 72px
             const height4425 = renderer.calculateTotalHeight(4425);
 
-            // 4 trucks: 4 * 36px = 144px
-            expect(height4425).toBe(144);
+            // Total: 144 + 36 + 144 + 36 + 72 + 36 + 72 = 540px
+            expect(height4425).toBe(540);
         });
 
         test('calculates height for large stack (9 of a kind)', () => {
-            // 9999 = 9 trucks + 9 boxes + 9 bags + 9 apples
+            // 9999 = 9 trucks + 9 boxes + 9 bags + 9 apples STACKED VERTICALLY
+            // 9 trucks: 9 * 36px = 324px
+            // Spacing: 36px
+            // 9 boxes: 9 * 36px = 324px
+            // Spacing: 36px
+            // 9 bags: 9 * 36px = 324px
+            // Spacing: 36px
+            // 9 apples: 3x3 grid = 3 rows * 36px = 108px
             const height9999 = renderer.calculateTotalHeight(9999);
 
-            // 9 trucks stacked: 9 * 36px = 324px
-            expect(height9999).toBe(324);
+            // Total: 324 + 36 + 324 + 36 + 324 + 36 + 108 = 1188px
+            expect(height9999).toBe(1188);
         });
 
         test('handles edge case: zero', () => {
@@ -125,15 +140,18 @@ describe('ObjectCountingRenderer - Height Calculation', () => {
         });
 
         test('returns height for complex multi-column layouts', () => {
-            // Real example from screenshot: 4239
+            // Real example from screenshot: 4239 STACKED VERTICALLY
+            // 4 trucks: 4 * 36 = 144px
+            // Spacing: 36px
+            // 2 boxes: 2 * 36 = 72px
+            // Spacing: 36px
+            // 3 bags: 3 * 36 = 108px
+            // Spacing: 36px
+            // 9 apples: 3x3 grid = 3 rows * 36 = 108px
             const height4239 = renderer.calculateTotalHeight(4239);
 
-            // 4 trucks: 4 * 36 = 144px
-            // 2 hundreds: 2 * 36 = 72px
-            // 3 tens: 3 * 36 = 108px
-            // 9 ones: double ten-frame = 4 rows * 36 = 144px
-            // Max height = 144px (trucks or ones)
-            expect(height4239).toBe(144);
+            // Total: 144 + 36 + 72 + 36 + 108 + 36 + 108 = 540px
+            expect(height4239).toBe(540);
         });
     });
 
@@ -157,40 +175,40 @@ describe('ObjectCountingRenderer - Height Calculation', () => {
     });
 
     describe('getMaxColumnHeight()', () => {
-        test('finds tallest column in multi-place value layout', () => {
-            // Test with 4425: 4 thousands, 4 hundreds, 2 tens, 5 ones
+        test('finds total stacked height in multi-place value layout', () => {
+            // Test with 4425: 4 thousands, 4 hundreds, 2 tens, 5 ones (ALL STACKED VERTICALLY)
             const placeValues = renderer.decomposePlaceValues(4425);
-            const maxHeight = renderer.getMaxColumnHeight(placeValues);
+            const totalHeight = renderer.getMaxColumnHeight(placeValues);
 
-            // 4 trucks = 144px or 4 boxes = 144px (both same)
-            expect(maxHeight).toBe(144);
+            // Total stacked height: 144 + 36 + 144 + 36 + 72 + 36 + 72 = 540px
+            expect(totalHeight).toBe(540);
         });
 
         test('handles single column correctly', () => {
             const placeValues = renderer.decomposePlaceValues(5);
-            const maxHeight = renderer.getMaxColumnHeight(placeValues);
+            const totalHeight = renderer.getMaxColumnHeight(placeValues);
 
-            // 5 apples single row = 32px
-            expect(maxHeight).toBe(32);
+            // 5 apples: 3x2 square grid = 2 rows * 36px = 72px
+            expect(totalHeight).toBe(72);
         });
 
-        test('accounts for ten-frame layout in ones place', () => {
+        test('accounts for square grid layout in ones place', () => {
             const placeValues = renderer.decomposePlaceValues(9);
-            const maxHeight = renderer.getMaxColumnHeight(placeValues);
+            const totalHeight = renderer.getMaxColumnHeight(placeValues);
 
-            // 9 apples: ten-frame (2 rows) = 72px
-            expect(maxHeight).toBe(72);
+            // 9 apples: 3x3 square grid = 3 rows * 36px = 108px
+            expect(totalHeight).toBe(108);
         });
     });
 
     describe('Integration with existing layout methods', () => {
         test('height calculation provides correct dimensions for layout planning', () => {
-            // Test multiple numbers to verify height calculation
+            // Test multiple numbers to verify height calculation (VERTICAL STACKING)
             const testCases = [
-                { number: 5, expectedHeight: 32 },   // 5 apples, single row
-                { number: 9, expectedHeight: 72 },   // 9 apples, ten-frame (2 rows)
-                { number: 23, expectedHeight: 72 },  // 2 bags (72px), 3 apples (32px), max=72
-                { number: 456, expectedHeight: 180 } // 4 hundreds (144px), 5 tens (180px), 6 ones (72px), max=180
+                { number: 5, expectedHeight: 72 },    // 5 apples: 3x2 grid = 2 rows * 36 = 72px
+                { number: 9, expectedHeight: 108 },   // 9 apples: 3x3 grid = 3 rows * 36 = 108px
+                { number: 23, expectedHeight: 180 },  // 2 bags (72) + spacing (36) + 3 apples (72) = 180
+                { number: 456, expectedHeight: 468 } // 4 boxes (144) + sp (36) + 5 bags (180) + sp (36) + 6 apples (72) = 468
             ];
 
             testCases.forEach(({ number, expectedHeight }) => {
@@ -200,13 +218,13 @@ describe('ObjectCountingRenderer - Height Calculation', () => {
         });
 
         test('calculateTotalHeightWithPadding provides safe buffer for layout', () => {
-            const number = 456; // 4 hundreds, 5 tens (180px is tallest), 6 ones
+            const number = 456; // STACKED: 4 boxes + 5 bags + 6 apples
             const baseHeight = renderer.calculateTotalHeight(number);
             const paddedHeight = renderer.calculateTotalHeightWithPadding(number);
 
             // Padded height should be 40px more than base (20px top + 20px bottom)
             expect(paddedHeight).toBe(baseHeight + 40);
-            expect(paddedHeight).toBe(220); // 180 + 40
+            expect(paddedHeight).toBe(508); // 468 + 40
         });
     });
 });
