@@ -10,6 +10,18 @@ export class ConfigScreen {
         this.isVisible = false;
         this.configBeforeReset = null; // Store config before reset for undo
         this.isUndoMode = false; // Track if button is in undo mode
+        this.deferredPrompt = null; // Store beforeinstallprompt event for PWA installation
+
+        // Listen for PWA install prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            this.deferredPrompt = e;
+            console.log('beforeinstallprompt event captured');
+            // Update UI to show install button if config screen is already created
+            if (this.container) {
+                this.updateInstallButtonVisibility();
+            }
+        });
 
         this.createUI();
         this.loadCurrentConfig();
@@ -43,6 +55,7 @@ export class ConfigScreen {
                 </header>
 
                 <main class="config-main">
+                    ${this.createParentGuidanceSection()}
                     ${this.createContentTypesSection()}
                     ${this.createEmojiCategoriesSection()}
                     ${this.createLanguageSection()}
@@ -51,19 +64,15 @@ export class ConfigScreen {
 
                 <footer class="config-footer">
                     <div class="usage-guidance">
-                        <h3 class="guidance-title">👨‍👩‍👧 Using ToddleToy with Your Child</h3>
+                        <h3 class="guidance-title">👨‍👩‍👧 Tips for Playing Together</h3>
                         <div class="guidance-content">
                             <p class="guidance-text">
                                 <strong>ToddleToy works best when an adult supervises and plays along!</strong>
                                 Encourage your child to explore, ask questions, and discover new words together.
                             </p>
                             <p class="guidance-note">
-                                ⚠️ <strong>Note:</strong> The free web version allows easy navigation back to this config screen.
-                                Toddlers may accidentally tap the browser back button. We recommend staying nearby to help if needed.
-                            </p>
-                            <p class="guidance-premium">
-                                🚀 <strong>Coming Soon:</strong> Premium version with full-screen toy mode, enhanced parental controls,
-                                and offline play without browser navigation!
+                                💡 <strong>Tip:</strong> For the safest experience, see the "Getting Started" section above
+                                to install ToddleToy as an app and set up child safety features.
                             </p>
                         </div>
                     </div>
@@ -91,6 +100,229 @@ export class ConfigScreen {
         // Append to body (initially hidden)
         this.container.style.display = 'none';
         document.body.appendChild(this.container);
+    }
+
+    /**
+     * Create parent guidance section for PWA installation and safety
+     */
+    createParentGuidanceSection() {
+        const isPWAInstalled = this.detectPWAInstalled();
+        const platform = this.detectPlatform();
+
+        return `
+            <section class="parent-guidance-banner">
+                <h2 class="guidance-banner-title">🚀 Getting Started with ToddleToy</h2>
+                <p class="guidance-banner-subtitle">Follow these steps for the safest and best play experience</p>
+
+                <div class="guidance-cards">
+                    ${this.createInstallCard(isPWAInstalled)}
+                    ${this.createBookmarkCard()}
+                    ${this.createAppPinningCard(platform)}
+                </div>
+            </section>
+        `;
+    }
+
+    /**
+     * Create PWA installation card
+     */
+    createInstallCard(isPWAInstalled) {
+        if (isPWAInstalled) {
+            return `
+                <div class="guidance-card install-card installed">
+                    <div class="card-icon">✅</div>
+                    <h3 class="card-title">App Installed!</h3>
+                    <p class="card-content">
+                        Great! ToddleToy is installed as an app. Your child can now play without accidentally
+                        leaving the app. For even more safety, check out the "Keep Your Child Safe" section below.
+                    </p>
+                </div>
+            `;
+        }
+
+        // Check if we have the install prompt available
+        const hasInstallPrompt = this.deferredPrompt !== null;
+
+        return `
+            <div class="guidance-card install-card">
+                <div class="card-icon">🚀</div>
+                <h3 class="card-title">Best Experience: Install as App</h3>
+                <p class="card-content">
+                    Install ToddleToy like a regular app on your device for the safest experience:
+                </p>
+                <ul class="card-list">
+                    <li>✅ <strong>Prevents accidental exits</strong> - No browser buttons to worry about</li>
+                    <li>✅ <strong>Works offline</strong> - Play anywhere, anytime</li>
+                    <li>✅ <strong>Faster loading</strong> - Opens instantly like any other app</li>
+                    <li>✅ <strong>Full screen play</strong> - More space for your child to explore</li>
+                </ul>
+                ${hasInstallPrompt ?
+                    `<button class="install-app-button" id="install-pwa-btn">
+                        <span class="button-icon">📱</span>
+                        Install ToddleToy Now
+                    </button>` :
+                    this.getManualInstallInstructions()
+                }
+            </div>
+        `;
+    }
+
+    /**
+     * Get manual installation instructions based on platform
+     */
+    getManualInstallInstructions() {
+        const platform = this.detectPlatform();
+
+        if (platform === 'ios') {
+            return `
+                <div class="manual-install-instructions">
+                    <p><strong>To install on iPhone/iPad:</strong></p>
+                    <ol>
+                        <li>Tap the Share button <span class="ios-icon">⎙</span></li>
+                        <li>Scroll down and tap "Add to Home Screen"</li>
+                        <li>Tap "Add" in the top right corner</li>
+                    </ol>
+                </div>
+            `;
+        } else if (platform === 'android') {
+            return `
+                <div class="manual-install-instructions">
+                    <p><strong>To install on Android:</strong></p>
+                    <ol>
+                        <li>Tap the menu button (⋮) in your browser</li>
+                        <li>Tap "Install app" or "Add to Home screen"</li>
+                        <li>Tap "Install" to confirm</li>
+                    </ol>
+                </div>
+            `;
+        } else {
+            return `
+                <div class="manual-install-instructions">
+                    <p><strong>To install on desktop:</strong></p>
+                    <ol>
+                        <li>Look for the install icon in your browser's address bar</li>
+                        <li>Or use your browser's menu: "Install ToddleToy..." or "Install app"</li>
+                        <li>Click "Install" to confirm</li>
+                    </ol>
+                </div>
+            `;
+        }
+    }
+
+    /**
+     * Create bookmark instructions card
+     */
+    createBookmarkCard() {
+        const platform = this.detectPlatform();
+        let bookmarkInstructions = '';
+
+        if (platform === 'ios') {
+            bookmarkInstructions = 'Tap <span class="ios-icon">⎙</span> Share → "Add Bookmark"';
+        } else if (platform === 'android') {
+            bookmarkInstructions = 'Tap ⋮ Menu → "Add bookmark" or ⭐ Star icon';
+        } else if (platform === 'mac') {
+            bookmarkInstructions = 'Press <kbd>⌘ Cmd</kbd> + <kbd>D</kbd>';
+        } else {
+            bookmarkInstructions = 'Press <kbd>Ctrl</kbd> + <kbd>D</kbd>';
+        }
+
+        return `
+            <div class="guidance-card bookmark-card">
+                <div class="card-icon">📌</div>
+                <h3 class="card-title">Can't Install? Bookmark This Page</h3>
+                <p class="card-content">
+                    If you're not ready to install right now, save this settings page as a bookmark
+                    so you can easily come back and adjust ToddleToy's settings later.
+                </p>
+                <div class="bookmark-instructions">
+                    <strong>Quick shortcut:</strong> ${bookmarkInstructions}
+                </div>
+                <p class="card-note">
+                    💡 Having this page bookmarked means you can quickly get back to settings if
+                    your child accidentally leaves the play screen.
+                </p>
+            </div>
+        `;
+    }
+
+    /**
+     * Create app pinning/guided access card
+     */
+    createAppPinningCard(platform) {
+        let instructions = '';
+        let documentationLink = '';
+
+        if (platform === 'ios') {
+            instructions = `
+                <h4>🔒 Enable Guided Access</h4>
+                <p>Guided Access locks your iPhone/iPad to a single app and lets you control which features are available:</p>
+                <ol>
+                    <li>Go to <strong>Settings</strong> → <strong>Accessibility</strong> → <strong>Guided Access</strong></li>
+                    <li>Turn on <strong>Guided Access</strong></li>
+                    <li>Set a <strong>Passcode</strong> (important: this is how you exit!)</li>
+                    <li>Open ToddleToy and <strong>triple-click the side button</strong></li>
+                    <li>Tap <strong>Start</strong> to begin Guided Access</li>
+                </ol>
+                <p class="exit-note">To exit: <strong>Triple-click the side button</strong> and enter your passcode</p>
+            `;
+            documentationLink = 'https://support.apple.com/en-us/HT202612';
+        } else if (platform === 'android') {
+            instructions = `
+                <h4>📌 Enable Screen Pinning</h4>
+                <p>Screen Pinning keeps ToddleToy in full view and prevents your child from leaving the app:</p>
+                <ol>
+                    <li>Go to <strong>Settings</strong> → <strong>Security</strong> → <strong>Advanced</strong></li>
+                    <li>Turn on <strong>Screen Pinning</strong></li>
+                    <li>Enable "Ask for PIN before unpinning" for extra security</li>
+                    <li>Open ToddleToy, then tap the <strong>Recent Apps</strong> button (□)</li>
+                    <li>Tap the <strong>app icon</strong> at the top and select <strong>Pin</strong></li>
+                </ol>
+                <p class="exit-note">To exit: <strong>Hold Back + Overview buttons</strong> (or swipe up and hold on gesture navigation)</p>
+            `;
+            documentationLink = 'https://support.google.com/android/answer/9455138';
+        } else {
+            instructions = `
+                <h4>🖥️ Full Screen Mode</h4>
+                <p>Use your browser's full screen mode to maximize play space:</p>
+                <ul>
+                    <li><strong>Windows:</strong> Press <kbd>F11</kbd> to enter full screen</li>
+                    <li><strong>Mac:</strong> Press <kbd>⌘ Cmd</kbd> + <kbd>Ctrl</kbd> + <kbd>F</kbd></li>
+                    <li><strong>Chrome:</strong> Click ⋮ menu → "Full screen"</li>
+                </ul>
+                <p class="card-note">
+                    💡 For maximum safety, we recommend installing ToddleToy as an app on a mobile device
+                    and using Guided Access (iOS) or Screen Pinning (Android).
+                </p>
+            `;
+            documentationLink = '';
+        }
+
+        return `
+            <div class="guidance-card app-pinning-card">
+                <div class="card-icon">🔒</div>
+                <h3 class="card-title">Keep Your Child Safe in the App</h3>
+                <p class="card-content">
+                    Use your device's built-in safety features to lock ToddleToy in place, preventing
+                    your child from accidentally leaving the app or accessing other apps.
+                </p>
+                <details class="app-pinning-details">
+                    <summary class="details-summary">
+                        📖 Show ${platform === 'ios' ? 'Guided Access' : platform === 'android' ? 'Screen Pinning' : 'Full Screen'} Instructions
+                    </summary>
+                    <div class="details-content">
+                        ${instructions}
+                        ${documentationLink ?
+                            `<a href="${documentationLink}" target="_blank" rel="noopener noreferrer" class="official-docs-link">
+                                📚 View Official ${platform === 'ios' ? 'Apple' : 'Google'} Documentation →
+                            </a>` : ''
+                        }
+                    </div>
+                </details>
+                <p class="card-emphasis">
+                    ⭐ <strong>Pro Tip:</strong> This works best when ToddleToy is installed as an app!
+                </p>
+            </div>
+        `;
     }
 
     /**
@@ -554,11 +786,32 @@ export class ConfigScreen {
      */
     getDefaultHours(code) {
         const hours = {
-            'eo': '150-200h', 'id': '900h', 'es': '600-750h', 'pt': '600-750h', 
+            'eo': '150-200h', 'id': '900h', 'es': '600-750h', 'pt': '600-750h',
             'fr': '600-750h', 'en': '700-900h', 'jbo': '1000h±', 'ru': '1100h',
             'bn': '1100h', 'hi': '1100h', 'tlh': '1400h±', 'ar': '2200h', 'zh': '2200h+'
         };
         return hours[code] || '700-900h'; // Default to English hours
+    }
+
+    /**
+     * Detect user's platform for platform-specific instructions
+     */
+    detectPlatform() {
+        const ua = navigator.userAgent;
+        if (/iPad|iPhone|iPod/.test(ua)) return 'ios';
+        if (/Android/.test(ua)) return 'android';
+        if (/Mac/.test(ua)) return 'mac';
+        if (/Win/.test(ua)) return 'windows';
+        return 'desktop';
+    }
+
+    /**
+     * Detect if app is installed as PWA
+     */
+    detectPWAInstalled() {
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+                           window.navigator.standalone === true;
+        return isStandalone;
     }
 
     /**
@@ -1670,6 +1923,305 @@ export class ConfigScreen {
                 background: rgba(255,255,255,0.3);
             }
 
+            /* Parent Guidance Banner Styles */
+            .parent-guidance-banner {
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+                border-radius: 20px;
+                padding: 30px;
+                margin-bottom: 30px;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+                border: 2px solid rgba(255, 255, 255, 0.3);
+            }
+
+            .guidance-banner-title {
+                font-size: 2rem;
+                margin: 0 0 10px 0;
+                color: white;
+                text-align: center;
+                font-weight: bold;
+            }
+
+            .guidance-banner-subtitle {
+                font-size: 1.1rem;
+                margin: 0 0 30px 0;
+                color: rgba(255, 255, 255, 0.9);
+                text-align: center;
+                font-style: italic;
+            }
+
+            .guidance-cards {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 20px;
+            }
+
+            .guidance-card {
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 16px;
+                padding: 25px;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+                transition: all 0.3s ease;
+                position: relative;
+                overflow: hidden;
+            }
+
+            .guidance-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            }
+
+            .guidance-card.installed {
+                background: linear-gradient(135deg, rgba(76, 175, 80, 0.2), rgba(76, 175, 80, 0.1));
+                border: 2px solid #4CAF50;
+            }
+
+            .card-icon {
+                font-size: 3rem;
+                text-align: center;
+                margin-bottom: 15px;
+                filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+            }
+
+            .card-title {
+                font-size: 1.3rem;
+                font-weight: bold;
+                margin: 0 0 15px 0;
+                color: #333;
+                text-align: center;
+            }
+
+            .card-content {
+                color: #555;
+                line-height: 1.6;
+                margin: 0 0 15px 0;
+            }
+
+            .card-list {
+                margin: 15px 0;
+                padding-left: 0;
+                list-style: none;
+            }
+
+            .card-list li {
+                margin: 10px 0;
+                padding-left: 25px;
+                position: relative;
+                color: #555;
+                line-height: 1.5;
+            }
+
+            .card-note {
+                background: rgba(33, 150, 243, 0.1);
+                border-left: 3px solid #2196F3;
+                padding: 10px 15px;
+                margin: 15px 0 0 0;
+                border-radius: 8px;
+                font-size: 0.9rem;
+                color: #555;
+                line-height: 1.5;
+            }
+
+            .card-emphasis {
+                background: rgba(255, 193, 7, 0.15);
+                border-left: 3px solid #FFC107;
+                padding: 10px 15px;
+                margin: 15px 0 0 0;
+                border-radius: 8px;
+                font-size: 0.95rem;
+                color: #555;
+                font-weight: 500;
+            }
+
+            /* Install Button */
+            .install-app-button {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 10px;
+                width: 100%;
+                background: linear-gradient(135deg, #4CAF50, #45a049);
+                color: white;
+                border: none;
+                padding: 15px 25px;
+                font-size: 1.1rem;
+                font-weight: bold;
+                border-radius: 12px;
+                cursor: pointer;
+                margin-top: 15px;
+                box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+                transition: all 0.3s ease;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+
+            .install-app-button:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+            }
+
+            .install-app-button:active {
+                transform: translateY(0);
+            }
+
+            .install-app-button .button-icon {
+                font-size: 1.5rem;
+            }
+
+            /* Manual Install Instructions */
+            .manual-install-instructions {
+                background: rgba(33, 150, 243, 0.1);
+                border-radius: 10px;
+                padding: 15px;
+                margin-top: 15px;
+            }
+
+            .manual-install-instructions p {
+                margin: 0 0 10px 0;
+                color: #333;
+                font-weight: 600;
+            }
+
+            .manual-install-instructions ol {
+                margin: 10px 0 0 0;
+                padding-left: 25px;
+                color: #555;
+            }
+
+            .manual-install-instructions li {
+                margin: 8px 0;
+                line-height: 1.6;
+            }
+
+            .ios-icon {
+                font-size: 1.2rem;
+                vertical-align: middle;
+            }
+
+            /* Bookmark Instructions */
+            .bookmark-instructions {
+                background: rgba(255, 193, 7, 0.15);
+                border-radius: 10px;
+                padding: 12px 15px;
+                margin: 15px 0;
+                text-align: center;
+                color: #333;
+            }
+
+            kbd {
+                background: #f5f5f5;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                padding: 2px 6px;
+                font-family: monospace;
+                font-size: 0.9rem;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            }
+
+            /* App Pinning Details */
+            .app-pinning-details {
+                margin: 15px 0;
+                border: 1px solid rgba(0, 0, 0, 0.1);
+                border-radius: 10px;
+                overflow: hidden;
+            }
+
+            .details-summary {
+                background: rgba(33, 150, 243, 0.1);
+                padding: 15px;
+                cursor: pointer;
+                font-weight: 600;
+                color: #333;
+                list-style: none;
+                transition: background 0.2s ease;
+                user-select: none;
+            }
+
+            .details-summary::-webkit-details-marker {
+                display: none;
+            }
+
+            .details-summary:hover {
+                background: rgba(33, 150, 243, 0.15);
+            }
+
+            .details-content {
+                padding: 20px;
+                background: rgba(255, 255, 255, 0.5);
+                color: #555;
+                line-height: 1.7;
+            }
+
+            .details-content h4 {
+                margin: 0 0 15px 0;
+                color: #333;
+                font-size: 1.1rem;
+            }
+
+            .details-content ol, .details-content ul {
+                margin: 15px 0;
+                padding-left: 25px;
+            }
+
+            .details-content li {
+                margin: 10px 0;
+            }
+
+            .details-content strong {
+                color: #333;
+                font-weight: 600;
+            }
+
+            .exit-note {
+                background: rgba(255, 152, 0, 0.1);
+                border-left: 3px solid #FF9800;
+                padding: 10px 15px;
+                margin: 15px 0;
+                border-radius: 8px;
+                font-weight: 600;
+                color: #333;
+            }
+
+            .official-docs-link {
+                display: inline-block;
+                background: linear-gradient(135deg, #2196F3, #1976D2);
+                color: white;
+                text-decoration: none;
+                padding: 10px 20px;
+                border-radius: 8px;
+                margin-top: 15px;
+                font-weight: 600;
+                transition: all 0.3s ease;
+                box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+            }
+
+            .official-docs-link:hover {
+                transform: translateX(5px);
+                box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+            }
+
+            /* Mobile Responsiveness for Guidance Cards */
+            @media (max-width: 768px) {
+                .guidance-banner-title {
+                    font-size: 1.5rem;
+                }
+
+                .guidance-banner-subtitle {
+                    font-size: 1rem;
+                }
+
+                .guidance-cards {
+                    grid-template-columns: 1fr;
+                }
+
+                .card-icon {
+                    font-size: 2.5rem;
+                }
+
+                .card-title {
+                    font-size: 1.1rem;
+                }
+            }
+
             @keyframes slideIn {
                 from {
                     transform: translateY(-20px);
@@ -1681,7 +2233,7 @@ export class ConfigScreen {
                 }
             }
         `;
-        
+
         document.head.appendChild(style);
     }
 
@@ -1706,6 +2258,12 @@ export class ConfigScreen {
             updateBtn.addEventListener('click', () => {
                 window.dispatchEvent(new CustomEvent('app-update-requested'));
             });
+        }
+
+        // PWA Install button
+        const installBtn = this.container.querySelector('#install-pwa-btn');
+        if (installBtn) {
+            installBtn.addEventListener('click', () => this.handlePWAInstall());
         }
 
         // Weight sliders - update display values
@@ -2338,5 +2896,91 @@ export class ConfigScreen {
                 notification.remove();
             }
         }, 10000);
+    }
+
+    /**
+     * Handle PWA installation when user clicks install button
+     */
+    async handlePWAInstall() {
+        if (!this.deferredPrompt) {
+            console.log('No deferred prompt available');
+            return;
+        }
+
+        const installBtn = this.container.querySelector('#install-pwa-btn');
+        if (installBtn) {
+            installBtn.disabled = true;
+            installBtn.textContent = 'Installing...';
+        }
+
+        try {
+            // Show the install prompt
+            await this.deferredPrompt.prompt();
+
+            // Wait for the user to respond
+            const { outcome } = await this.deferredPrompt.userChoice;
+            console.log(`User response to install prompt: ${outcome}`);
+
+            if (outcome === 'accepted') {
+                console.log('PWA installation accepted');
+                this.createNotification(
+                    '🎉 Installation Successful!',
+                    'ToddleToy has been installed! You can now find it with your other apps.',
+                    'success'
+                );
+
+                // Refresh the guidance section to show installed state
+                setTimeout(() => {
+                    const main = this.container.querySelector('.config-main');
+                    if (main) {
+                        const newGuidance = this.createParentGuidanceSection();
+                        const oldGuidance = main.querySelector('.parent-guidance-banner');
+                        if (oldGuidance) {
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = newGuidance;
+                            oldGuidance.replaceWith(tempDiv.firstElementChild);
+                        }
+                    }
+                }, 1000);
+            } else {
+                console.log('PWA installation declined');
+                if (installBtn) {
+                    installBtn.disabled = false;
+                    installBtn.innerHTML = '<span class="button-icon">📱</span> Install ToddleToy Now';
+                }
+            }
+
+            // Clear the deferred prompt
+            this.deferredPrompt = null;
+
+        } catch (error) {
+            console.error('Error during PWA installation:', error);
+            if (installBtn) {
+                installBtn.disabled = false;
+                installBtn.innerHTML = '<span class="button-icon">📱</span> Install ToddleToy Now';
+            }
+        }
+    }
+
+    /**
+     * Update install button visibility based on deferred prompt availability
+     */
+    updateInstallButtonVisibility() {
+        const main = this.container.querySelector('.config-main');
+        if (main) {
+            const newGuidance = this.createParentGuidanceSection();
+            const oldGuidance = main.querySelector('.parent-guidance-banner');
+            if (oldGuidance) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = newGuidance;
+                oldGuidance.replaceWith(tempDiv.firstElementChild);
+
+                // Re-attach event listener for install button
+                const installBtn = this.container.querySelector('#install-pwa-btn');
+                if (installBtn) {
+                    installBtn.addEventListener('click', () => this.handlePWAInstall());
+                }
+            }
+        }
     }
 }
