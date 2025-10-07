@@ -9,7 +9,7 @@ This file configures Claude Code to follow a structured, TDD-first workflow tail
 ## FYI
 - FYI, use CLAUDE-TODO.md as your personal todo file.
 - Use @.claude/CGEM.md to implement a sub-agent named Gemini.
-- ALWAYS BUMP THE VERSION NUMBER BEFORE YOU TELL ME SOMETHING IS FIXED OR IMPLEMENTED OR NEEDS TESTING!
+- ALWAYS BUMP THE VERSION NUMBER BEFORE YOU TELL ME SOMETHING IS FIXED OR IMPLEMENTED OR NEEDS TESTING OR BEFORE A COMMIT!
 
 ## ⚙️ Workflow & Best Practices
 

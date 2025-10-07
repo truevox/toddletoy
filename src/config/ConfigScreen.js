@@ -286,7 +286,7 @@ export class ConfigScreen {
         return `
             <section class="config-section">
                 <h2 class="section-title">What language(s)?</h2>
-                <p class="section-help">Drag languages between columns. Enabled languages will be spoken and displayed. Drag to reorder priority.</p>
+                <p class="section-help">Tap to toggle languages between columns, or drag to reorder. Enabled languages will be spoken and displayed.</p>
                 
                 <div class="language-drag-container">
                     <div class="language-column enabled-column">
@@ -573,110 +573,163 @@ export class ConfigScreen {
     }
 
     /**
-     * Make a language item draggable with mouse/touch events
+     * Make a language item draggable with mouse/touch events and tap-to-toggle
      */
     makeLanguageItemDraggable(item) {
         let isDragging = false;
+        let hasMoved = false;
         let dragOffset = { x: 0, y: 0 };
         let dragElement = null;
         let originalParent = null;
         let originalNextSibling = null;
+        let startX = 0;
+        let startY = 0;
 
         const startDrag = (e) => {
             // Prevent if clicking on text to allow selection
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
-            
+
             isDragging = true;
+            hasMoved = false;
             originalParent = item.parentNode;
             originalNextSibling = item.nextElementSibling;
-            
+
             const rect = item.getBoundingClientRect();
             const clientX = e.clientX || (e.touches && e.touches[0].clientX);
             const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-            
+
+            startX = clientX;
+            startY = clientY;
+
             dragOffset.x = clientX - rect.left;
             dragOffset.y = clientY - rect.top;
-            
-            // Create drag element
-            dragElement = item.cloneNode(true);
-            dragElement.style.cssText = `
-                position: fixed;
-                pointer-events: none;
-                z-index: 1000;
-                opacity: 0.8;
-                transform: rotate(3deg);
-                width: ${rect.width}px;
-                box-shadow: 0 8px 16px rgba(0,0,0,0.3);
-            `;
-            document.body.appendChild(dragElement);
-            
-            // Style original item
-            item.style.opacity = '0.3';
-            item.classList.add('dragging');
-            
-            // Prevent text selection
-            document.body.style.userSelect = 'none';
-            
+
+            // Don't create drag element yet - wait for movement
             e.preventDefault();
         };
 
         const drag = (e) => {
             if (!isDragging) return;
-            
+
             const clientX = e.clientX || (e.touches && e.touches[0].clientX);
             const clientY = e.clientY || (e.touches && e.touches[0].clientY);
-            
-            // Use requestAnimationFrame for smoother updates
-            requestAnimationFrame(() => {
-                if (!dragElement) return;
-                
-                // Update drag element position immediately
-                dragElement.style.left = (clientX - dragOffset.x) + 'px';
-                dragElement.style.top = (clientY - dragOffset.y) + 'px';
-                
-                // Find drop target
-                const dropTarget = this.findDropTarget(clientX, clientY, item.dataset.languageCode);
-                this.updateDropIndicator(dropTarget);
-            });
-            
+
+            // Check if moved significantly (threshold: 10px)
+            const deltaX = Math.abs(clientX - startX);
+            const deltaY = Math.abs(clientY - startY);
+
+            if (!hasMoved && (deltaX > 10 || deltaY > 10)) {
+                hasMoved = true;
+
+                // Now create drag element
+                const rect = item.getBoundingClientRect();
+                dragElement = item.cloneNode(true);
+                dragElement.style.cssText = `
+                    position: fixed;
+                    pointer-events: none;
+                    z-index: 1000;
+                    opacity: 0.8;
+                    transform: rotate(3deg);
+                    width: ${rect.width}px;
+                    box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+                `;
+                document.body.appendChild(dragElement);
+
+                // Style original item
+                item.style.opacity = '0.3';
+                item.classList.add('dragging');
+
+                // Prevent text selection
+                document.body.style.userSelect = 'none';
+            }
+
+            if (hasMoved) {
+                // Use requestAnimationFrame for smoother updates
+                requestAnimationFrame(() => {
+                    if (!dragElement) return;
+
+                    // Update drag element position immediately
+                    dragElement.style.left = (clientX - dragOffset.x) + 'px';
+                    dragElement.style.top = (clientY - dragOffset.y) + 'px';
+
+                    // Find drop target
+                    const dropTarget = this.findDropTarget(clientX, clientY, item.dataset.languageCode);
+                    this.updateDropIndicator(dropTarget);
+                });
+            }
+
             e.preventDefault();
         };
 
         const endDrag = (e) => {
             if (!isDragging) return;
-            
+
             isDragging = false;
-            
+
             const clientX = e.clientX || e.changedTouches && e.changedTouches[0].clientX;
             const clientY = e.clientY || e.changedTouches && e.changedTouches[0].clientY;
-            
+
             // Clean up
             if (dragElement) {
                 dragElement.remove();
                 dragElement = null;
             }
-            
+
             item.style.opacity = '';
             item.classList.remove('dragging');
             document.body.style.userSelect = '';
             this.clearDropIndicators();
-            
-            // Handle drop
-            const dropTarget = this.findDropTarget(clientX, clientY, item.dataset.languageCode);
-            if (dropTarget) {
-                this.handleLanguageDrop(item.dataset.languageCode, dropTarget);
+
+            if (hasMoved) {
+                // Handle drop for drag operation
+                const dropTarget = this.findDropTarget(clientX, clientY, item.dataset.languageCode);
+                if (dropTarget) {
+                    this.handleLanguageDrop(item.dataset.languageCode, dropTarget);
+                }
+            } else {
+                // Handle tap/click - toggle between columns
+                this.toggleLanguageColumn(item.dataset.languageCode);
             }
+
+            hasMoved = false;
         };
 
         // Mouse events
         item.addEventListener('mousedown', startDrag);
         document.addEventListener('mousemove', drag);
         document.addEventListener('mouseup', endDrag);
-        
+
         // Touch events
         item.addEventListener('touchstart', startDrag, { passive: false });
         document.addEventListener('touchmove', drag, { passive: false });
         document.addEventListener('touchend', endDrag);
+    }
+
+    /**
+     * Toggle a language between enabled and available columns
+     */
+    toggleLanguageColumn(languageCode) {
+        const config = this.configManager.getConfig();
+
+        // Check if it's in enabled languages
+        const enabledIndex = config.languages.enabled.findIndex(lang => lang.code === languageCode);
+        if (enabledIndex !== -1) {
+            // Move from enabled to available
+            const [language] = config.languages.enabled.splice(enabledIndex, 1);
+            config.languages.available.push(language);
+        } else {
+            // Check if it's in available languages
+            const availableIndex = config.languages.available.findIndex(lang => lang.code === languageCode);
+            if (availableIndex !== -1) {
+                // Move from available to enabled
+                const [language] = config.languages.available.splice(availableIndex, 1);
+                config.languages.enabled.push(language);
+            }
+        }
+
+        // Save and refresh
+        this.configManager.saveConfig(config);
+        this.populateLanguageColumns();
     }
 
     /**
@@ -1537,6 +1590,19 @@ export class ConfigScreen {
 
                 .content-grid, .emoji-grid {
                     grid-template-columns: 1fr;
+                }
+
+                .language-drag-container {
+                    grid-template-columns: 1fr;
+                    gap: 20px;
+                }
+
+                .language-column {
+                    min-height: auto;
+                }
+
+                .language-dropzone {
+                    min-height: 150px;
                 }
 
                 .config-actions {
