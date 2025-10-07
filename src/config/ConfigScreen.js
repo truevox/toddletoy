@@ -321,12 +321,14 @@ export class ConfigScreen {
                 <h2 class="tips-title">👨‍👩‍👧 Tips for Playing Together</h2>
                 <div class="tips-content">
                     <p class="tips-text">
-                        <strong>ToddleToy works best when an adult supervises and plays along!</strong>
+                        <strong>ToddleToy works best when a grown up plays along!</strong>
                         Encourage your child to explore, ask questions, and discover new words together.
+                        <strong>ToddleToy is not a babysitter!</strong> Employing it as one may leave your child hungry and overtired, at best.
                     </p>
                     <p class="tips-note">
                         💡 <strong>Tip:</strong> For the safest experience, see the "Getting Started" section above
-                        to install ToddleToy as an app and set up child safety features.
+                        to install ToddleToy as an app and learn how to set up and use child safety features such as
+                        App Pinning and Guided Access.
                     </p>
                 </div>
                 <button class="start-button" id="start-playing-btn-top">
