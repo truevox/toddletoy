@@ -56,6 +56,7 @@ export class ConfigScreen {
 
                 <main class="config-main">
                     ${this.createParentGuidanceSection()}
+                    ${this.createPlayingTipsSection()}
                     ${this.createContentTypesSection()}
                     ${this.createEmojiCategoriesSection()}
                     ${this.createLanguageSection()}
@@ -63,21 +64,7 @@ export class ConfigScreen {
                 </main>
 
                 <footer class="config-footer">
-                    <div class="usage-guidance">
-                        <h3 class="guidance-title">👨‍👩‍👧 Tips for Playing Together</h3>
-                        <div class="guidance-content">
-                            <p class="guidance-text">
-                                <strong>ToddleToy works best when an adult supervises and plays along!</strong>
-                                Encourage your child to explore, ask questions, and discover new words together.
-                            </p>
-                            <p class="guidance-note">
-                                💡 <strong>Tip:</strong> For the safest experience, see the "Getting Started" section above
-                                to install ToddleToy as an app and set up child safety features.
-                            </p>
-                        </div>
-                    </div>
-
-                    <button class="start-button" id="start-playing-btn">
+                    <button class="start-button" id="start-playing-btn-bottom">
                         ▶️ START PLAYING
                     </button>
                     <div class="config-actions">
@@ -322,6 +309,30 @@ export class ConfigScreen {
                     ⭐ <strong>Pro Tip:</strong> This works best when ToddleToy is installed as an app!
                 </p>
             </div>
+        `;
+    }
+
+    /**
+     * Create playing tips section
+     */
+    createPlayingTipsSection() {
+        return `
+            <section class="playing-tips-section">
+                <h2 class="tips-title">👨‍👩‍👧 Tips for Playing Together</h2>
+                <div class="tips-content">
+                    <p class="tips-text">
+                        <strong>ToddleToy works best when an adult supervises and plays along!</strong>
+                        Encourage your child to explore, ask questions, and discover new words together.
+                    </p>
+                    <p class="tips-note">
+                        💡 <strong>Tip:</strong> For the safest experience, see the "Getting Started" section above
+                        to install ToddleToy as an app and set up child safety features.
+                    </p>
+                </div>
+                <button class="start-button" id="start-playing-btn-top">
+                    ▶️ START PLAYING
+                </button>
+            </section>
         `;
     }
 
@@ -1933,6 +1944,49 @@ export class ConfigScreen {
                 border: 2px solid rgba(255, 255, 255, 0.3);
             }
 
+            /* Playing Tips Section Styles */
+            .playing-tips-section {
+                background: rgba(255, 255, 255, 0.15);
+                border-radius: 20px;
+                padding: 30px;
+                margin-bottom: 30px;
+                backdrop-filter: blur(20px);
+                border: 1px solid rgba(255, 255, 255, 0.2);
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+                text-align: center;
+            }
+
+            .tips-title {
+                font-size: 1.5rem;
+                margin: 0 0 20px 0;
+                color: white;
+                font-weight: bold;
+            }
+
+            .tips-content {
+                margin-bottom: 25px;
+            }
+
+            .tips-text {
+                color: white;
+                line-height: 1.7;
+                margin: 0 0 15px 0;
+                font-size: 1.05rem;
+            }
+
+            .tips-note {
+                background: rgba(255, 255, 255, 0.15);
+                border-left: 3px solid #FFC107;
+                padding: 15px 20px;
+                margin: 0;
+                border-radius: 10px;
+                color: white;
+                line-height: 1.6;
+                text-align: left;
+                display: inline-block;
+                max-width: 800px;
+            }
+
             .guidance-banner-title {
                 font-size: 2rem;
                 margin: 0 0 10px 0;
@@ -2241,9 +2295,16 @@ export class ConfigScreen {
      * Add event listeners to interactive elements
      */
     addEventListeners() {
-        // Start playing button
-        const startBtn = this.container.querySelector('#start-playing-btn');
-        startBtn.addEventListener('click', () => this.startPlaying());
+        // Start playing buttons (top and bottom)
+        const startBtnTop = this.container.querySelector('#start-playing-btn-top');
+        const startBtnBottom = this.container.querySelector('#start-playing-btn-bottom');
+
+        if (startBtnTop) {
+            startBtnTop.addEventListener('click', () => this.startPlaying());
+        }
+        if (startBtnBottom) {
+            startBtnBottom.addEventListener('click', () => this.startPlaying());
+        }
 
         // Reset/Undo button
         const resetUndoBtn = this.container.querySelector('#reset-undo-btn');
