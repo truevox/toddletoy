@@ -287,6 +287,74 @@ class GameScene extends Phaser.Scene {
         console.log('✅ Grid populated');
     }
 
+    /**
+     * Spawn object in specific grid cell
+     */
+    async spawnObjectInGridCell(row, col, type = 'random') {
+        if (!this.gridMode.gridManager) {
+            console.warn('📐 Cannot spawn in grid cell: GridManager not initialized');
+            return null;
+        }
+
+        const gridManager = this.gridMode.gridManager;
+
+        // Validate cell coordinates
+        if (!gridManager.isValidCell(row, col)) {
+            console.warn(`📐 Invalid grid cell: ${row},${col}`);
+            return null;
+        }
+
+        // Get cell center position
+        const position = gridManager.getCellPosition(row, col);
+        if (!position) {
+            console.warn(`📐 Could not get position for cell: ${row},${col}`);
+            return null;
+        }
+
+        // Check if cell is already occupied
+        const cellKey = `${row},${col}`;
+        const existingObject = this.gridMode.occupiedCells.get(cellKey);
+        if (existingObject) {
+            // Remove existing object first
+            console.log(`📐 Replacing object in cell ${cellKey}`);
+            this.removeObjectFromGridCell(row, col);
+        }
+
+        // Spawn object at cell center using existing spawn logic
+        const obj = await this.spawnObjectAt(position.x, position.y, type);
+
+        if (obj) {
+            // Mark object with grid cell info
+            obj.gridCell = { row, col };
+
+            // Disable dragging for grid objects
+            if (obj.input) {
+                obj.input.draggable = false;
+            }
+
+            // Track in occupied cells map
+            this.gridMode.occupiedCells.set(cellKey, obj);
+
+            console.log(`📐 Spawned object in grid cell ${cellKey}:`, obj.data?.itemData);
+        }
+
+        return obj;
+    }
+
+    /**
+     * Remove object from specific grid cell
+     */
+    removeObjectFromGridCell(row, col) {
+        const cellKey = `${row},${col}`;
+        const obj = this.gridMode.occupiedCells.get(cellKey);
+
+        if (obj) {
+            console.log(`📐 Removing object from grid cell ${cellKey}`);
+            this.removeObject(obj);
+            this.gridMode.occupiedCells.delete(cellKey);
+        }
+    }
+
     async preloadGameData() {
         try {
             // Cache busting timestamp
@@ -358,12 +426,35 @@ class GameScene extends Phaser.Scene {
     async onInputPointerDown(data) {
         console.log('🎯 onInputPointerDown called with data:', data);
         const { x, y } = data;
-        
+
         // Warn if system not fully initialized (race condition debugging)
         if (!this.isFullyInitialized) {
             console.warn('⚠️ Input received before full initialization (data:', this.dataLoaded, 'fonts:', this.fontsLoaded, ')');
         }
-        
+
+        // Grid Mode: Map click to grid cell and spawn there
+        if (this.gridMode.enabled && this.gridMode.gridManager) {
+            console.log('📐 Grid Mode active, mapping pointer to grid cell');
+            const gridCell = this.gridMode.gridManager.getGridCell(x, y);
+
+            if (gridCell) {
+                const { row, col } = gridCell;
+                console.log(`📐 Clicked grid cell: ${row},${col}`);
+
+                // Spawn object in grid cell (replaces existing if present)
+                const obj = await this.spawnObjectInGridCell(row, col, 'random');
+                if (obj) {
+                    this.speechManager.speakText(obj, 'both');
+                    this.audioManager.generateContinuousTone(x, y, obj.id);
+                    this.particleManager.createSpawnBurst(x, y);
+                }
+            } else {
+                console.log('📐 Click outside grid boundaries');
+            }
+            return; // Skip free-form mode handling
+        }
+
+        // Free-form Mode: Normal behavior
         // Check for existing object at pointer position
         const hitObject = this.getObjectUnderPointer(x, y);
         console.log('🎯 hitObject:', hitObject, 'isSpeaking:', this.speechManager.getIsSpeaking());
