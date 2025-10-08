@@ -182,34 +182,54 @@ export class ObjectCountingRenderer {
     }
 
     renderStackedApples(count, centerX, centerY) {
-        const layout = this.calculateOptimalStackingLayout(count);
+        // Cap at educationally meaningful maximum (100 apples)
+        // Toddlers can't count 1000s of objects - this keeps it useful
+        const MAX_APPLES = 100;
+        const displayCount = Math.min(count, MAX_APPLES);
+        const showOverflow = count > MAX_APPLES;
+
+        const layout = this.calculateOptimalStackingLayout(displayCount);
         const components = [];
-        
+
         // Calculate starting position for centered layout
         const totalWidth = layout.columns * this.emojiSize;
         const totalHeight = layout.rows * this.spacing.vertical;
         const startX = centerX - (totalWidth / 2) + (this.emojiSize / 2);
         const startY = centerY - (totalHeight / 2) + (this.emojiSize / 2);
-        
+
         let appleIndex = 0;
-        
+
         // Fill the grid pattern
-        for (let row = 0; row < layout.rows && appleIndex < count; row++) {
-            for (let col = 0; col < layout.columns && appleIndex < count; col++) {
+        for (let row = 0; row < layout.rows && appleIndex < displayCount; row++) {
+            for (let col = 0; col < layout.columns && appleIndex < displayCount; col++) {
                 const x = startX + (col * this.emojiSize);
                 const y = startY + (row * this.spacing.vertical);
-                
+
                 const apple = this.scene.add.text(x, y, '🍎', {
                     fontSize: `${this.emojiSize}px`,
                     fontFamily: 'Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif'
                 }).setOrigin(0.5, 0.5);
-                
+
                 components.push(apple);
                 appleIndex++;
             }
         }
-        
-        console.log(`🍎 Rendered ${count} apples in ${layout.rows}x${layout.columns} grid`);
+
+        // Add overflow indicator for numbers > 100
+        if (showOverflow) {
+            const overflowY = startY + (layout.rows * this.spacing.vertical) + 10;
+            const overflowText = this.scene.add.text(centerX, overflowY, `(${count} total)`, {
+                fontSize: `${Math.floor(this.emojiSize * 0.6)}px`,
+                fontFamily: 'Arial, sans-serif',
+                color: '#666666'
+            }).setOrigin(0.5, 0);
+
+            components.push(overflowText);
+            console.log(`🍎 Rendered ${displayCount}/${count} apples (capped at ${MAX_APPLES}) in ${layout.rows}x${layout.columns} grid`);
+        } else {
+            console.log(`🍎 Rendered ${count} apples in ${layout.rows}x${layout.columns} grid`);
+        }
+
         return components;
     }
 
@@ -245,7 +265,7 @@ export class ObjectCountingRenderer {
         // Adjust to prefer slightly wider than tall (more stable appearance)
         // and stay within reasonable screen bounds
         const screenWidth = this.scene.scale.width || 800;
-        const maxColumns = Math.floor(screenWidth * 0.2 / this.emojiSize); // Max 20% of screen width
+        const maxColumns = Math.floor(screenWidth * 0.5 / this.emojiSize); // Max 50% of screen width
         
         if (columns > maxColumns) {
             columns = maxColumns;

@@ -597,12 +597,12 @@ export class ConfigScreen {
                         <span class="advanced-note">Computer-style numbers with hearts</span>
                     </label>
                     <label class="advanced-option">
-                        <input type="checkbox" id="object-counting-enabled">
+                        <input type="radio" name="counting-mode" id="object-counting-enabled" value="objectCounting">
                         🔢 Object Counting (Place Values)
                         <span class="advanced-note">🍎=1s, 🛍️=10s, 📦=100s, 🚛=1000s (e.g. 15 = 1🛍️ + 5🍎)</span>
                     </label>
                     <label class="advanced-option">
-                        <input type="checkbox" id="only-apples-enabled" checked>
+                        <input type="radio" name="counting-mode" id="only-apples-enabled" value="onlyApples" checked>
                         🍎 Only Apples Counting
                         <span class="advanced-note">Simple counting with just apples (e.g. 5 = 🍎🍎🍎🍎🍎)</span>
                     </label>
@@ -2364,9 +2364,6 @@ export class ConfigScreen {
         // Emoji master toggle functionality
         this.setupEmojiMasterToggle();
 
-        // Object counting mutual exclusivity
-        this.setupObjectCountingMutualExclusivity();
-
         // Audio controls volume/mute sync
         this.setupAudioControls();
 
@@ -2551,30 +2548,6 @@ export class ConfigScreen {
     }
 
     /**
-     * Set up mutual exclusivity between Object Counting and Only Apples
-     */
-    setupObjectCountingMutualExclusivity() {
-        const objectCountingCheckbox = this.container.querySelector('#object-counting-enabled');
-        const onlyApplesCheckbox = this.container.querySelector('#only-apples-enabled');
-
-        if (objectCountingCheckbox && onlyApplesCheckbox) {
-            // When Object Counting is checked, uncheck Only Apples
-            objectCountingCheckbox.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    onlyApplesCheckbox.checked = false;
-                }
-            });
-
-            // When Only Apples is checked, uncheck Object Counting
-            onlyApplesCheckbox.addEventListener('change', (e) => {
-                if (e.target.checked) {
-                    objectCountingCheckbox.checked = false;
-                }
-            });
-        }
-    }
-
-    /**
      * Load current configuration into the UI
      */
     loadCurrentConfig() {
@@ -2619,8 +2592,14 @@ export class ConfigScreen {
         this.setCheckboxValue('#cistercian-enabled', config.advanced.numberModes.cistercian);
         this.setCheckboxValue('#kaktovik-enabled', config.advanced.numberModes.kaktovik);
         this.setCheckboxValue('#binary-enabled', config.advanced.numberModes.binary);
-        this.setCheckboxValue('#object-counting-enabled', config.advanced.numberModes.objectCounting);
-        this.setCheckboxValue('#only-apples-enabled', config.advanced.numberModes.onlyApples);
+        // Set counting mode radio button based on config
+        if (config.advanced.numberModes.objectCounting) {
+            const radio = this.container.querySelector('#object-counting-enabled');
+            if (radio) radio.checked = true;
+        } else if (config.advanced.numberModes.onlyApples) {
+            const radio = this.container.querySelector('#only-apples-enabled');
+            if (radio) radio.checked = true;
+        }
         this.setCheckboxValue('#skip-config-checkbox', config.advanced.skipConfig);
 
         // Auto-cleanup configuration
@@ -2783,6 +2762,7 @@ export class ConfigScreen {
                     cistercian: this.container.querySelector('#cistercian-enabled').checked,
                     kaktovik: this.container.querySelector('#kaktovik-enabled').checked,
                     binary: this.container.querySelector('#binary-enabled').checked,
+                    // Read counting mode from radio button group
                     objectCounting: this.container.querySelector('#object-counting-enabled').checked,
                     onlyApples: this.container.querySelector('#only-apples-enabled').checked
                 },

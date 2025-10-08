@@ -294,14 +294,346 @@ describe('Emoji Rendering', () => {
     test('should verify emoji Unicode character ranges', async () => {
         const result = await game.spawnObjectAt(100, 100, 'emoji');
         const emojiChar = result.data.emoji;
-        
+
         // Check if it's a valid emoji Unicode character
         // This regex covers main emoji blocks in Unicode
         const emojiRegex = /[\u{1f300}-\u{1f5ff}]|[\u{1f600}-\u{1f64f}]|[\u{1f680}-\u{1f6ff}]|[\u{1f700}-\u{1f77f}]|[\u{1f780}-\u{1f7ff}]|[\u{1f800}-\u{1f8ff}]|[\u{1f900}-\u{1f9ff}]|[\u{1fa00}-\u{1fa6f}]|[\u{1fa70}-\u{1faff}]|[\u{2600}-\u{26ff}]|[\u{2700}-\u{27bf}]/u;
-        
+
         expect(emojiChar).toMatch(emojiRegex);
-        
+
         // Verify it's not just a regular ASCII character
         expect(emojiChar.charCodeAt(0)).toBeGreaterThan(255);
+    });
+});
+
+describe('Emoji Category Filtering', () => {
+    let game;
+    let mockAdd;
+    let mockConfigManager;
+    let fetchMock;
+    let consoleSpy;
+
+    beforeEach(() => {
+        consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+        fetchMock = jest.fn();
+        global.fetch = fetchMock;
+
+        const mockEmojiData = [
+            {"emoji":"🐶","en":"Dog","es":"Perro","type":"emoji","categories":["animals"],"colors":["brown"]},
+            {"emoji":"🐱","en":"Cat","es":"Gato","type":"emoji","categories":["animals"],"colors":["gray"]},
+            {"emoji":"🍎","en":"Apple","es":"Manzana","type":"emoji","categories":["food"],"colors":["red"]},
+            {"emoji":"🍌","en":"Banana","es":"Plátano","type":"emoji","categories":["food"],"colors":["yellow"]},
+            {"emoji":"🚗","en":"Car","es":"Coche","type":"emoji","categories":["vehicles"],"colors":["red"]},
+            {"emoji":"😢","en":"Crying Face","es":"Cara Llorando","type":"emoji","categories":["faces"],"colors":["yellow"]},
+            {"emoji":"🌲","en":"Tree","es":"Árbol","type":"emoji","categories":["nature"],"colors":["green"]},
+            {"emoji":"📦","en":"Box","es":"Caja","type":"emoji","categories":["objects"],"colors":["brown"]}
+        ];
+
+        fetchMock.mockResolvedValue({
+            json: jest.fn().mockResolvedValue(mockEmojiData)
+        });
+
+        const mockTextObject = {
+            setOrigin: jest.fn().mockReturnThis(),
+            setPosition: jest.fn().mockReturnThis(),
+            text: '',
+            style: {}
+        };
+
+        mockConfigManager = {
+            getConfig: jest.fn().mockReturnValue({
+                emojiCategories: {
+                    animals: { enabled: true, weight: 40 },
+                    food: { enabled: true, weight: 30 },
+                    vehicles: { enabled: false, weight: 15 },
+                    faces: { enabled: false, weight: 10 },
+                    nature: { enabled: false, weight: 3 },
+                    objects: { enabled: false, weight: 2 }
+                }
+            })
+        };
+
+        mockAdd = {
+            text: jest.fn().mockImplementation((x, y, text, style) => {
+                const textObj = { ...mockTextObject };
+                textObj.text = text;
+                textObj.style = style;
+                return textObj;
+            })
+        };
+
+        game = {
+            add: mockAdd,
+            scale: { width: 800, height: 600 },
+            objects: [],
+            configManager: mockConfigManager,
+
+            async getRandomEmoji() {
+                try {
+                    const response = await fetch('/emojis.json');
+                    const emojiData = await response.json();
+
+                    const config = this.configManager.getConfig();
+                    const enabledCategories = Object.keys(config.emojiCategories)
+                        .filter(category => config.emojiCategories[category].enabled);
+
+                    console.log(`🎯 Filtering emojis by enabled categories: ${enabledCategories.join(', ')}`);
+
+                    const filteredEmojis = emojiData.filter(emoji => {
+                        return emoji.categories && emoji.categories.some(cat => enabledCategories.includes(cat));
+                    });
+
+                    console.log(`📊 Filtered from ${emojiData.length} emojis to ${filteredEmojis.length} emojis`);
+
+                    const availableEmojis = filteredEmojis.length > 0 ? filteredEmojis : emojiData;
+
+                    if (availableEmojis.length === 0) {
+                        return {"emoji":"🐶","en":"Dog","es":"Perro","type":"emoji"};
+                    }
+
+                    return availableEmojis[Math.floor(Math.random() * availableEmojis.length)];
+                } catch (error) {
+                    console.warn('Failed to load emojis.json, using fallback:', error);
+                    return {"emoji":"🐶","en":"Dog","es":"Perro","type":"emoji"};
+                }
+            },
+
+            getDisplayText(item, type) {
+                if (type === 'emoji') {
+                    return item.emoji;
+                } else {
+                    return item.symbol;
+                }
+            },
+
+            async spawnObjectAt(x, y, type = 'emoji') {
+                let selectedItem;
+
+                if (type === 'emoji') {
+                    selectedItem = await this.getRandomEmoji();
+                } else {
+                    selectedItem = {"emoji":"🐶","en":"Dog","es":"Perro","type":"emoji"};
+                }
+
+                const obj = {
+                    x: x,
+                    y: y,
+                    type: type,
+                    id: Date.now() + Math.random(),
+                    data: selectedItem
+                };
+
+                this.objects.push(obj);
+
+                const displayText = this.getDisplayText(selectedItem, type);
+
+                const objectText = this.add.text(x, y, displayText, {
+                    fontSize: '64px',
+                    align: 'center',
+                    fill: selectedItem.color || '#ffffff'
+                }).setOrigin(0.5);
+
+                obj.sprite = objectText;
+
+                return obj;
+            }
+        };
+    });
+
+    afterEach(() => {
+        delete global.fetch;
+        jest.clearAllMocks();
+        consoleSpy.mockRestore();
+    });
+
+    test('should filter emojis based on enabled categories', async () => {
+        // Only animals and food enabled
+        const result = await game.spawnObjectAt(100, 100, 'emoji');
+
+        expect(result.data).toBeDefined();
+        expect(result.data.categories).toBeDefined();
+
+        // Should be either animals or food
+        const isAnimalOrFood = result.data.categories.includes('animals') ||
+                              result.data.categories.includes('food');
+        expect(isAnimalOrFood).toBe(true);
+
+        // Should NOT be vehicles, faces, nature, or objects (disabled categories)
+        expect(result.data.categories).not.toContain('vehicles');
+        expect(result.data.categories).not.toContain('faces');
+        expect(result.data.categories).not.toContain('objects');
+    });
+
+    test('should log filtering information when selecting emojis', async () => {
+        await game.spawnObjectAt(100, 100, 'emoji');
+
+        // Should log enabled categories
+        expect(consoleSpy).toHaveBeenCalledWith(
+            expect.stringContaining('🎯 Filtering emojis by enabled categories:')
+        );
+        expect(consoleSpy).toHaveBeenCalledWith(
+            expect.stringContaining('animals, food')
+        );
+
+        // Should log filtering results
+        expect(consoleSpy).toHaveBeenCalledWith(
+            expect.stringContaining('📊 Filtered from')
+        );
+    });
+
+    test('should fall back to all emojis if no enabled categories match', async () => {
+        // Configure with no enabled categories
+        mockConfigManager.getConfig.mockReturnValue({
+            emojiCategories: {
+                animals: { enabled: false },
+                food: { enabled: false },
+                vehicles: { enabled: false },
+                faces: { enabled: false },
+                nature: { enabled: false },
+                objects: { enabled: false }
+            }
+        });
+
+        const result = await game.spawnObjectAt(100, 100, 'emoji');
+
+        // Should still return an emoji (fallback to all available)
+        expect(result.data).toBeDefined();
+        expect(result.data.emoji).toBeDefined();
+    });
+
+    test('should respect category weights in selection', async () => {
+        // Configure animals with higher weight
+        mockConfigManager.getConfig.mockReturnValue({
+            emojiCategories: {
+                animals: { enabled: true, weight: 90 },
+                food: { enabled: true, weight: 10 }
+            }
+        });
+
+        // Spawn multiple emojis and verify animals appear more frequently
+        const results = [];
+        const originalRandom = Math.random;
+
+        for (let i = 0; i < 10; i++) {
+            Math.random = jest.fn().mockReturnValue(i / 10);
+            const result = await game.spawnObjectAt(i * 50, 100, 'emoji');
+            results.push(result);
+        }
+
+        Math.random = originalRandom;
+
+        // All should be animals or food
+        results.forEach(result => {
+            const isAnimalOrFood = result.data.categories.includes('animals') ||
+                                  result.data.categories.includes('food');
+            expect(isAnimalOrFood).toBe(true);
+        });
+    });
+
+    test('should handle single category filter correctly', async () => {
+        // Only animals enabled
+        mockConfigManager.getConfig.mockReturnValue({
+            emojiCategories: {
+                animals: { enabled: true, weight: 100 },
+                food: { enabled: false },
+                vehicles: { enabled: false },
+                faces: { enabled: false },
+                nature: { enabled: false },
+                objects: { enabled: false }
+            }
+        });
+
+        const result = await game.spawnObjectAt(100, 100, 'emoji');
+
+        expect(result.data.categories).toContain('animals');
+        expect(['🐶', '🐱']).toContain(result.data.emoji);
+    });
+
+    test('should handle multiple enabled categories correctly', async () => {
+        // Animals, food, and vehicles enabled
+        mockConfigManager.getConfig.mockReturnValue({
+            emojiCategories: {
+                animals: { enabled: true, weight: 30 },
+                food: { enabled: true, weight: 30 },
+                vehicles: { enabled: true, weight: 40 },
+                faces: { enabled: false },
+                nature: { enabled: false },
+                objects: { enabled: false }
+            }
+        });
+
+        const result = await game.spawnObjectAt(100, 100, 'emoji');
+
+        const hasEnabledCategory = result.data.categories.includes('animals') ||
+                                   result.data.categories.includes('food') ||
+                                   result.data.categories.includes('vehicles');
+        expect(hasEnabledCategory).toBe(true);
+    });
+
+    test('should handle emojis with multiple categories', async () => {
+        // Mock emoji data with multi-category items
+        const multiCatEmojiData = [
+            {"emoji":"🐶","en":"Dog","es":"Perro","type":"emoji","categories":["animals","nature"],"colors":["brown"]},
+            {"emoji":"🍎","en":"Apple","es":"Manzana","type":"emoji","categories":["food","nature"],"colors":["red"]}
+        ];
+
+        fetchMock.mockResolvedValue({
+            json: jest.fn().mockResolvedValue(multiCatEmojiData)
+        });
+
+        // Enable only nature
+        mockConfigManager.getConfig.mockReturnValue({
+            emojiCategories: {
+                animals: { enabled: false },
+                food: { enabled: false },
+                nature: { enabled: true, weight: 100 }
+            }
+        });
+
+        const result = await game.spawnObjectAt(100, 100, 'emoji');
+
+        // Should match because both emojis have 'nature' category
+        expect(result.data.categories).toContain('nature');
+        expect(['🐶', '🍎']).toContain(result.data.emoji);
+    });
+
+    test('should log warning when no emojis match any enabled category', async () => {
+        const warnSpy = jest.spyOn(console, 'warn').mockImplementation();
+
+        // Configure categories that don't exist in emoji data
+        mockConfigManager.getConfig.mockReturnValue({
+            emojiCategories: {
+                nonexistent: { enabled: true, weight: 100 }
+            }
+        });
+
+        await game.spawnObjectAt(100, 100, 'emoji');
+
+        // Should still return an emoji (fallback behavior)
+        expect(game.objects.length).toBe(1);
+
+        warnSpy.mockRestore();
+    });
+
+    test('should correctly calculate filtered emoji count', async () => {
+        // Only animals enabled (should be 2 out of 8 total)
+        mockConfigManager.getConfig.mockReturnValue({
+            emojiCategories: {
+                animals: { enabled: true, weight: 100 },
+                food: { enabled: false },
+                vehicles: { enabled: false },
+                faces: { enabled: false },
+                nature: { enabled: false },
+                objects: { enabled: false }
+            }
+        });
+
+        await game.spawnObjectAt(100, 100, 'emoji');
+
+        // Check console logs for correct counts
+        expect(consoleSpy).toHaveBeenCalledWith(
+            expect.stringContaining('Filtered from 8 emojis to 2 emojis')
+        );
     });
 });

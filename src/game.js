@@ -516,22 +516,36 @@ class GameScene extends Phaser.Scene {
         // 5. Text labels (below main object, ~60px down)
         // 6. Object counting (BELOW labels, with proper spacing)
 
-        // Calculate object counting position BELOW text labels
+        // Calculate counting mode position BELOW text labels (for both objectCounting and onlyApples)
         let objectCountingYOffset = 0;
-        if (numberModes.objectCounting) {
-            // Get language count to calculate label area height
+        if (numberModes.objectCounting || numberModes.onlyApples) {
+            // Get ACTUAL responsive text style (not hardcoded!) to match real label positioning
+            const styleInfo = this.renderManager.textLayoutManager.calculateResponsiveTextStyle();
+
+            // Get language count
             const languagesConfig = this.configManager ? this.configManager.getLanguages() : null;
             const enabledLanguages = languagesConfig?.enabled || [{ code: 'en' }, { code: 'es' }];
             const languageCount = enabledLanguages.length;
 
-            // Position object counting below all labels with proper spacing:
-            // Base label offset: 60px
-            // Line spacing per language: 30px
-            // Buffer for safety: 40px
-            const labelAreaHeight = 60 + (languageCount * 30);
-            objectCountingYOffset = labelAreaHeight + 40; // Plenty of space below labels
+            // Use ACTUAL responsive values from TextLayoutManager (scales with screen size!)
+            const actualLabelOffset = styleInfo.labelOffset;   // Math.floor(60 * scaleFactor)
+            const actualLineSpacing = styleInfo.lineSpacing;   // Math.floor(30 * scaleFactor)
 
-            console.log(`📐 Layout for ${numberValue}: ${languageCount} languages, object counting at Y+${objectCountingYOffset}px`);
+            // Calculate total label area:
+            // - First label at: actualLabelOffset
+            // - Each additional label adds: actualLineSpacing
+            // - lineSpacing includes both text height and gap, so no need to add fontSize separately
+            const totalLabelArea = actualLabelOffset + (languageCount * actualLineSpacing);
+
+            // Mode-specific buffer (also responsive to screen size)
+            const buffer = numberModes.onlyApples
+                ? Math.floor(20 * styleInfo.scaleFactor)  // Smaller buffer for apples (scaled 20px)
+                : Math.floor(10 * styleInfo.scaleFactor); // Minimal buffer for compact bar (scaled 10px)
+
+            objectCountingYOffset = totalLabelArea + buffer;
+
+            const modeName = numberModes.objectCounting ? 'place values' : 'only apples';
+            console.log(`📐 Responsive layout (scale=${styleInfo.scaleFactor.toFixed(2)}): ${numberValue}, ${languageCount} langs, labelOffset=${actualLabelOffset}px, lineSpacing=${actualLineSpacing}px, ${modeName} at Y+${objectCountingYOffset}px`);
         }
 
         // Render Cistercian numerals (furthest from center, above labels)
@@ -565,9 +579,9 @@ class GameScene extends Phaser.Scene {
             }
         }
 
-        // Render object counting as horizontal resource bar BELOW labels
+        // Render object counting modes BELOW labels
         if (numberModes.objectCounting) {
-            // Decompose number into place values
+            // Place values mode: 🚛📦🛍️🍎 (using ResourceBar for compact horizontal layout)
             const placeValues = {
                 thousands: Math.floor(numberValue / 1000),
                 hundreds: Math.floor((numberValue % 1000) / 100),
@@ -575,18 +589,16 @@ class GameScene extends Phaser.Scene {
                 ones: numberValue % 10
             };
 
-            // Create ResourceBar instance positioned below labels
             const resourceBar = new ResourceBar(this, {
                 x: centerX,
                 y: centerY + objectCountingYOffset,
                 iconSize: { w: 32, h: 32 },
                 iconGapX: 4,
                 groupGapX: 12,
-                maxIconsPerType: Infinity, // Show all icons for educational counting
+                maxIconsPerType: Infinity,
                 fontSize: 16
             });
 
-            // Set the counts (apples=ones, bags=tens, crates=hundreds, trucks=thousands)
             resourceBar.setCounts({
                 apples: placeValues.ones,
                 bags: placeValues.tens,
@@ -594,13 +606,33 @@ class GameScene extends Phaser.Scene {
                 trucks: placeValues.thousands
             });
 
-            // Add the entire ResourceBar container as a single component
             components.push({
                 type: 'objectCounting',
                 object: resourceBar,
                 offsetX: 0,
                 offsetY: objectCountingYOffset
             });
+
+            console.log(`🔢 Rendered place values for ${numberValue} using ResourceBar`);
+        } else if (numberModes.onlyApples) {
+            // Only apples mode: 🍎🍎🍎 (simple counting with educational layouts)
+            const appleComponents = this.objectCountingRenderer.renderStackedApples(
+                numberValue,
+                centerX,
+                centerY + objectCountingYOffset
+            );
+
+            // Add each apple component with proper offset tracking
+            appleComponents.forEach(comp => {
+                components.push({
+                    type: 'onlyApples',
+                    object: comp,
+                    offsetX: 0,
+                    offsetY: objectCountingYOffset
+                });
+            });
+
+            console.log(`🍎 Rendered only apples for ${numberValue}: ${appleComponents.length} apples`);
         }
 
         // Store component layout (no label offset needed - labels stay in normal position)
@@ -628,17 +660,23 @@ class GameScene extends Phaser.Scene {
         
         if (weights.length === 0) return 'emoji';
         
-        // Weighted random selection
+        // Weighted random selection with debug logging
         const totalWeight = weights.reduce((sum, item) => sum + item.weight, 0);
         let random = Math.random() * totalWeight;
-        
+
+        // DEBUG: Log weight distribution (disable after testing)
+        const weightSummary = weights.map(w => `${w.type}:${w.weight}`).join(', ');
+
         for (const item of weights) {
             random -= item.weight;
             if (random <= 0) {
+                // DEBUG: Log selection details
+                console.log(`🎲 Spawn weights [${weightSummary}] total:${totalWeight} → Selected: ${item.type}`);
                 return item.type;
             }
         }
-        
+
+        console.log(`🎲 Spawn weights [${weightSummary}] → Fallback: ${weights[0].type}`);
         return weights[0].type;
     }
 
@@ -650,27 +688,33 @@ class GameScene extends Phaser.Scene {
                 this.emojiData = await response.json();
             }
             
-            // Get filtered emojis based on configuration
+            // Get filtered emojis based on enabled emoji categories
             const config = this.configManager ? this.configManager.getConfig() : null;
             let availableEmojis = this.emojiData;
-            
-            // Apply content filters if configured
-            if (config && config.contentFilters) {
-                // Filter by categories if specified
-                if (config.contentFilters.categories && config.contentFilters.categories.length > 0) {
-                    availableEmojis = availableEmojis.filter(emoji => 
-                        emoji.categories && emoji.categories.some(cat => 
-                            config.contentFilters.categories.includes(cat)
+
+            // Filter by enabled emoji categories (animals, food, vehicles, etc.)
+            if (config && config.emojiCategories) {
+                const enabledCategories = Object.entries(config.emojiCategories)
+                    .filter(([key, val]) => val.enabled)
+                    .map(([key]) => key);
+
+                if (enabledCategories.length > 0) {
+                    availableEmojis = availableEmojis.filter(emoji =>
+                        emoji.categories && emoji.categories.some(cat =>
+                            enabledCategories.includes(cat)
                         )
                     );
+
+                    console.log(`🎯 Filtered emojis: ${availableEmojis.length} available from categories [${enabledCategories.join(', ')}]`);
                 }
             }
-            
+
             // Fallback to all emojis if no valid ones after filtering
             if (availableEmojis.length === 0) {
+                console.warn('⚠️ No emojis matched enabled categories, using all emojis as fallback');
                 availableEmojis = this.emojiData;
             }
-            
+
             // Select random emoji
             const randomIndex = Math.floor(Math.random() * availableEmojis.length);
             return availableEmojis[randomIndex];
