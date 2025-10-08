@@ -328,9 +328,26 @@ describe('Only Apples Counting Mode', () => {
 
             const layout100 = narrowRenderer.calculateOptimalStackingLayout(100);
 
-            // Should not exceed 20% of screen width
-            const maxColumns = Math.floor(400 * 0.2 / 32); // 32 = emojiSize
+            // Should not exceed 50% of screen width (changed from 20% in v1.0.32)
+            const maxColumns = Math.floor(400 * 0.5 / 32); // 32 = emojiSize
             expect(layout100.columns).toBeLessThanOrEqual(maxColumns);
+        });
+
+        test('uses 50% screen width for grid layout (v1.0.32 improvement)', () => {
+            // Standard 800px width screen
+            const layout60 = renderer.calculateOptimalStackingLayout(60);
+
+            // Max columns should be based on 50% screen width
+            const maxColumns = Math.floor(800 * 0.5 / 32); // = 12 columns
+            expect(layout60.columns).toBeLessThanOrEqual(maxColumns);
+
+            // Wide screen should allow more columns
+            mockScene.scale.width = 1200;
+            const wideRenderer = new ObjectCountingRenderer(mockScene);
+            const layout60Wide = wideRenderer.calculateOptimalStackingLayout(60);
+
+            const maxColumnsWide = Math.floor(1200 * 0.5 / 32); // = 18 columns
+            expect(layout60Wide.columns).toBeLessThanOrEqual(maxColumnsWide);
         });
 
         test('avoids overly tall layouts by redistributing columns', () => {
@@ -403,13 +420,124 @@ describe('Only Apples Counting Mode', () => {
         });
     });
 
-    describe('Edge Cases and Error Handling', () => {
-        test('handles very large numbers gracefully', () => {
-            const apples200 = renderer.renderStackedApples(200, 400, 200);
-            expect(apples200.length).toBe(200);
+    describe('Apple Count Capping (Educational Limits)', () => {
+        test('renders exactly 100 apples for count=100 (no overflow)', () => {
+            const components = renderer.renderStackedApples(100, 400, 200);
 
-            const layout200 = renderer.calculateOptimalStackingLayout(200);
-            expect(layout200.rows * layout200.columns).toBeGreaterThanOrEqual(200);
+            // Should return exactly 100 components (all apples, no overflow text)
+            expect(components.length).toBe(100);
+
+            const apples = components.filter(c => c.text === '🍎');
+            expect(apples.length).toBe(100);
+
+            // No overflow indicator for exactly 100
+            const overflowText = components.find(c => c.text && c.text.includes('total'));
+            expect(overflowText).toBeUndefined();
+        });
+
+        test('caps at 100 apples and adds overflow indicator for count=101', () => {
+            const components = renderer.renderStackedApples(101, 400, 200);
+
+            // Should return 101 components: 100 apples + 1 overflow text
+            expect(components.length).toBe(101);
+
+            const apples = components.filter(c => c.text === '🍎');
+            expect(apples.length).toBe(100);
+
+            const overflow = components.find(c => c.text === '(101 total)');
+            expect(overflow).toBeDefined();
+            expect(overflow.style.color).toBe('#666666');
+            expect(overflow.style.fontSize).toBe('19px'); // 60% of 32px emojiSize
+        });
+
+        test('caps at 100 apples for extremely large numbers (8510)', () => {
+            const components = renderer.renderStackedApples(8510, 400, 200);
+
+            // Should return 101 components: 100 apples + 1 overflow text
+            expect(components.length).toBe(101);
+
+            const apples = components.filter(c => c.text === '🍎');
+            expect(apples.length).toBe(100);
+
+            const overflow = components.find(c => c.text === '(8510 total)');
+            expect(overflow).toBeDefined();
+        });
+
+        test('overflow indicator appears below apple grid', () => {
+            const components = renderer.renderStackedApples(150, 400, 200);
+
+            const apples = components.filter(c => c.text === '🍎');
+            const overflow = components.find(c => c.text === '(150 total)');
+
+            expect(overflow).toBeDefined();
+
+            // Overflow should be below the bottom-most apple
+            const maxAppleY = Math.max(...apples.map(a => a.y));
+            expect(overflow.y).toBeGreaterThan(maxAppleY);
+        });
+
+        test('overflow indicator is centered horizontally', () => {
+            const centerX = 512;
+            const components = renderer.renderStackedApples(200, centerX, 200);
+
+            const overflow = components.find(c => c.text === '(200 total)');
+            expect(overflow).toBeDefined();
+
+            // Should be centered at provided centerX
+            expect(overflow.x).toBe(centerX);
+            expect(overflow.setOrigin).toHaveBeenCalledWith(0.5, 0);
+        });
+
+        test('logs capped count for numbers > 100', () => {
+            const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+            renderer.renderStackedApples(250, 400, 200);
+
+            expect(consoleSpy).toHaveBeenCalledWith(
+                expect.stringContaining('🍎 Rendered 100/250 apples (capped at 100)')
+            );
+            expect(consoleSpy).toHaveBeenCalledWith(
+                expect.stringContaining('grid')
+            );
+
+            consoleSpy.mockRestore();
+        });
+
+        test('logs normal count for numbers <= 100', () => {
+            const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+            renderer.renderStackedApples(50, 400, 200);
+
+            expect(consoleSpy).toHaveBeenCalledWith(
+                expect.stringContaining('🍎 Rendered 50 apples')
+            );
+            expect(consoleSpy).not.toHaveBeenCalledWith(
+                expect.stringContaining('capped')
+            );
+
+            consoleSpy.mockRestore();
+        });
+    });
+
+    describe('Edge Cases and Error Handling', () => {
+        test('handles very large numbers gracefully by capping at 100', () => {
+            const components200 = renderer.renderStackedApples(200, 400, 200);
+
+            // Should return 101 components: 100 apples + 1 overflow text
+            expect(components200.length).toBe(101);
+
+            // Filter to count just the apple emojis
+            const apples = components200.filter(c => c.text === '🍎');
+            expect(apples.length).toBe(100); // Capped at 100
+
+            // Check for overflow indicator
+            const overflowText = components200.find(c => c.text === '(200 total)');
+            expect(overflowText).toBeDefined();
+            expect(overflowText.style.color).toBe('#666666');
+
+            // Layout calculation should be for 100, not 200
+            const layout100 = renderer.calculateOptimalStackingLayout(100);
+            expect(layout100.rows * layout100.columns).toBeGreaterThanOrEqual(100);
         });
 
         test('handles boundary cases between layout strategies', () => {
