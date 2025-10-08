@@ -75,6 +75,20 @@ export class ConfigManager {
                     enabled: true,
                     timeoutSeconds: 10
                 }
+            },
+            // Grid Mode: Optional structured layout mode (EXTRA FEATURE)
+            // When disabled (default), ToddleToy works in free-form mode where objects can be placed anywhere
+            // When enabled, objects are constrained to a fixed grid for more structured learning
+            gridMode: {
+                enabled: false,          // Toggle: false = free-form mode (default), true = grid mode
+                rows: 4,                 // Grid rows (3-6)
+                cols: 4,                 // Grid columns (3-6)
+                showGrid: true,          // Show grid overlay lines
+                autoPopulate: false,     // Pre-fill grid with random objects on load
+                cellPadding: 10,         // Padding between cells in pixels
+                wrapNavigation: false,   // Wrap navigation at grid boundaries
+                highlightStyle: 'default', // Cell highlight style
+                theme: 'default'         // Grid theme
             }
         };
     }

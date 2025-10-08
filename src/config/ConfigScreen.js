@@ -681,6 +681,59 @@ export class ConfigScreen {
                         </div>
                     </div>
                 </div>
+
+                <div class="grid-mode-section">
+                    <h3 class="subsection-title">📐 Grid Mode (Advanced)</h3>
+                    <p class="section-help">Optional structured layout where objects snap to a fixed grid. When disabled (default), objects can be placed anywhere.</p>
+
+                    <div class="grid-mode-controls">
+                        <label class="advanced-option">
+                            <input type="checkbox" id="grid-mode-enabled">
+                            🎯 Enable Grid Mode
+                            <span class="advanced-note">Switch from free-form to structured grid layout</span>
+                        </label>
+
+                        <div class="grid-settings" id="grid-settings-container">
+                            <div class="grid-size-selector">
+                                <label class="grid-control-label">
+                                    Grid Size:
+                                    <select id="grid-size-select" class="grid-select">
+                                        <option value="3x3">3×3 (Large cells)</option>
+                                        <option value="4x4" selected>4×4 (Recommended)</option>
+                                        <option value="5x5">5×5 (Medium cells)</option>
+                                        <option value="6x6">6×6 (Small cells)</option>
+                                    </select>
+                                </label>
+                            </div>
+
+                            <label class="advanced-option">
+                                <input type="checkbox" id="grid-show-lines" checked>
+                                🔲 Show Grid Lines
+                                <span class="advanced-note">Display visual grid overlay</span>
+                            </label>
+
+                            <label class="advanced-option">
+                                <input type="checkbox" id="grid-auto-populate">
+                                🎲 Auto-Populate Grid
+                                <span class="advanced-note">Fill grid with objects when starting</span>
+                            </label>
+
+                            <label class="advanced-option">
+                                <input type="checkbox" id="grid-wrap-navigation">
+                                🔄 Wrap Navigation
+                                <span class="advanced-note">Allow keyboard navigation to wrap at edges</span>
+                            </label>
+
+                            <div class="grid-padding-control">
+                                <label class="grid-control-label">
+                                    Cell Spacing:
+                                    <input type="range" id="grid-cell-padding" min="0" max="30" value="10" class="slider">
+                                    <span id="grid-padding-value">10</span>px
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </section>
         `;
     }
@@ -1733,6 +1786,63 @@ export class ConfigScreen {
                 border-left: 3px solid #FFC107;
             }
 
+            .grid-mode-section {
+                margin-top: 25px;
+                padding-top: 20px;
+                border-top: 1px solid rgba(255, 255, 255, 0.2);
+            }
+
+            .grid-mode-controls {
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .grid-settings {
+                margin-left: 25px;
+                padding: 15px;
+                background: rgba(255, 255, 255, 0.05);
+                border-radius: 10px;
+                border-left: 3px solid #2196F3;
+                display: none; /* Hidden by default */
+            }
+
+            .grid-settings.visible {
+                display: flex;
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .grid-size-selector,
+            .grid-padding-control {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+
+            .grid-control-label {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 1rem;
+                font-weight: 500;
+            }
+
+            .grid-select {
+                padding: 8px 12px;
+                background: rgba(0, 0, 0, 0.3);
+                color: #fff;
+                border: 1px solid rgba(255, 255, 255, 0.3);
+                border-radius: 5px;
+                font-size: 1rem;
+                cursor: pointer;
+            }
+
+            .grid-select option {
+                background: #1a1a1a;
+                color: #fff;
+            }
+
             .config-footer {
                 position: relative;
                 text-align: center;
@@ -2448,6 +2558,23 @@ export class ConfigScreen {
                 speechVolumeValue.textContent = `${previousVolume}%`;
             }
         });
+
+        // Grid Mode toggle - show/hide settings
+        const gridModeCheckbox = this.container.querySelector('#grid-mode-enabled');
+        if (gridModeCheckbox) {
+            gridModeCheckbox.addEventListener('change', (e) => {
+                this.toggleGridSettings(e.target.checked);
+            });
+        }
+
+        // Grid cell padding slider - update display value
+        const gridPaddingSlider = this.container.querySelector('#grid-cell-padding');
+        const gridPaddingValue = this.container.querySelector('#grid-padding-value');
+        if (gridPaddingSlider && gridPaddingValue) {
+            gridPaddingSlider.addEventListener('input', (e) => {
+                gridPaddingValue.textContent = e.target.value;
+            });
+        }
     }
 
     /**
@@ -2605,6 +2732,26 @@ export class ConfigScreen {
         // Auto-cleanup configuration
         this.setCheckboxValue('#auto-cleanup-enabled', config.advanced.autoCleanup.enabled);
         this.setInputValue('#cleanup-timer-seconds', config.advanced.autoCleanup.timeoutSeconds);
+
+        // Grid Mode configuration
+        if (config.gridMode) {
+            this.setCheckboxValue('#grid-mode-enabled', config.gridMode.enabled);
+            this.setCheckboxValue('#grid-show-lines', config.gridMode.showGrid);
+            this.setCheckboxValue('#grid-auto-populate', config.gridMode.autoPopulate);
+            this.setCheckboxValue('#grid-wrap-navigation', config.gridMode.wrapNavigation);
+            this.setInputValue('#grid-cell-padding', config.gridMode.cellPadding);
+
+            // Set grid size select
+            const gridSize = `${config.gridMode.rows}x${config.gridMode.cols}`;
+            this.setSelectValue('#grid-size-select', gridSize);
+
+            // Update padding display
+            const paddingValue = this.container.querySelector('#grid-padding-value');
+            if (paddingValue) paddingValue.textContent = config.gridMode.cellPadding;
+
+            // Show/hide grid settings based on enabled state
+            this.toggleGridSettings(config.gridMode.enabled);
+        }
 
         // Audio configuration
         if (config.audio) {
@@ -2770,8 +2917,42 @@ export class ConfigScreen {
                     enabled: this.container.querySelector('#auto-cleanup-enabled').checked,
                     timeoutSeconds: parseInt(this.container.querySelector('#cleanup-timer-seconds').value)
                 }
+            },
+            gridMode: {
+                enabled: this.container.querySelector('#grid-mode-enabled').checked,
+                rows: this.getGridSizeFromSelect().rows,
+                cols: this.getGridSizeFromSelect().cols,
+                showGrid: this.container.querySelector('#grid-show-lines').checked,
+                autoPopulate: this.container.querySelector('#grid-auto-populate').checked,
+                cellPadding: parseInt(this.container.querySelector('#grid-cell-padding').value),
+                wrapNavigation: this.container.querySelector('#grid-wrap-navigation').checked,
+                highlightStyle: 'default',
+                theme: 'default'
             }
         };
+    }
+
+    /**
+     * Helper to parse grid size from select value
+     */
+    getGridSizeFromSelect() {
+        const sizeValue = this.container.querySelector('#grid-size-select').value;
+        const [rows, cols] = sizeValue.split('x').map(n => parseInt(n));
+        return { rows, cols };
+    }
+
+    /**
+     * Toggle visibility of grid settings based on grid mode enabled state
+     */
+    toggleGridSettings(enabled) {
+        const gridSettings = this.container.querySelector('#grid-settings-container');
+        if (gridSettings) {
+            if (enabled) {
+                gridSettings.classList.add('visible');
+            } else {
+                gridSettings.classList.remove('visible');
+            }
+        }
     }
 
     /**
