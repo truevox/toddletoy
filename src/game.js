@@ -332,6 +332,9 @@ class GameScene extends Phaser.Scene {
                 obj.input.draggable = false;
             }
 
+            // CRITICAL: Set lastTouchedTime to prevent immediate auto-cleanup
+            obj.lastTouchedTime = Date.now();
+
             // Track in occupied cells map
             this.gridMode.occupiedCells.set(cellKey, obj);
 
