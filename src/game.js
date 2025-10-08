@@ -315,9 +315,9 @@ class GameScene extends Phaser.Scene {
         const cellKey = `${row},${col}`;
         const existingObject = this.gridMode.occupiedCells.get(cellKey);
         if (existingObject) {
-            // Remove existing object first
+            // Remove existing object first (with particle effects, but no auto-respawn since we're about to spawn)
             console.log(`📐 Replacing object in cell ${cellKey}`);
-            this.removeObjectFromGridCell(row, col);
+            await this.removeObjectFromGridCell(row, col, false); // false = don't auto-respawn
         }
 
         // Spawn object at cell center using existing spawn logic
@@ -344,14 +344,31 @@ class GameScene extends Phaser.Scene {
     /**
      * Remove object from specific grid cell
      */
-    removeObjectFromGridCell(row, col) {
+    async removeObjectFromGridCell(row, col, autoRespawn = true) {
         const cellKey = `${row},${col}`;
         const obj = this.gridMode.occupiedCells.get(cellKey);
 
         if (obj) {
             console.log(`📐 Removing object from grid cell ${cellKey}`);
+
+            // Add fun particle effects before removal
+            if (obj.x !== undefined && obj.y !== undefined) {
+                this.particleManager.createSpawnBurst(obj.x, obj.y);
+                // Add a small pop sound effect
+                this.audioManager.generateContinuousTone(obj.x, obj.y, obj.id, 100); // Short 100ms tone
+            }
+
+            // Remove the object
             this.removeObject(obj);
             this.gridMode.occupiedCells.delete(cellKey);
+
+            // Auto-respawn a new object in this cell if in grid mode
+            if (autoRespawn && this.gridMode.enabled && this.gridMode.gridManager) {
+                console.log(`📐 Auto-respawning in empty cell ${cellKey}`);
+                // Small delay for visual effect
+                await new Promise(resolve => setTimeout(resolve, 200));
+                await this.spawnObjectInGridCell(row, col, 'random');
+            }
         }
     }
 
@@ -1291,26 +1308,36 @@ class GameScene extends Phaser.Scene {
 
     removeObject(obj) {
         if (!obj) return;
-        
+
+        // Check if this is a grid object that should be respawned
+        const shouldRespawnInGrid = this.gridMode.enabled && obj.gridCell;
+        const gridCell = obj.gridCell; // Store before removal
+
         try {
             // Stop any audio tones
             if (this.audioManager.hasTone(obj.id)) {
                 this.audioManager.stopTone(obj.id);
             }
-            
+
             // Clean up particles
             this.particleManager.cleanupParticles(obj.id);
-            
+
             // Stop drag trails
             this.particleManager.stopDragTrail(obj);
-            
+
             // Clean up word sparkles
             this.particleManager.cleanupWordSparkles(obj);
-            
+
             // Remove from objects array
             const index = this.objects.indexOf(obj);
             if (index !== -1) {
                 this.objects.splice(index, 1);
+            }
+
+            // Remove from grid occupied cells if in grid mode
+            if (gridCell) {
+                const cellKey = `${gridCell.row},${gridCell.col}`;
+                this.gridMode.occupiedCells.delete(cellKey);
             }
             
             // Clean up component layout objects
@@ -1346,7 +1373,18 @@ class GameScene extends Phaser.Scene {
         } catch (error) {
             console.warn('Error removing object:', error);
         }
-        
+
+        // Auto-respawn in grid mode if this was a grid object
+        if (shouldRespawnInGrid && gridCell) {
+            console.log(`📐 Grid cell ${gridCell.row},${gridCell.col} emptied, triggering respawn...`);
+            // Delay slightly for visual effect, then respawn
+            setTimeout(() => {
+                if (this.gridMode.enabled && this.gridMode.gridManager) {
+                    this.spawnObjectInGridCell(gridCell.row, gridCell.col, 'random');
+                }
+            }, 300);
+        }
+
         // Save game state after removing object
         this.saveGameState();
     }
