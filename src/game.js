@@ -358,15 +358,17 @@ class GameScene extends Phaser.Scene {
                 this.audioManager.generateContinuousTone(obj.x, obj.y, obj.id, 100); // Short 100ms tone
             }
 
-            // Remove the object
-            this.removeObject(obj);
+            // Clear from occupied cells BEFORE removing (prevents double-respawn)
             this.gridMode.occupiedCells.delete(cellKey);
+
+            // Remove the object (without triggering respawn from removeObject)
+            this.removeObject(obj);
 
             // Auto-respawn a new object in this cell if in grid mode
             if (autoRespawn && this.gridMode.enabled && this.gridMode.gridManager) {
                 console.log(`📐 Auto-respawning in empty cell ${cellKey}`);
                 // Small delay for visual effect
-                await new Promise(resolve => setTimeout(resolve, 200));
+                await new Promise(resolve => setTimeout(resolve, 300));
                 await this.spawnObjectInGridCell(row, col, 'random');
             }
         }
@@ -1372,17 +1374,6 @@ class GameScene extends Phaser.Scene {
             
         } catch (error) {
             console.warn('Error removing object:', error);
-        }
-
-        // Auto-respawn in grid mode if this was a grid object
-        if (shouldRespawnInGrid && gridCell) {
-            console.log(`📐 Grid cell ${gridCell.row},${gridCell.col} emptied, triggering respawn...`);
-            // Delay slightly for visual effect, then respawn
-            setTimeout(() => {
-                if (this.gridMode.enabled && this.gridMode.gridManager) {
-                    this.spawnObjectInGridCell(gridCell.row, gridCell.col, 'random');
-                }
-            }, 300);
         }
 
         // Save game state after removing object

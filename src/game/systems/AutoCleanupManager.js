@@ -70,15 +70,21 @@ export class AutoCleanupManager {
      */
     cleanupObjectWithEffects(obj) {
         if (!obj || !obj.active) return;
-        
+
         // Create cleanup particle effect
         this.scene.particleManager.createCleanupParticleEffect(obj.x, obj.y);
-        
+
         // Play cleanup sound (implement if needed)
         // this.playCleanupSound();
-        
-        // Remove the object
-        this.scene.removeObject(obj);
+
+        // If this is a grid object, use grid removal (which handles respawn)
+        if (this.scene.gridMode && this.scene.gridMode.enabled && obj.gridCell) {
+            const { row, col } = obj.gridCell;
+            this.scene.removeObjectFromGridCell(row, col, true); // true = auto-respawn
+        } else {
+            // Free-form mode: just remove
+            this.scene.removeObject(obj);
+        }
     }
 
     /**
