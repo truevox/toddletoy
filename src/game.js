@@ -11,6 +11,7 @@ import { ObjectCountingRenderer } from './game/systems/ObjectCountingRenderer.js
 import { ResourceBar } from './ui/ResourceBar.js'
 import { MovementManager } from './game/systems/MovementManager.js'
 import { AutoCleanupManager } from './game/systems/AutoCleanupManager.js'
+import GridManager from './game/systems/GridManager.js'
 
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -83,8 +84,17 @@ class GameScene extends Phaser.Scene {
         // Initialize dragging state
         this.isDragging = false;
         this.draggedObject = null;
-        
-        
+
+        // Initialize Grid Mode state (extra feature - optional structured layout)
+        this.gridMode = {
+            enabled: false,              // Grid mode toggle
+            gridManager: null,           // GridManager instance
+            currentCell: { row: 0, col: 0 }, // Current cell for keyboard navigation
+            gridOverlay: null,           // Phaser Graphics for grid lines
+            cellHighlights: new Map(),   // Map of cell highlights
+            occupiedCells: new Map()     // Map of {row,col} -> object
+        };
+
         console.log('🎮 Game managers initialized successfully');
         
         // Expose cache clearing utility in development mode
@@ -98,6 +108,183 @@ class GameScene extends Phaser.Scene {
         
         // Restore game state from previous session if available
         this.restoreGameState();
+
+        // Initialize Grid Mode if enabled in configuration
+        this.initializeGridMode();
+    }
+
+    /**
+     * Initialize Grid Mode based on configuration
+     */
+    initializeGridMode() {
+        const config = this.configManager.getConfig();
+        if (config.gridMode && config.gridMode.enabled) {
+            console.log('📐 Grid Mode enabled in configuration, initializing...');
+            this.enableGridMode();
+        } else {
+            console.log('📐 Grid Mode disabled (free-form mode active)');
+        }
+    }
+
+    /**
+     * Enable Grid Mode - switch from free-form to structured grid layout
+     */
+    enableGridMode() {
+        const config = this.configManager.getConfig();
+        const gridConfig = config.gridMode;
+
+        if (!gridConfig) {
+            console.warn('📐 Grid Mode configuration not found');
+            return;
+        }
+
+        console.log('📐 Enabling Grid Mode...', gridConfig);
+
+        // Create GridManager instance with screen dimensions
+        this.gridMode.gridManager = new GridManager(
+            gridConfig.rows,
+            gridConfig.cols,
+            this.sys.game.config.width,
+            this.sys.game.config.height,
+            gridConfig.cellPadding
+        );
+
+        // Enable grid mode
+        this.gridMode.enabled = true;
+
+        // Create grid overlay if configured
+        if (gridConfig.showGrid) {
+            this.createGridOverlay();
+        }
+
+        // Disable object dragging in grid mode
+        this.objects.forEach(obj => {
+            if (obj.input) {
+                obj.input.draggable = false;
+            }
+        });
+
+        // Auto-populate grid if configured
+        if (gridConfig.autoPopulate) {
+            this.populateGrid();
+        }
+
+        console.log('✅ Grid Mode enabled successfully');
+    }
+
+    /**
+     * Disable Grid Mode - switch from grid to free-form layout
+     */
+    disableGridMode() {
+        console.log('📐 Disabling Grid Mode...');
+
+        if (!this.gridMode.enabled) {
+            console.log('📐 Grid Mode already disabled');
+            return;
+        }
+
+        // Clear grid overlay
+        if (this.gridMode.gridOverlay) {
+            this.gridMode.gridOverlay.destroy();
+            this.gridMode.gridOverlay = null;
+        }
+
+        // Clear all cell highlights
+        this.gridMode.cellHighlights.forEach((highlight) => {
+            if (highlight && highlight.destroy) {
+                highlight.destroy();
+            }
+        });
+        this.gridMode.cellHighlights.clear();
+
+        // Clear occupied cells map
+        this.gridMode.occupiedCells.clear();
+
+        // Re-enable object dragging in free-form mode
+        this.objects.forEach(obj => {
+            if (obj.input) {
+                obj.input.draggable = true;
+            }
+        });
+
+        // Disable grid mode
+        this.gridMode.enabled = false;
+        this.gridMode.gridManager = null;
+
+        console.log('✅ Grid Mode disabled, free-form mode active');
+    }
+
+    /**
+     * Create visual grid overlay with lines
+     */
+    createGridOverlay() {
+        if (!this.gridMode.gridManager) {
+            console.warn('📐 Cannot create grid overlay: GridManager not initialized');
+            return;
+        }
+
+        const gridManager = this.gridMode.gridManager;
+
+        // Create graphics object for grid lines
+        if (!this.gridMode.gridOverlay) {
+            this.gridMode.gridOverlay = this.add.graphics();
+        }
+
+        // Clear existing graphics
+        this.gridMode.gridOverlay.clear();
+
+        // Set line style (semi-transparent white lines)
+        this.gridMode.gridOverlay.lineStyle(1, 0xffffff, 0.2);
+
+        // Draw vertical lines
+        for (let col = 0; col <= gridManager.cols; col++) {
+            const x = gridManager.offsetX + (col * (gridManager.cellWidth + gridManager.cellPadding));
+            this.gridMode.gridOverlay.lineBetween(
+                x,
+                gridManager.offsetY,
+                x,
+                gridManager.offsetY + gridManager.actualGridHeight
+            );
+        }
+
+        // Draw horizontal lines
+        for (let row = 0; row <= gridManager.rows; row++) {
+            const y = gridManager.offsetY + (row * (gridManager.cellHeight + gridManager.cellPadding));
+            this.gridMode.gridOverlay.lineBetween(
+                gridManager.offsetX,
+                y,
+                gridManager.offsetX + gridManager.actualGridWidth,
+                y
+            );
+        }
+
+        console.log('📐 Grid overlay created');
+    }
+
+    /**
+     * Populate grid with random objects
+     */
+    populateGrid() {
+        if (!this.gridMode.gridManager) {
+            console.warn('📐 Cannot populate grid: GridManager not initialized');
+            return;
+        }
+
+        const gridManager = this.gridMode.gridManager;
+        console.log(`📐 Populating ${gridManager.rows}x${gridManager.cols} grid...`);
+
+        // Spawn object in each grid cell
+        for (let row = 0; row < gridManager.rows; row++) {
+            for (let col = 0; col < gridManager.cols; col++) {
+                const position = gridManager.getCellPosition(row, col);
+                if (position) {
+                    // Use existing spawnObjectAt method but mark for grid
+                    this.spawnObjectInGridCell(row, col, 'random');
+                }
+            }
+        }
+
+        console.log('✅ Grid populated');
     }
 
     async preloadGameData() {
