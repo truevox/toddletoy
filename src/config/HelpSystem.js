@@ -8,6 +8,9 @@
  * - Links to detailed documentation
  */
 
+// Import CSS styles (Vite will handle this)
+import './HelpSystem.css';
+
 export class HelpSystem {
     constructor(container) {
         this.container = container;
@@ -377,6 +380,11 @@ export class HelpSystem {
      * Uses data-help-anchor attributes for robust, decoupled selection
      */
     addHelpIcons() {
+        if (!this.container) {
+            console.error('HelpSystem: container not found, cannot add help icons');
+            return;
+        }
+
         const helpTopics = [
             'install-app',
             'guided-access',
@@ -389,17 +397,21 @@ export class HelpSystem {
             'grid-mode'
         ];
 
+        let successCount = 0;
         helpTopics.forEach(topic => {
             const element = this.container.querySelector(`[data-help-anchor="${topic}"]`);
 
             if (!element) {
-                console.warn(`Help anchor not found: ${topic}`);
+                console.warn(`HelpSystem: Help anchor not found for topic: ${topic}`);
                 return;
             }
 
             const helpIcon = this.createHelpIcon(topic);
             element.appendChild(helpIcon);
+            successCount++;
         });
+
+        console.log(`HelpSystem: Successfully attached ${successCount}/${helpTopics.length} help icons`);
     }
 
     /**
@@ -465,25 +477,11 @@ export class HelpSystem {
     }
 
     /**
-     * Load styles for the help system from external CSS file
-     */
-    loadStyles() {
-        const linkId = 'help-system-styles';
-        if (document.getElementById(linkId)) return;
-
-        const link = document.createElement('link');
-        link.id = linkId;
-        link.rel = 'stylesheet';
-        link.href = '/src/config/HelpSystem.css';
-        document.head.appendChild(link);
-    }
-
-    /**
      * Initialize the help system
      * Note: ConfigScreen should call showOnboardingIfNeeded() after full initialization
+     * CSS is loaded via module import at the top of this file
      */
     initialize() {
-        this.loadStyles();
         this.addHelpIcons();
         this.addFloatingHelpButton();
     }
