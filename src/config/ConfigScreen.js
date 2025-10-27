@@ -2,6 +2,8 @@
  * ConfigScreen - User interface for configuring the toddler toy
  * Provides intuitive controls for content selection, weights, and settings
  */
+import { HelpSystem } from './HelpSystem.js';
+
 export class ConfigScreen {
     constructor(configManager, router) {
         this.configManager = configManager;
@@ -25,6 +27,10 @@ export class ConfigScreen {
 
         this.createUI();
         this.loadCurrentConfig();
+
+        // Initialize help system
+        this.helpSystem = new HelpSystem(this.container);
+        this.helpSystem.initialize();
     }
 
     /**

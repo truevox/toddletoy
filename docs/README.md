@@ -15,6 +15,25 @@ The application now features a comprehensive configuration system that loads by 
 - **Admin Access**: Visit `/admin` to access configuration (bypasses skip setting)
 - **Skip Option**: Users can choose to skip the config screen on subsequent visits
 
+### 📚 Complete Configuration Guide
+
+For detailed explanations of every configuration option, see the **[Complete Configuration Guide](./CONFIG-GUIDE.md)**.
+
+### ❓ Built-In Help System
+
+ToddleToy now includes a comprehensive help system with:
+
+- **ⓘ Help Icons**: Click the info icons (ⓘ) next to any section for detailed explanations
+- **First-Time Onboarding**: New users see a welcome guide explaining how to get started
+- **Floating Help Button**: The "❓ Need Help?" button provides quick access to all help topics
+- **Inline Tooltips**: Hover or tap help icons for context-specific guidance
+- **Complete Documentation**: Full configuration guide with plain-language explanations for all settings
+
+**Getting Help:**
+1. Look for ⓘ icons throughout the configuration screen
+2. Click the floating "❓ Need Help?" button at the bottom-right
+3. Read the [Complete Configuration Guide](./CONFIG-GUIDE.md) for comprehensive documentation
+
 ### Configuration Categories
 
 #### Content Types
