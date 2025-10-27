@@ -7,7 +7,8 @@ export class AudioManager {
         this.scene = scene;
         this.audioContext = null;
         this.activeTones = new Map();
-        
+        this.toneTimeouts = new Map(); // Store timeout IDs for duration-based tone stopping
+
         this.initAudio();
     }
 
@@ -81,8 +82,19 @@ export class AudioManager {
             // Start the tone
             oscillator.start();
 
-            // Store reference for cleanup (no timeout for continuous play)
+            // Store reference for cleanup
             this.activeTones.set(objId, { oscillator, gainNode });
+
+            // Apply duration-based timeout if configured
+            const toneDuration = audioConfig ? audioConfig.toneDuration : -1;
+            if (toneDuration !== -1 && toneDuration > 0) {
+                // Set timeout to stop tone after specified duration
+                const timeoutId = setTimeout(() => {
+                    this.stopTone(objId);
+                }, toneDuration);
+
+                this.toneTimeouts.set(objId, timeoutId);
+            }
 
             return { oscillator, gainNode };
         } catch (error) {
@@ -111,6 +123,13 @@ export class AudioManager {
     }
 
     stopTone(objId) {
+        // Clear any pending timeout for this tone
+        const timeoutId = this.toneTimeouts.get(objId);
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+            this.toneTimeouts.delete(objId);
+        }
+
         const tone = this.activeTones.get(objId);
         if (tone) {
             try {
@@ -151,16 +170,17 @@ export class AudioManager {
     }
 
     destroy() {
-        // Stop all active tones
+        // Stop all active tones (this also clears all timeouts)
         this.stopAllTones();
-        
+
         // Close audio context if available
         if (this.audioContext && this.audioContext.close) {
             this.audioContext.close().catch(error => {
                 console.warn('Error closing audio context:', error);
             });
         }
-        
+
         this.audioContext = null;
+        this.toneTimeouts.clear();
     }
 }

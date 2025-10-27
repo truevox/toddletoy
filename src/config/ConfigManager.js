@@ -55,7 +55,8 @@ export class ConfigManager {
             },
             audio: {
                 volume: 10,      // 0-100, matches current 0.1 gain (10%)
-                mute: false
+                mute: false,
+                toneDuration: -1 // -1 = play until destroyed, 100-20000 = milliseconds
             },
             speech: {
                 volume: 70,      // 0-100, matches current 0.7 volume
@@ -264,6 +265,12 @@ export class ConfigManager {
         if (config.audio) {
             if (config.audio.volume < 0) config.audio.volume = 0;
             if (config.audio.volume > 100) config.audio.volume = 100;
+
+            // Validate toneDuration: -1 or 100-20000ms
+            if (config.audio.toneDuration !== -1) {
+                if (config.audio.toneDuration < 100) config.audio.toneDuration = 100;
+                if (config.audio.toneDuration > 20000) config.audio.toneDuration = 20000;
+            }
         }
 
         // Validate speech settings
