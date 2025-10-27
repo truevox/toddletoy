@@ -76,7 +76,7 @@ export class HelpSystem {
                     </ul>
                     <h4>Weight Sliders:</h4>
                     <p>Higher numbers = appears more often. Set to 100 for maximum frequency, 10 for rare appearances.</p>
-                    <p><a href="/docs/CONFIG-GUIDE.md#-content-types-section" target="_blank">Read complete content guide →</a></p>
+                    <p><a href="/docs/CONFIG-GUIDE.md#content-types-section" target="_blank">Read complete content guide →</a></p>
                 `
             },
             'emoji-categories': {
@@ -94,7 +94,7 @@ export class HelpSystem {
                         <li><strong>🎾 Objects:</strong> Balls, toys, books - familiar items</li>
                     </ul>
                     <p>Use weight sliders to make favorites appear more often!</p>
-                    <p><a href="/docs/CONFIG-GUIDE.md#-emoji-categories-section" target="_blank">Read detailed emoji guide →</a></p>
+                    <p><a href="/docs/CONFIG-GUIDE.md#emoji-categories-section" target="_blank">Read detailed emoji guide →</a></p>
                 `
             },
             'languages': {
@@ -121,7 +121,7 @@ export class HelpSystem {
                         <li><strong>Ages 3-4:</strong> Ready for 3-4 languages with exposure</li>
                         <li><strong>Ages 4+:</strong> Can manage multiple languages with practice</li>
                     </ul>
-                    <p><a href="/docs/CONFIG-GUIDE.md#-language-selection" target="_blank">Read complete language guide →</a></p>
+                    <p><a href="/docs/CONFIG-GUIDE.md#language-selection" target="_blank">Read complete language guide →</a></p>
                 `
             },
             'special-numbers': {
@@ -138,7 +138,7 @@ export class HelpSystem {
                     <h4>Educational Value:</h4>
                     <p>Shows that the same number can be written differently - a foundational math concept!</p>
                     <p><strong>Recommended for ages 4+</strong> who are curious about how numbers work.</p>
-                    <p><a href="/docs/CONFIG-GUIDE.md#️-special-number-displays-advanced-section" target="_blank">Read detailed number systems guide →</a></p>
+                    <p><a href="/docs/CONFIG-GUIDE.md#special-number-displays" target="_blank">Read detailed number systems guide →</a></p>
                 `
             },
             'auto-cleanup': {
@@ -163,7 +163,7 @@ export class HelpSystem {
                         <li>Teaches cause and effect</li>
                         <li>Encourages interaction and attention</li>
                     </ul>
-                    <p><a href="/docs/CONFIG-GUIDE.md#-auto-cleanup-timer" target="_blank">Read complete cleanup guide →</a></p>
+                    <p><a href="/docs/CONFIG-GUIDE.md#auto-cleanup-timer" target="_blank">Read complete cleanup guide →</a></p>
                 `
             },
             'audio-controls': {
@@ -190,7 +190,7 @@ export class HelpSystem {
                         <li><strong>Ages 2-3:</strong> 0.75x-1.0x (standard learning)</li>
                         <li><strong>Ages 3+:</strong> 1.0x (normal speed)</li>
                     </ul>
-                    <p><a href="/docs/CONFIG-GUIDE.md#-audio--voice-controls" target="_blank">Read complete audio guide →</a></p>
+                    <p><a href="/docs/CONFIG-GUIDE.md#audio-and-voice-controls" target="_blank">Read complete audio guide →</a></p>
                 `
             },
             'grid-mode': {
@@ -216,7 +216,7 @@ export class HelpSystem {
                         <li><strong>4×4:</strong> Ages 2-3 (recommended)</li>
                         <li><strong>5×5 or 6×6:</strong> Ages 3+ (more objects)</li>
                     </ul>
-                    <p><a href="/docs/CONFIG-GUIDE.md#-grid-mode-advanced" target="_blank">Read complete grid mode guide →</a></p>
+                    <p><a href="/docs/CONFIG-GUIDE.md#grid-mode" target="_blank">Read complete grid mode guide →</a></p>
                 `
             }
         };
@@ -374,38 +374,31 @@ export class HelpSystem {
 
     /**
      * Add help icons to configuration sections
+     * Uses data-help-anchor attributes for robust, decoupled selection
      */
     addHelpIcons() {
-        const helpMappings = [
-            { selector: '.parent-guidance-banner .guidance-banner-title', topic: 'install-app' },
-            { selector: '.app-pinning-card .card-title', topic: 'guided-access' },
-            { selector: '.config-section .section-title', topic: 'content-types', index: 0 },
-            { selector: '.emoji-categories-section .section-title', topic: 'emoji-categories' },
-            { selector: '.language-section .section-title', topic: 'languages' },
-            { selector: '.advanced-options', topic: 'special-numbers', before: true },
-            { selector: '.auto-cleanup-section .subsection-title', topic: 'auto-cleanup' },
-            { selector: '.audio-controls-section .subsection-title', topic: 'audio-controls' },
-            { selector: '.grid-mode-section .subsection-title', topic: 'grid-mode' }
+        const helpTopics = [
+            'install-app',
+            'guided-access',
+            'content-types',
+            'emoji-categories',
+            'languages',
+            'special-numbers',
+            'auto-cleanup',
+            'audio-controls',
+            'grid-mode'
         ];
 
-        helpMappings.forEach(mapping => {
-            let elements = this.container.querySelectorAll(mapping.selector);
+        helpTopics.forEach(topic => {
+            const element = this.container.querySelector(`[data-help-anchor="${topic}"]`);
 
-            if (mapping.index !== undefined) {
-                elements = [elements[mapping.index]];
+            if (!element) {
+                console.warn(`Help anchor not found: ${topic}`);
+                return;
             }
 
-            elements.forEach(element => {
-                if (!element) return;
-
-                const helpIcon = this.createHelpIcon(mapping.topic);
-
-                if (mapping.before) {
-                    element.insertBefore(helpIcon, element.firstChild);
-                } else {
-                    element.appendChild(helpIcon);
-                }
-            });
+            const helpIcon = this.createHelpIcon(topic);
+            element.appendChild(helpIcon);
         });
     }
 
@@ -472,433 +465,36 @@ export class HelpSystem {
     }
 
     /**
-     * Add all styles for the help system
+     * Load styles for the help system from external CSS file
      */
-    addStyles() {
-        const styleId = 'help-system-styles';
-        if (document.getElementById(styleId)) return;
+    loadStyles() {
+        const linkId = 'help-system-styles';
+        if (document.getElementById(linkId)) return;
 
-        const style = document.createElement('style');
-        style.id = styleId;
-        style.textContent = `
-            /* Help Icon Button */
-            .help-icon-btn {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                width: 24px;
-                height: 24px;
-                margin-left: 8px;
-                background: rgba(255, 255, 255, 0.2);
-                border: 1px solid rgba(255, 255, 255, 0.3);
-                border-radius: 50%;
-                color: white;
-                font-size: 14px;
-                font-weight: bold;
-                cursor: pointer;
-                transition: all 0.2s ease;
-                vertical-align: middle;
-            }
-
-            .help-icon-btn:hover {
-                background: rgba(255, 255, 255, 0.3);
-                transform: scale(1.1);
-            }
-
-            .help-icon-btn.inline {
-                width: 20px;
-                height: 20px;
-                font-size: 12px;
-                margin-left: 4px;
-            }
-
-            .help-icon-demo {
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                width: 20px;
-                height: 20px;
-                background: rgba(102, 126, 234, 0.3);
-                border: 1px solid rgba(102, 126, 234, 0.5);
-                border-radius: 50%;
-                font-size: 12px;
-                font-weight: bold;
-            }
-
-            /* Floating Help Button */
-            .floating-help-btn {
-                position: fixed;
-                bottom: 20px;
-                right: 20px;
-                padding: 12px 20px;
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                color: white;
-                border: 2px solid rgba(255, 255, 255, 0.3);
-                border-radius: 25px;
-                font-size: 16px;
-                font-weight: bold;
-                cursor: pointer;
-                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-                transition: all 0.3s ease;
-                z-index: 999;
-            }
-
-            .floating-help-btn:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
-            }
-
-            /* Modal Overlay */
-            .help-modal-overlay {
-                position: fixed;
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                background: rgba(0, 0, 0, 0.7);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                z-index: 10000;
-                padding: 20px;
-                animation: fadeIn 0.3s ease-out;
-                overflow-y: auto;
-            }
-
-            .help-modal-overlay.closing {
-                animation: fadeOut 0.3s ease-out;
-            }
-
-            @keyframes fadeIn {
-                from {
-                    opacity: 0;
-                }
-                to {
-                    opacity: 1;
-                }
-            }
-
-            @keyframes fadeOut {
-                from {
-                    opacity: 1;
-                }
-                to {
-                    opacity: 0;
-                }
-            }
-
-            /* Modal Container */
-            .help-modal-container {
-                background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
-                border-radius: 12px;
-                max-width: 600px;
-                width: 100%;
-                max-height: 90vh;
-                overflow-y: auto;
-                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-                animation: slideIn 0.3s ease-out;
-                color: white;
-            }
-
-            .onboarding-modal .help-modal-container {
-                max-width: 700px;
-            }
-
-            .help-modal-overlay.closing .help-modal-container {
-                animation: slideOut 0.3s ease-out;
-            }
-
-            @keyframes slideIn {
-                from {
-                    transform: translateY(-50px);
-                    opacity: 0;
-                }
-                to {
-                    transform: translateY(0);
-                    opacity: 1;
-                }
-            }
-
-            @keyframes slideOut {
-                from {
-                    transform: translateY(0);
-                    opacity: 1;
-                }
-                to {
-                    transform: translateY(-50px);
-                    opacity: 0;
-                }
-            }
-
-            /* Modal Header */
-            .help-modal-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                padding: 20px 24px;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-            }
-
-            .help-modal-title {
-                margin: 0;
-                font-size: 24px;
-                font-weight: bold;
-            }
-
-            .help-modal-close {
-                background: none;
-                border: none;
-                color: white;
-                font-size: 32px;
-                line-height: 1;
-                cursor: pointer;
-                padding: 0;
-                width: 32px;
-                height: 32px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 4px;
-                transition: background 0.2s ease;
-            }
-
-            .help-modal-close:hover {
-                background: rgba(255, 255, 255, 0.1);
-            }
-
-            /* Modal Body */
-            .help-modal-body {
-                padding: 24px;
-                line-height: 1.6;
-            }
-
-            .help-modal-body h3,
-            .help-modal-body h4 {
-                margin-top: 20px;
-                margin-bottom: 12px;
-                color: white;
-            }
-
-            .help-modal-body h3 {
-                font-size: 20px;
-            }
-
-            .help-modal-body h4 {
-                font-size: 18px;
-            }
-
-            .help-modal-body p {
-                margin: 12px 0;
-            }
-
-            .help-modal-body ul,
-            .help-modal-body ol {
-                margin: 12px 0;
-                padding-left: 24px;
-            }
-
-            .help-modal-body li {
-                margin: 8px 0;
-            }
-
-            .help-modal-body a {
-                color: #ffd700;
-                text-decoration: underline;
-            }
-
-            .help-modal-body a:hover {
-                color: #ffed4e;
-            }
-
-            .help-modal-body code {
-                background: rgba(0, 0, 0, 0.3);
-                padding: 2px 6px;
-                border-radius: 3px;
-                font-family: 'Courier New', monospace;
-            }
-
-            /* Modal Footer */
-            .help-modal-footer {
-                padding: 16px 24px;
-                border-top: 1px solid rgba(255, 255, 255, 0.2);
-                display: flex;
-                justify-content: flex-end;
-            }
-
-            .help-modal-dismiss {
-                padding: 12px 24px;
-                background: rgba(255, 255, 255, 0.2);
-                border: 2px solid rgba(255, 255, 255, 0.3);
-                color: white;
-                font-size: 16px;
-                font-weight: bold;
-                border-radius: 8px;
-                cursor: pointer;
-                transition: all 0.2s ease;
-            }
-
-            .help-modal-dismiss:hover {
-                background: rgba(255, 255, 255, 0.3);
-                transform: translateY(-2px);
-            }
-
-            /* Onboarding Specific Styles */
-            .onboarding-intro {
-                font-size: 18px;
-                margin-bottom: 24px;
-            }
-
-            .onboarding-highlights {
-                background: rgba(255, 255, 255, 0.1);
-                padding: 20px;
-                border-radius: 8px;
-                margin: 20px 0;
-            }
-
-            .onboarding-steps {
-                list-style: none;
-                padding: 0;
-                counter-reset: step-counter;
-            }
-
-            .onboarding-steps li {
-                counter-increment: step-counter;
-                margin: 16px 0;
-                padding-left: 0;
-            }
-
-            .onboarding-steps li strong {
-                display: block;
-                font-size: 18px;
-                margin-bottom: 4px;
-            }
-
-            .onboarding-steps li p {
-                margin: 4px 0;
-                opacity: 0.9;
-            }
-
-            .onboarding-tips {
-                background: rgba(255, 255, 255, 0.1);
-                padding: 20px;
-                border-radius: 8px;
-                margin: 20px 0;
-            }
-
-            .onboarding-tips ul {
-                list-style: none;
-                padding: 0;
-            }
-
-            .onboarding-tips li {
-                margin: 12px 0;
-                padding-left: 24px;
-                position: relative;
-            }
-
-            .onboarding-tips li::before {
-                content: "💡";
-                position: absolute;
-                left: 0;
-            }
-
-            .onboarding-footer {
-                font-size: 18px;
-                margin-top: 24px;
-                text-align: center;
-            }
-
-            /* Help Menu Styles */
-            .help-menu-content {
-                padding: 0;
-            }
-
-            .help-menu-intro {
-                margin-bottom: 16px;
-            }
-
-            .help-menu-list {
-                list-style: none;
-                padding: 0;
-                margin: 0;
-            }
-
-            .help-menu-item {
-                margin: 0;
-                padding: 0;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-            }
-
-            .help-menu-item:last-child {
-                border-bottom: none;
-            }
-
-            .help-menu-link {
-                display: block;
-                padding: 16px;
-                background: none;
-                border: none;
-                color: white;
-                text-align: left;
-                font-size: 16px;
-                cursor: pointer;
-                transition: background 0.2s ease;
-                width: 100%;
-            }
-
-            .help-menu-link:hover {
-                background: rgba(255, 255, 255, 0.1);
-            }
-
-            .help-menu-link.external {
-                color: #ffd700;
-                font-weight: bold;
-            }
-
-            /* Mobile Responsive */
-            @media (max-width: 600px) {
-                .help-modal-container {
-                    max-width: 100%;
-                    border-radius: 0;
-                    max-height: 100vh;
-                }
-
-                .floating-help-btn {
-                    bottom: 10px;
-                    right: 10px;
-                    padding: 10px 16px;
-                    font-size: 14px;
-                }
-
-                .help-modal-title {
-                    font-size: 20px;
-                }
-
-                .onboarding-intro {
-                    font-size: 16px;
-                }
-
-                .onboarding-steps li strong {
-                    font-size: 16px;
-                }
-            }
-        `;
-
-        document.head.appendChild(style);
+        const link = document.createElement('link');
+        link.id = linkId;
+        link.rel = 'stylesheet';
+        link.href = '/src/config/HelpSystem.css';
+        document.head.appendChild(link);
     }
 
     /**
      * Initialize the help system
+     * Note: ConfigScreen should call showOnboardingIfNeeded() after full initialization
      */
     initialize() {
-        this.addStyles();
+        this.loadStyles();
         this.addHelpIcons();
         this.addFloatingHelpButton();
+    }
 
-        // Show onboarding for first-time users
+    /**
+     * Show onboarding if this is the first time user is seeing the config screen
+     * Should be called by ConfigScreen after all UI is fully rendered
+     */
+    showOnboardingIfNeeded() {
         if (this.isFirstTime) {
-            // Delay slightly to ensure config screen is fully rendered
-            setTimeout(() => this.showOnboarding(), 500);
+            this.showOnboarding();
         }
     }
 }

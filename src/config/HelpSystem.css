@@ -1,0 +1,401 @@
+/* Help Icon Button */
+.help-icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    margin-left: 8px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    color: white;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    vertical-align: middle;
+}
+
+.help-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.help-icon-btn.inline {
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    margin-left: 4px;
+}
+
+.help-icon-demo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: rgba(102, 126, 234, 0.3);
+    border: 1px solid rgba(102, 126, 234, 0.5);
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+/* Floating Help Button */
+.floating-help-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    padding: 12px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 25px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.3s ease;
+    z-index: 999;
+}
+
+.floating-help-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Modal Overlay */
+.help-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 20px;
+    animation: fadeIn 0.3s ease-out;
+    overflow-y: auto;
+}
+
+.help-modal-overlay.closing {
+    animation: fadeOut 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeOut {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+/* Modal Container */
+.help-modal-container {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+    border-radius: 12px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    animation: slideIn 0.3s ease-out;
+    color: white;
+}
+
+.onboarding-modal .help-modal-container {
+    max-width: 700px;
+}
+
+.help-modal-overlay.closing .help-modal-container {
+    animation: slideOut 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOut {
+    from {
+        transform: translateY(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateY(-50px);
+        opacity: 0;
+    }
+}
+
+/* Modal Header */
+.help-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.help-modal-title {
+    margin: 0;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.help-modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 32px;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.2s ease;
+}
+
+.help-modal-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Modal Body */
+.help-modal-body {
+    padding: 24px;
+    line-height: 1.6;
+}
+
+.help-modal-body h3,
+.help-modal-body h4 {
+    margin-top: 20px;
+    margin-bottom: 12px;
+    color: white;
+}
+
+.help-modal-body h3 {
+    font-size: 20px;
+}
+
+.help-modal-body h4 {
+    font-size: 18px;
+}
+
+.help-modal-body p {
+    margin: 12px 0;
+}
+
+.help-modal-body ul,
+.help-modal-body ol {
+    margin: 12px 0;
+    padding-left: 24px;
+}
+
+.help-modal-body li {
+    margin: 8px 0;
+}
+
+.help-modal-body a {
+    color: #ffd700;
+    text-decoration: underline;
+}
+
+.help-modal-body a:hover {
+    color: #ffed4e;
+}
+
+.help-modal-body code {
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+}
+
+/* Modal Footer */
+.help-modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    display: flex;
+    justify-content: flex-end;
+}
+
+.help-modal-dismiss {
+    padding: 12px 24px;
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.help-modal-dismiss:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+/* Onboarding Specific Styles */
+.onboarding-intro {
+    font-size: 18px;
+    margin-bottom: 24px;
+}
+
+.onboarding-highlights {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.onboarding-steps {
+    list-style: none;
+    padding: 0;
+    counter-reset: step-counter;
+}
+
+.onboarding-steps li {
+    counter-increment: step-counter;
+    margin: 16px 0;
+    padding-left: 0;
+}
+
+.onboarding-steps li strong {
+    display: block;
+    font-size: 18px;
+    margin-bottom: 4px;
+}
+
+.onboarding-steps li p {
+    margin: 4px 0;
+    opacity: 0.9;
+}
+
+.onboarding-tips {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.onboarding-tips ul {
+    list-style: none;
+    padding: 0;
+}
+
+.onboarding-tips li {
+    margin: 12px 0;
+    padding-left: 24px;
+    position: relative;
+}
+
+.onboarding-tips li::before {
+    content: "💡";
+    position: absolute;
+    left: 0;
+}
+
+.onboarding-footer {
+    font-size: 18px;
+    margin-top: 24px;
+    text-align: center;
+}
+
+/* Help Menu Styles */
+.help-menu-content {
+    padding: 0;
+}
+
+.help-menu-intro {
+    margin-bottom: 16px;
+}
+
+.help-menu-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.help-menu-item {
+    margin: 0;
+    padding: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.help-menu-item:last-child {
+    border-bottom: none;
+}
+
+.help-menu-link {
+    display: block;
+    padding: 16px;
+    background: none;
+    border: none;
+    color: white;
+    text-align: left;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    width: 100%;
+}
+
+.help-menu-link:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.help-menu-link.external {
+    color: #ffd700;
+    font-weight: bold;
+}
+
+/* Mobile Responsive */
+@media (max-width: 600px) {
+    .help-modal-container {
+        max-width: 100%;
+        border-radius: 0;
+        max-height: 100vh;
+    }
+
+    .floating-help-btn {
+        bottom: 10px;
+        right: 10px;
+        padding: 10px 16px;
+        font-size: 14px;
+    }
+
+    .help-modal-title {
+        font-size: 20px;
+    }
+
+    .onboarding-intro {
+        font-size: 16px;
+    }
+
+    .onboarding-steps li strong {
+        font-size: 16px;
+    }
+}

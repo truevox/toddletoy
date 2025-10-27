@@ -6,7 +6,9 @@ This guide explains every setting in ToddleToy's Admin Configuration screen in p
 
 ---
 
-## 🚀 Getting Started Section
+## Getting Started Section
+
+🚀 This section helps you install and set up ToddleToy for the safest and best experience.
 
 ### Installing ToddleToy as an App
 **What it does**: Converts ToddleToy from a website into a standalone app on your device.
@@ -58,9 +60,9 @@ This guide explains every setting in ToddleToy's Admin Configuration screen in p
 
 ---
 
-## 👨‍👩‍👧 Tips for Playing Together
+## Tips for Playing Together
 
-**Important**: ToddleToy works best when a grown-up plays along! This is an interactive learning tool, not a babysitter.
+👨‍👩‍👧 **Important**: ToddleToy works best when a grown-up plays along! This is an interactive learning tool, not a babysitter.
 
 **How to play together**:
 - Encourage your child to explore and ask questions
@@ -71,9 +73,9 @@ This guide explains every setting in ToddleToy's Admin Configuration screen in p
 
 ---
 
-## 📦 Content Types Section
+## Content Types Section
 
-This section lets you choose what kinds of things appear in the toy. Each type can be turned on or off, and you can control how often each type appears using the weight sliders.
+📦 This section lets you choose what kinds of things appear in the toy. Each type can be turned on or off, and you can control how often each type appears using the weight sliders.
 
 ### 🔵🔺⭐ Shapes
 **What it is**: Basic geometric shapes like circles, squares, triangles, and stars in different colors.
@@ -157,7 +159,7 @@ This section lets you choose what kinds of things appear in the toy. Each type c
 - Distinguishing between upper and lowercase
 - Preparing for actual reading
 
-**Examples**: red a, blue b, yellow c
+**Examples**: Red a, Blue b, Yellow c
 
 **Weight slider**: Higher = lowercase letters appear more often.
 
@@ -185,9 +187,9 @@ This section lets you choose what kinds of things appear in the toy. Each type c
 
 ---
 
-## 😊 Emoji Categories Section
+## Emoji Categories Section
 
-These settings let you choose which types of emojis appear. You can mix and match to create the perfect learning experience!
+😊 These settings let you choose which types of emojis appear. You can mix and match to create the perfect learning experience!
 
 **Important**: These categories only work when "😊 Emojis" is enabled in the Content Types section above.
 
@@ -266,9 +268,9 @@ These settings let you choose which types of emojis appear. You can mix and matc
 
 ---
 
-## 🌍 Language Selection
+## Language Selection
 
-ToddleToy supports learning in multiple languages simultaneously! This is one of its most powerful features.
+🌍 ToddleToy supports learning in multiple languages simultaneously! This is one of its most powerful features.
 
 ### How Language Selection Works
 
@@ -342,9 +344,9 @@ Each language shows a difficulty level to help you make informed choices:
 
 ---
 
-## ⚙️ Special Number Displays (Advanced Section)
+## Special Number Displays
 
-ToddleToy can show numbers in multiple ways at the same time! This helps children understand that the same quantity can be represented differently - a foundational math concept.
+⚙️ ToddleToy can show numbers in multiple ways at the same time! This helps children understand that the same quantity can be represented differently - a foundational math concept.
 
 ### How It Works
 When a number appears, it shows:
@@ -461,9 +463,9 @@ You can choose between two different ways to visually count:
 
 ---
 
-## 🧹 Auto-Cleanup Timer
+## Auto-Cleanup Timer
 
-**What it is**: Objects automatically disappear if they haven't been touched for a while.
+🧹 **What it is**: Objects automatically disappear if they haven't been touched for a while.
 
 **How it works**:
 1. Each object gets its own invisible timer
@@ -508,9 +510,9 @@ You can choose between two different ways to visually count:
 
 ---
 
-## 🔊 Audio & Voice Controls
+## Audio and Voice Controls
 
-ToddleToy has two separate audio systems. Understanding the difference helps you configure them perfectly!
+🔊 ToddleToy has two separate audio systems. Understanding the difference helps you configure them perfectly!
 
 ### 🎵 Audio Tones (Position-Based Sounds)
 
@@ -638,9 +640,9 @@ Turns off all spoken words.
 
 ---
 
-## 📐 Grid Mode (Advanced)
+## Grid Mode
 
-**What it is**: Changes ToddleToy from free-form placement to a structured grid layout.
+📐 **What it is**: Changes ToddleToy from free-form placement to a structured grid layout.
 
 **Normal mode** (Grid disabled):
 - Objects appear wherever you click/tap

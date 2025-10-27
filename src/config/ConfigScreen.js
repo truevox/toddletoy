@@ -31,6 +31,9 @@ export class ConfigScreen {
         // Initialize help system
         this.helpSystem = new HelpSystem(this.container);
         this.helpSystem.initialize();
+
+        // Show onboarding for first-time users after UI is fully loaded
+        this.helpSystem.showOnboardingIfNeeded();
     }
 
     /**
@@ -104,7 +107,7 @@ export class ConfigScreen {
 
         return `
             <section class="parent-guidance-banner">
-                <h2 class="guidance-banner-title">🚀 Getting Started with ToddleToy</h2>
+                <h2 class="guidance-banner-title" data-help-anchor="install-app">🚀 Getting Started with ToddleToy</h2>
                 <p class="guidance-banner-subtitle">Follow these steps for the safest and best play experience</p>
 
                 <div class="guidance-cards">
@@ -293,7 +296,7 @@ export class ConfigScreen {
         return `
             <div class="guidance-card app-pinning-card">
                 <div class="card-icon">🔒</div>
-                <h3 class="card-title">Keep Your Child Safe in the App</h3>
+                <h3 class="card-title" data-help-anchor="guided-access">Keep Your Child Safe in the App</h3>
                 <p class="card-content">
                     Use your device's built-in safety features to lock ToddleToy in place, preventing
                     your child from accidentally leaving the app or accessing other apps.
@@ -350,7 +353,7 @@ export class ConfigScreen {
     createContentTypesSection() {
         return `
             <section class="config-section">
-                <h2 class="section-title">What should appear in the toy?</h2>
+                <h2 class="section-title" data-help-anchor="content-types">What should appear in the toy?</h2>
                 <p class="section-help">Choose what your child will see and interact with. Use sliders to make some things appear more often than others.</p>
                 
                 <div class="content-grid">
@@ -448,7 +451,7 @@ export class ConfigScreen {
     createEmojiCategoriesSection() {
         return `
             <section class="config-section emoji-categories-section">
-                <h2 class="section-title">What kinds of emojis?</h2>
+                <h2 class="section-title" data-help-anchor="emoji-categories">What kinds of emojis?</h2>
                 <p class="section-help">Choose which types of emojis to include. Make favorites appear more often.</p>
                 <p class="emoji-dependency-note">💡 These categories are only used when "😊 Emojis" is enabled above</p>
                 
@@ -536,7 +539,7 @@ export class ConfigScreen {
     createLanguageSection() {
         return `
             <section class="config-section">
-                <h2 class="section-title">What language(s)?</h2>
+                <h2 class="section-title" data-help-anchor="languages">What language(s)?</h2>
                 <p class="section-help">Tap to toggle languages between columns, or drag to reorder. Enabled languages will be spoken and displayed.</p>
                 
                 <div class="language-drag-container">
@@ -583,10 +586,10 @@ export class ConfigScreen {
     createAdvancedSection() {
         return `
             <section class="config-section">
-                <h2 class="section-title">Special number displays</h2>
+                <h2 class="section-title" data-help-anchor="special-numbers">Special number displays</h2>
                 <p class="section-help">These show numbers in different ways - great for math exploration!</p>
-                
-                <div class="advanced-options">
+
+                <div class="advanced-options" data-help-anchor="special-numbers">
                     <label class="advanced-option">
                         <input type="checkbox" id="cistercian-enabled" checked>
                         ⚙️ Cistercian Numerals
@@ -615,7 +618,7 @@ export class ConfigScreen {
                 </div>
                 
                 <div class="auto-cleanup-section">
-                    <h3 class="subsection-title">🧹 Auto-Cleanup Timer</h3>
+                    <h3 class="subsection-title" data-help-anchor="auto-cleanup">🧹 Auto-Cleanup Timer</h3>
                     <p class="section-help">Objects that haven't been touched will automatically disappear with cute effects!</p>
 
                     <div class="cleanup-controls">
@@ -637,7 +640,7 @@ export class ConfigScreen {
                 </div>
 
                 <div class="audio-controls-section">
-                    <h3 class="subsection-title">🔊 Audio & Voice Controls</h3>
+                    <h3 class="subsection-title" data-help-anchor="audio-controls">🔊 Audio & Voice Controls</h3>
                     <p class="section-help">Adjust volume levels and speech speed for the perfect experience.</p>
 
                     <div class="audio-controls">
@@ -707,7 +710,7 @@ export class ConfigScreen {
                 </div>
 
                 <div class="grid-mode-section">
-                    <h3 class="subsection-title">📐 Grid Mode (Advanced)</h3>
+                    <h3 class="subsection-title" data-help-anchor="grid-mode">📐 Grid Mode (Advanced)</h3>
                     <p class="section-help">Optional structured layout where objects snap to a fixed grid. When disabled (default), objects can be placed anywhere.</p>
 
                     <div class="grid-mode-controls">
