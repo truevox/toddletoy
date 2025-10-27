@@ -648,6 +648,24 @@ export class ConfigScreen {
                                     🔇 Mute Audio Tones
                                 </label>
                             </div>
+                            <div class="duration-control">
+                                <label class="duration-label">
+                                    <span class="label-text">⏱️ Tone Duration:</span>
+                                    <input type="range" id="audio-tone-duration" class="duration-slider"
+                                           min="-1" max="20000" step="100" value="-1"
+                                           list="duration-markers">
+                                    <span class="duration-value" id="audio-tone-duration-value">Until Destroyed</span>
+                                </label>
+                                <datalist id="duration-markers">
+                                    <option value="-1" label="∞"></option>
+                                    <option value="100" label="0.1s"></option>
+                                    <option value="1000" label="1s"></option>
+                                    <option value="5000" label="5s"></option>
+                                    <option value="10000" label="10s"></option>
+                                    <option value="20000" label="20s"></option>
+                                </datalist>
+                                <p class="control-note">How long audio tones play before automatically stopping</p>
+                            </div>
                             <p class="advanced-note">Audio tones change based on where objects are positioned on screen</p>
                         </div>
 
@@ -2496,6 +2514,10 @@ export class ConfigScreen {
         const audioVolumeValue = this.container.querySelector('#audio-volume-value');
         const audioMuteCheckbox = this.container.querySelector('#audio-mute');
 
+        // Audio tone duration controls
+        const toneDurationSlider = this.container.querySelector('#audio-tone-duration');
+        const toneDurationValue = this.container.querySelector('#audio-tone-duration-value');
+
         // Speech volume controls
         const speechVolumeSlider = this.container.querySelector('#speech-volume');
         const speechVolumeValue = this.container.querySelector('#speech-volume-value');
@@ -2528,6 +2550,22 @@ export class ConfigScreen {
                 audioVolumeSlider.value = previousVolume;
                 audioVolumeValue.textContent = `${previousVolume}%`;
             }
+        });
+
+        // Tone duration slider - update display with formatted text
+        toneDurationSlider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            let displayText;
+
+            if (value === -1) {
+                displayText = 'Until Destroyed';
+            } else if (value < 1000) {
+                displayText = `${value}ms`;
+            } else {
+                displayText = `${(value / 1000).toFixed(1)}s`;
+            }
+
+            toneDurationValue.textContent = displayText;
         });
 
         // Speech volume slider - update display and sync mute
@@ -2759,6 +2797,22 @@ export class ConfigScreen {
             this.setCheckboxValue('#audio-mute', config.audio.mute);
             const audioVolumeValue = this.container.querySelector('#audio-volume-value');
             if (audioVolumeValue) audioVolumeValue.textContent = `${config.audio.volume}%`;
+
+            // Tone duration slider
+            const toneDuration = config.audio.toneDuration !== undefined ? config.audio.toneDuration : -1;
+            this.setSliderValue('#audio-tone-duration', toneDuration);
+            const toneDurationValue = this.container.querySelector('#audio-tone-duration-value');
+            if (toneDurationValue) {
+                let displayText;
+                if (toneDuration === -1) {
+                    displayText = 'Until Destroyed';
+                } else if (toneDuration < 1000) {
+                    displayText = `${toneDuration}ms`;
+                } else {
+                    displayText = `${(toneDuration / 1000).toFixed(1)}s`;
+                }
+                toneDurationValue.textContent = displayText;
+            }
         }
 
         // Speech configuration
@@ -2896,7 +2950,8 @@ export class ConfigScreen {
             languages: this.configManager.getConfig().languages,
             audio: {
                 volume: parseInt(this.container.querySelector('#audio-volume').value),
-                mute: this.container.querySelector('#audio-mute').checked
+                mute: this.container.querySelector('#audio-mute').checked,
+                toneDuration: parseInt(this.container.querySelector('#audio-tone-duration').value)
             },
             speech: {
                 volume: parseInt(this.container.querySelector('#speech-volume').value),
