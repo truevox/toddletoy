@@ -27,7 +27,7 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting
-        console.log('🎯 TODDLER TOY v1.0.42 - Modern Drag & Touch Polish - Build:', new Date().toISOString());
+        console.log('🎯 TODDLER TOY v1.0.43 - Smooth Teleport + Draggable Fix - Build:', new Date().toISOString());
         
         // Initialize configuration manager if not already provided
         if (!this.configManager) {
@@ -492,14 +492,14 @@ class GameScene extends Phaser.Scene {
             // Re-voice the object being dragged
             this.speechManager.speakText(hitObject, 'both');
         } else if (this.speechManager.getIsSpeaking() && this.speechManager.getCurrentSpeakingObject()) {
-            // Jump speaking object to tap location AND start dragging immediately
+            // Teleport speaking object to tap location with smooth lerp AND make it draggable
             // FIX: This fixes the "teleport then drag is wonky" issue
             const speakingObj = this.speechManager.getCurrentSpeakingObject();
-            this.moveObjectTo(speakingObj, x, y, false); // false = immediate positioning, no lerp
+            this.moveObjectTo(speakingObj, x, y, true); // true = smooth lerp animation
             this.audioManager.updateTonePosition(x, y, speakingObj.id);
             this.particleManager.createSpawnBurst(x, y);
             this.autoCleanupManager.updateObjectTouchTime(speakingObj);
-            // Start dragging immediately so finger movement works
+            // Start dragging immediately so finger movement works during/after lerp
             this.startDragging(speakingObj, x, y);
         } else if (!this.speechManager.getIsSpeaking()) {
             // Spawn new object
@@ -540,10 +540,8 @@ class GameScene extends Phaser.Scene {
     startDragging(obj, x, y) {
         if (!obj || !obj.active) return;
 
-        // Stop any smooth movement animations for this object
-        if (this.movementManager.hasMovingObject(obj.id)) {
-            this.movementManager.clearMovement(obj.id);
-        }
+        // Don't cancel smooth movements - let finger movement naturally take over
+        // This allows smooth lerp animations to complete if user doesn't move finger
 
         // Set drag state
         this.isDragging = true;
