@@ -27,7 +27,7 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting
-        console.log('🎯 TODDLER TOY v1.0.24 - Shape Scaling Tuning - Build:', new Date().toISOString());
+        console.log('🎯 TODDLER TOY v1.0.42 - Modern Drag & Touch Polish - Build:', new Date().toISOString());
         
         // Initialize configuration manager if not already provided
         if (!this.configManager) {
@@ -480,28 +480,27 @@ class GameScene extends Phaser.Scene {
         // Check for existing object at pointer position
         const hitObject = this.getObjectUnderPointer(x, y);
         console.log('🎯 hitObject:', hitObject, 'isSpeaking:', this.speechManager.getIsSpeaking());
-        
+
         if (hitObject && !this.speechManager.getIsSpeaking()) {
             // Start dragging existing object when not speaking
-            this.isDragging = true;
-            this.draggedObject = hitObject;
-            this.particleManager.startDragTrail(hitObject);
+            this.startDragging(hitObject, x, y);
             this.autoCleanupManager.updateObjectTouchTime(hitObject);
         } else if (hitObject && this.speechManager.getIsSpeaking()) {
             // Allow dragging any object even during speech
-            this.isDragging = true;
-            this.draggedObject = hitObject;
-            this.particleManager.startDragTrail(hitObject);
+            this.startDragging(hitObject, x, y);
             this.autoCleanupManager.updateObjectTouchTime(hitObject);
             // Re-voice the object being dragged
             this.speechManager.speakText(hitObject, 'both');
         } else if (this.speechManager.getIsSpeaking() && this.speechManager.getCurrentSpeakingObject()) {
-            // Jump speaking object to tap location (matches keyboard/gamepad behavior)
+            // Jump speaking object to tap location AND start dragging immediately
+            // FIX: This fixes the "teleport then drag is wonky" issue
             const speakingObj = this.speechManager.getCurrentSpeakingObject();
-            this.moveObjectTo(speakingObj, x, y);
+            this.moveObjectTo(speakingObj, x, y, false); // false = immediate positioning, no lerp
             this.audioManager.updateTonePosition(x, y, speakingObj.id);
             this.particleManager.createSpawnBurst(x, y);
             this.autoCleanupManager.updateObjectTouchTime(speakingObj);
+            // Start dragging immediately so finger movement works
+            this.startDragging(speakingObj, x, y);
         } else if (!this.speechManager.getIsSpeaking()) {
             // Spawn new object
             console.log('🎯 Attempting to spawn object at', x, y);
@@ -517,9 +516,10 @@ class GameScene extends Phaser.Scene {
 
     onInputPointerMove(data) {
         const { x, y } = data;
-        
+
         if (this.isDragging && this.draggedObject) {
-            this.moveObjectTo(this.draggedObject, x, y);
+            // Use immediate positioning during drag (no lerp lag)
+            this.moveObjectTo(this.draggedObject, x, y, false); // false = instant, no smooth lerp
             this.audioManager.updateTonePosition(x, y, this.draggedObject.id);
             this.particleManager.updateDragTrail(this.draggedObject, x, y);
         }
@@ -527,10 +527,68 @@ class GameScene extends Phaser.Scene {
 
     onInputPointerUp(data) {
         if (this.isDragging && this.draggedObject) {
-            this.particleManager.stopDragTrail(this.draggedObject);
-            this.isDragging = false;
-            this.draggedObject = null;
+            this.stopDragging();
         }
+    }
+
+    /**
+     * Start dragging an object with visual feedback
+     * @param {Object} obj - The object to start dragging
+     * @param {number} x - Current pointer X position
+     * @param {number} y - Current pointer Y position
+     */
+    startDragging(obj, x, y) {
+        if (!obj || !obj.active) return;
+
+        // Stop any smooth movement animations for this object
+        if (this.movementManager.hasMovingObject(obj.id)) {
+            this.movementManager.clearMovement(obj.id);
+        }
+
+        // Set drag state
+        this.isDragging = true;
+        this.draggedObject = obj;
+
+        // Visual feedback: scale up slightly for modern feel
+        this.scene.tweens.add({
+            targets: obj,
+            scaleX: 1.15,
+            scaleY: 1.15,
+            duration: 100,
+            ease: 'Back.easeOut'
+        });
+
+        // Start particle trail
+        this.particleManager.startDragTrail(obj);
+
+        console.log('👆 Started dragging object:', obj.id);
+    }
+
+    /**
+     * Stop dragging with smooth scale-down animation
+     */
+    stopDragging() {
+        if (!this.draggedObject) return;
+
+        const obj = this.draggedObject;
+
+        // Visual feedback: scale back to normal
+        this.scene.tweens.add({
+            targets: obj,
+            scaleX: 1.0,
+            scaleY: 1.0,
+            duration: 150,
+            ease: 'Back.easeOut'
+        });
+
+        // Stop particle trail
+        this.particleManager.stopDragTrail(obj);
+
+        // Clear drag state
+        this.isDragging = false;
+        this.draggedObject = null;
+
+        console.log('✋ Stopped dragging object:', obj.id);
     }
 
     async onInputKeyPress(data) {

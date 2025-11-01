@@ -167,6 +167,17 @@ export class MovementManager {
     }
 
     /**
+     * Clear movement animation for a specific object
+     * @param {string} objId - Object ID to clear movement for
+     */
+    clearMovement(objId) {
+        if (this.movingObjects.has(objId)) {
+            this.movingObjects.delete(objId);
+            console.log('🛑 Cleared smooth movement for object:', objId);
+        }
+    }
+
+    /**
      * Clear all movement animations
      */
     clearAllMovements() {
