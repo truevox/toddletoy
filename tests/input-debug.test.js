@@ -68,21 +68,22 @@ describe('Input Debug Test', () => {
         const mockEvents = {
             on: jest.fn()
         };
-        
+
         const mockScene = {
-            events: mockEvents
+            events: mockEvents,
+            onInputPointerDown: jest.fn() // Add the missing handler function
         };
-        
+
         // Simulate GameScene setupInputHandlers
         const setupInputHandlers = function() {
             this.events.on('input:pointerDown', this.onInputPointerDown, this);
         };
-        
+
         setupInputHandlers.call(mockScene);
-        
+
         // Verify correct event listener setup
         expect(mockEvents.on).toHaveBeenCalledWith('input:pointerDown', expect.any(Function), mockScene);
-        
+
         console.log('✅ GameScene event listener test passed - correctly listens for input:pointerDown');
     });
 });
