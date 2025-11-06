@@ -1,0 +1,2 @@
+# Verify version was bumped for code changes
+node scripts/verify-version-bump.js

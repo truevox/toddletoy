@@ -12,6 +12,7 @@ import { ResourceBar } from './ui/ResourceBar.js'
 import { MovementManager } from './game/systems/MovementManager.js'
 import { AutoCleanupManager } from './game/systems/AutoCleanupManager.js'
 import GridManager from './game/systems/GridManager.js'
+import packageJson from '../package.json'
 
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -27,7 +28,7 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting
-        console.log('🎯 TODDLER TOY v1.0.43 - Smooth Teleport + Draggable Fix - Build:', new Date().toISOString());
+        console.log(`🎯 TODDLER TOY v${packageJson.version} - Build:`, new Date().toISOString());
         
         // Initialize configuration manager if not already provided
         if (!this.configManager) {
