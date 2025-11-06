@@ -54,6 +54,7 @@ export class ConfigScreen {
                 <header class="config-header">
                     <div class="header-top-right">
                         <div class="version-display" id="app-version">v${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.0'}</div>
+                        <button class="documentation-button" id="documentation-btn" title="View full documentation">📚 Docs</button>
                         <button class="update-button" id="update-app-btn">Check for Updates</button>
                         <div id="update-status-msg" class="update-status"></div>
                     </div>
@@ -2434,6 +2435,16 @@ export class ConfigScreen {
      * Add event listeners to interactive elements
      */
     addEventListeners() {
+        // Documentation button
+        const documentationBtn = this.container.querySelector('#documentation-btn');
+        if (documentationBtn) {
+            documentationBtn.addEventListener('click', () => {
+                if (this.helpSystem) {
+                    this.helpSystem.showFullDocumentation();
+                }
+            });
+        }
+
         // Start playing buttons (top and bottom)
         const startBtnTop = this.container.querySelector('#start-playing-btn-top');
         const startBtnBottom = this.container.querySelector('#start-playing-btn-bottom');
