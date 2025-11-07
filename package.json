@@ -1,6 +1,6 @@
 {
   "name": "toddler-toy-pwa",
-  "version": "1.0.49",
+  "version": "1.0.50",
   "description": "Montessori-aligned interactive toddler toy PWA",
   "main": "index.html",
   "scripts": {

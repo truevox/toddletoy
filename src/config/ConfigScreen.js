@@ -7,6 +7,7 @@ import { PLATFORMS } from './constants.js';
 import { detectPlatform, detectPWAInstalled } from '../utils/platformUtils.js';
 import { getLanguageFlag, getDifficultyLevel, getDifficultyText, getDefaultRank, getDefaultHours } from '../utils/languageUtils.js';
 import { PlayingTips } from './ui/PlayingTips.js';
+import { ContentTypes } from './ui/ContentTypes.js';
 import './ConfigScreen.css';
 
 export class ConfigScreen {
@@ -69,7 +70,7 @@ export class ConfigScreen {
                 <main class="config-main">
                     ${this.createParentGuidanceSection()}
                     ${new PlayingTips().render()}
-                    ${this.createContentTypesSection()}
+                    ${new ContentTypes(this.container).render()}
                     ${this.createEmojiCategoriesSection()}
                     ${this.createLanguageSection()}
                     ${this.createAdvancedSection()}
@@ -324,104 +325,6 @@ export class ConfigScreen {
         `;
     }
 
-
-    /**
-     * Create content types configuration section
-     */
-    createContentTypesSection() {
-        return `
-            <section class="config-section">
-                <h2 class="section-title" data-help-anchor="content-types">What should appear in the toy?</h2>
-                <p class="section-help">Choose what your child will see and interact with. Use sliders to make some things appear more often than others.</p>
-                
-                <div class="content-grid">
-                    <div class="content-item">
-                        <label class="content-label">
-                            <input type="checkbox" id="shapes-enabled" class="content-checkbox">
-                            🔵🔺⭐ Shapes
-                        </label>
-                        <div class="weight-control">
-                            <label class="weight-label">How often?</label>
-                            <input type="range" id="shapes-weight" class="weight-slider" min="1" max="100" value="25">
-                            <span class="weight-value" id="shapes-weight-value">25</span>
-                        </div>
-                        <p class="content-examples">Examples: circles, squares, triangles, stars</p>
-                    </div>
-
-                    <div class="content-item">
-                        <label class="content-label">
-                            <input type="checkbox" id="small-numbers-enabled" class="content-checkbox">
-                            🔢 Small Numbers
-                        </label>
-                        <div class="number-range">
-                            <label>Range: <input type="number" id="small-min" class="range-input" min="0" max="9998" value="0"> to <input type="number" id="small-max" class="range-input" min="1" max="9999" value="20"></label>
-                        </div>
-                        <div class="weight-control">
-                            <label class="weight-label">How often?</label>
-                            <input type="range" id="small-numbers-weight" class="weight-slider" min="1" max="100" value="30">
-                            <span class="weight-value" id="small-numbers-weight-value">30</span>
-                        </div>
-                        <p class="content-examples">Examples: 0, 1, 2, 3... good for counting practice</p>
-                    </div>
-
-                    <div class="content-item">
-                        <label class="content-label">
-                            <input type="checkbox" id="large-numbers-enabled" class="content-checkbox">
-                            🔢 Large Numbers
-                        </label>
-                        <div class="number-range">
-                            <label>Range: <input type="number" id="large-min" class="range-input" min="1" max="9998" value="21"> to <input type="number" id="large-max" class="range-input" min="2" max="9999" value="9999"></label>
-                        </div>
-                        <div class="weight-control">
-                            <label class="weight-label">How often?</label>
-                            <input type="range" id="large-numbers-weight" class="weight-slider" min="1" max="100" value="10">
-                            <span class="weight-value" id="large-numbers-weight-value">10</span>
-                        </div>
-                        <p class="content-examples">Examples: 25, 150, 1000... for advanced learners</p>
-                    </div>
-
-                    <div class="content-item">
-                        <label class="content-label">
-                            <input type="checkbox" id="uppercase-enabled" class="content-checkbox">
-                            📝 UPPERCASE Letters
-                        </label>
-                        <div class="weight-control">
-                            <label class="weight-label">How often?</label>
-                            <input type="range" id="uppercase-weight" class="weight-slider" min="1" max="100" value="25">
-                            <span class="weight-value" id="uppercase-weight-value">25</span>
-                        </div>
-                        <p class="content-examples">Examples: A, B, C, D... classic letter learning</p>
-                    </div>
-
-                    <div class="content-item">
-                        <label class="content-label">
-                            <input type="checkbox" id="lowercase-enabled" class="content-checkbox">
-                            📝 lowercase letters
-                        </label>
-                        <div class="weight-control">
-                            <label class="weight-label">How often?</label>
-                            <input type="range" id="lowercase-weight" class="weight-slider" min="1" max="100" value="15">
-                            <span class="weight-value" id="lowercase-weight-value">15</span>
-                        </div>
-                        <p class="content-examples">Examples: a, b, c, d... for reading readiness</p>
-                    </div>
-
-                    <div class="content-item">
-                        <label class="content-label">
-                            <input type="checkbox" id="emojis-enabled" class="content-checkbox">
-                            😊 Emojis
-                        </label>
-                        <div class="weight-control">
-                            <label class="weight-label">How often?</label>
-                            <input type="range" id="emojis-weight" class="weight-slider" min="1" max="100" value="20">
-                            <span class="weight-value" id="emojis-weight-value">20</span>
-                        </div>
-                        <p class="content-examples">Examples: animals, foods, faces... fun and engaging</p>
-                    </div>
-                </div>
-            </section>
-        `;
-    }
 
     /**
      * Create emoji categories section
