@@ -8,6 +8,7 @@ import { detectPlatform, detectPWAInstalled } from '../utils/platformUtils.js';
 import { getLanguageFlag, getDifficultyLevel, getDifficultyText, getDefaultRank, getDefaultHours } from '../utils/languageUtils.js';
 import { PlayingTips } from './ui/PlayingTips.js';
 import { ContentTypes } from './ui/ContentTypes.js';
+import { EmojiCategories } from './ui/EmojiCategories.js';
 import './ConfigScreen.css';
 
 export class ConfigScreen {
@@ -71,7 +72,7 @@ export class ConfigScreen {
                     ${this.createParentGuidanceSection()}
                     ${new PlayingTips().render()}
                     ${new ContentTypes(this.container).render()}
-                    ${this.createEmojiCategoriesSection()}
+                    ${new EmojiCategories(this.container).render()}
                     ${this.createLanguageSection()}
                     ${this.createAdvancedSection()}
                 </main>
@@ -326,92 +327,6 @@ export class ConfigScreen {
     }
 
 
-    /**
-     * Create emoji categories section
-     */
-    createEmojiCategoriesSection() {
-        return `
-            <section class="config-section emoji-categories-section">
-                <h2 class="section-title" data-help-anchor="emoji-categories">What kinds of emojis?</h2>
-                <p class="section-help">Choose which types of emojis to include. Make favorites appear more often.</p>
-                <p class="emoji-dependency-note">💡 These categories are only used when "😊 Emojis" is enabled above</p>
-                
-                <div class="emoji-grid emoji-subcategories">
-                    <div class="emoji-item">
-                        <label class="emoji-label">
-                            <input type="checkbox" id="animals-enabled" class="emoji-checkbox">
-                            🐶 Animals
-                        </label>
-                        <div class="weight-control">
-                            <input type="range" id="animals-weight" class="weight-slider" min="1" max="100" value="40">
-                            <span class="weight-value" id="animals-weight-value">40</span>
-                        </div>
-                        <p class="emoji-examples">Examples: dogs, cats, lions, fish</p>
-                    </div>
-
-                    <div class="emoji-item">
-                        <label class="emoji-label">
-                            <input type="checkbox" id="food-enabled" class="emoji-checkbox">
-                            🍎 Food
-                        </label>
-                        <div class="weight-control">
-                            <input type="range" id="food-weight" class="weight-slider" min="1" max="100" value="30">
-                            <span class="weight-value" id="food-weight-value">30</span>
-                        </div>
-                        <p class="emoji-examples">Examples: fruits, pizza, cookies, milk</p>
-                    </div>
-
-                    <div class="emoji-item">
-                        <label class="emoji-label">
-                            <input type="checkbox" id="vehicles-enabled" class="emoji-checkbox">
-                            🚗 Vehicles
-                        </label>
-                        <div class="weight-control">
-                            <input type="range" id="vehicles-weight" class="weight-slider" min="1" max="100" value="15">
-                            <span class="weight-value" id="vehicles-weight-value">15</span>
-                        </div>
-                        <p class="emoji-examples">Examples: cars, trains, airplanes, rockets</p>
-                    </div>
-
-                    <div class="emoji-item">
-                        <label class="emoji-label">
-                            <input type="checkbox" id="faces-enabled" class="emoji-checkbox">
-                            😀 Faces
-                        </label>
-                        <div class="weight-control">
-                            <input type="range" id="faces-weight" class="weight-slider" min="1" max="100" value="10">
-                            <span class="weight-value" id="faces-weight-value">10</span>
-                        </div>
-                        <p class="emoji-examples">Examples: happy, surprised, laughing, sleepy</p>
-                    </div>
-
-                    <div class="emoji-item">
-                        <label class="emoji-label">
-                            <input type="checkbox" id="nature-enabled" class="emoji-checkbox">
-                            🌳 Nature
-                        </label>
-                        <div class="weight-control">
-                            <input type="range" id="nature-weight" class="weight-slider" min="1" max="100" value="3">
-                            <span class="weight-value" id="nature-weight-value">3</span>
-                        </div>
-                        <p class="emoji-examples">Examples: trees, flowers, sun, rain</p>
-                    </div>
-
-                    <div class="emoji-item">
-                        <label class="emoji-label">
-                            <input type="checkbox" id="objects-enabled" class="emoji-checkbox">
-                            ⚽ Objects
-                        </label>
-                        <div class="weight-control">
-                            <input type="range" id="objects-weight" class="weight-slider" min="1" max="100" value="2">
-                            <span class="weight-value" id="objects-weight-value">2</span>
-                        </div>
-                        <p class="emoji-examples">Examples: balls, toys, books, music</p>
-                    </div>
-                </div>
-            </section>
-        `;
-    }
 
 
     /**
@@ -1137,7 +1052,6 @@ export class ConfigScreen {
         });
 
         // Emoji master toggle functionality
-        this.setupEmojiMasterToggle();
 
         // Audio controls volume/mute sync
         this.setupAudioControls();
@@ -1265,99 +1179,6 @@ export class ConfigScreen {
     /**
      * Set up the emoji master toggle behavior
      */
-    setupEmojiMasterToggle() {
-        const masterCheckbox = this.container.querySelector('#emojis-enabled');
-        const categoryCheckboxes = this.container.querySelectorAll('#animals-enabled, #food-enabled, #vehicles-enabled, #faces-enabled, #nature-enabled, #objects-enabled');
-
-        // When master checkbox changes, update all category checkboxes and visual styling
-        masterCheckbox.addEventListener('change', (e) => {
-            const isChecked = e.target.checked;
-            categoryCheckboxes.forEach(checkbox => {
-                checkbox.checked = isChecked;
-            });
-            
-            // Update visual styling of emoji categories section
-            this.updateEmojiCategoriesVisualState(isChecked);
-            
-            // Save after updating all checkboxes
-            this.saveCurrentConfig();
-        });
-
-        // When any category checkbox changes, update master checkbox
-        categoryCheckboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', () => {
-                this.updateEmojiMasterCheckboxState();
-            });
-        });
-        
-        // Initialize visual state
-        this.updateEmojiMasterCheckboxState();
-    }
-
-    /**
-     * Update the master emoji checkbox based on category checkbox states
-     */
-    updateEmojiMasterCheckbox() {
-        this.updateEmojiMasterCheckboxState();
-    }
-
-    /**
-     * Update the master emoji checkbox state (checked/unchecked/indeterminate)
-     */
-    updateEmojiMasterCheckboxState() {
-        const masterCheckbox = this.container.querySelector('#emojis-enabled');
-        const categoryCheckboxes = this.container.querySelectorAll('#animals-enabled, #food-enabled, #vehicles-enabled, #faces-enabled, #nature-enabled, #objects-enabled');
-        
-        if (masterCheckbox && categoryCheckboxes.length > 0) {
-            const checkedCount = Array.from(categoryCheckboxes).filter(cb => cb.checked).length;
-            const totalCount = categoryCheckboxes.length;
-            
-            if (checkedCount === 0) {
-                // None selected - unchecked
-                masterCheckbox.checked = false;
-                masterCheckbox.indeterminate = false;
-                this.updateEmojiCategoriesVisualState(false);
-            } else if (checkedCount === totalCount) {
-                // All selected - checked
-                masterCheckbox.checked = true;
-                masterCheckbox.indeterminate = false;
-                this.updateEmojiCategoriesVisualState(true);
-            } else {
-                // Partial selection - indeterminate (half-ticked gray)
-                masterCheckbox.checked = false;
-                masterCheckbox.indeterminate = true;
-                this.updateEmojiCategoriesVisualState(true); // Categories are still usable
-            }
-        }
-    }
-
-    /**
-     * Update visual styling of emoji categories section based on master toggle state
-     */
-    updateEmojiCategoriesVisualState(isEnabled) {
-        const categoriesSection = this.container.querySelector('.emoji-categories-section');
-        const subcategoriesDiv = this.container.querySelector('.emoji-subcategories');
-        
-        if (categoriesSection) {
-            // Remove all state classes
-            categoriesSection.classList.remove('emoji-enabled', 'emoji-disabled');
-            
-            // Add appropriate state class
-            if (isEnabled) {
-                categoriesSection.classList.add('emoji-enabled');
-            } else {
-                categoriesSection.classList.add('emoji-disabled');
-            }
-        }
-        
-        if (subcategoriesDiv) {
-            if (isEnabled) {
-                subcategoriesDiv.classList.remove('disabled');
-            } else {
-                subcategoriesDiv.classList.add('disabled');
-            }
-        }
-    }
 
     /**
      * Load current configuration into the UI
