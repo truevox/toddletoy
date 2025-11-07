@@ -3,6 +3,9 @@
  * Provides intuitive controls for content selection, weights, and settings
  */
 import { HelpSystem } from './HelpSystem.js';
+import { PLATFORMS } from './constants.js';
+import { detectPlatform, detectPWAInstalled } from '../utils/platformUtils.js';
+import { getLanguageFlag, getDifficultyLevel, getDifficultyText, getDefaultRank, getDefaultHours } from '../utils/languageUtils.js';
 import './ConfigScreen.css';
 
 export class ConfigScreen {
@@ -168,7 +171,7 @@ export class ConfigScreen {
     getManualInstallInstructions() {
         const platform = this.detectPlatform();
 
-        if (platform === 'ios') {
+        if (platform === PLATFORMS.IOS) {
             return `
                 <div class="manual-install-instructions">
                     <p><strong>To install on iPhone/iPad:</strong></p>
@@ -179,7 +182,7 @@ export class ConfigScreen {
                     </ol>
                 </div>
             `;
-        } else if (platform === 'android') {
+        } else if (platform === PLATFORMS.ANDROID) {
             return `
                 <div class="manual-install-instructions">
                     <p><strong>To install on Android:</strong></p>
@@ -211,9 +214,9 @@ export class ConfigScreen {
         const platform = this.detectPlatform();
         let bookmarkInstructions = '';
 
-        if (platform === 'ios') {
+        if (platform === PLATFORMS.IOS) {
             bookmarkInstructions = 'Tap <span class="ios-icon">⎙</span> Share → "Add Bookmark"';
-        } else if (platform === 'android') {
+        } else if (platform === PLATFORMS.ANDROID) {
             bookmarkInstructions = 'Tap ⋮ Menu → "Add bookmark" or ⭐ Star icon';
         } else if (platform === 'mac') {
             bookmarkInstructions = 'Press <kbd>⌘ Cmd</kbd> + <kbd>D</kbd>';
@@ -247,7 +250,7 @@ export class ConfigScreen {
         let instructions = '';
         let documentationLink = '';
 
-        if (platform === 'ios') {
+        if (platform === PLATFORMS.IOS) {
             instructions = `
                 <h4>🔒 Enable Guided Access</h4>
                 <p>Guided Access locks your iPhone/iPad to a single app and lets you control which features are available:</p>
@@ -261,7 +264,7 @@ export class ConfigScreen {
                 <p class="exit-note">To exit: <strong>Triple-click the side button</strong> and enter your passcode</p>
             `;
             documentationLink = 'https://support.apple.com/en-us/HT202612';
-        } else if (platform === 'android') {
+        } else if (platform === PLATFORMS.ANDROID) {
             instructions = `
                 <h4>📌 Enable Screen Pinning</h4>
                 <p>Screen Pinning keeps ToddleToy in full view and prevents your child from leaving the app:</p>
@@ -302,13 +305,13 @@ export class ConfigScreen {
                 </p>
                 <details class="app-pinning-details">
                     <summary class="details-summary">
-                        📖 Show ${platform === 'ios' ? 'Guided Access' : platform === 'android' ? 'Screen Pinning' : 'Full Screen'} Instructions
+                        📖 Show ${platform === PLATFORMS.IOS ? 'Guided Access' : platform === PLATFORMS.ANDROID ? 'Screen Pinning' : 'Full Screen'} Instructions
                     </summary>
                     <div class="details-content">
                         ${instructions}
                         ${documentationLink ?
                             `<a href="${documentationLink}" target="_blank" rel="noopener noreferrer" class="official-docs-link">
-                                📚 View Official ${platform === 'ios' ? 'Apple' : 'Google'} Documentation →
+                                📚 View Official ${platform === PLATFORMS.IOS ? 'Apple' : 'Google'} Documentation →
                             </a>` : ''
                         }
                     </div>
@@ -821,90 +824,6 @@ export class ConfigScreen {
         return element;
     }
 
-    /**
-     * Get flag emoji for language code
-     */
-    getLanguageFlag(code) {
-        const flags = {
-            'en': '🇺🇸', 'es': '🇪🇸', 'zh': '🇨🇳', 'hi': '🇮🇳', 'ar': '🇸🇦', 
-            'fr': '🇫🇷', 'bn': '🇧🇩', 'pt': '🇵🇹', 'ru': '🇷🇺', 'id': '🇮🇩',
-            'tlh': '⚔️', 'jbo': '🤖', 'eo': '⭐'
-        };
-        return flags[code] || '🌍';
-    }
-
-    /**
-     * Get difficulty level category for styling
-     */
-    getDifficultyLevel(rank) {
-        if (rank === 1) return 'trivial';   // Esperanto
-        if (rank <= 3) return 'easy';       // Indonesian, Spanish
-        if (rank <= 6) return 'medium';     // Portuguese, French, English
-        if (rank <= 8) return 'hard';       // Lojban, Russian
-        if (rank <= 10) return 'very-hard'; // Bengali, Hindi
-        if (rank <= 11) return 'extreme';   // Klingon
-        return 'nightmare';                 // Arabic, Chinese
-    }
-
-    /**
-     * Get difficulty text for display
-     */
-    getDifficultyText(level) {
-        const texts = {
-            'trivial': 'Trivial',
-            'easy': 'Easy',
-            'medium': 'Medium',
-            'hard': 'Hard',
-            'very-hard': 'Very Hard',
-            'extreme': 'Extreme',
-            'nightmare': 'Expert Only'
-        };
-        return texts[level] || 'Medium';
-    }
-
-    /**
-     * Get default difficulty rank for language code
-     */
-    getDefaultRank(code) {
-        const ranks = {
-            'eo': 1, 'id': 2, 'es': 3, 'pt': 4, 'fr': 5, 'en': 6,
-            'jbo': 7, 'ru': 8, 'bn': 9, 'hi': 10, 'tlh': 11, 'ar': 12, 'zh': 13
-        };
-        return ranks[code] || 6; // Default to English difficulty
-    }
-
-    /**
-     * Get default learning hours for language code
-     */
-    getDefaultHours(code) {
-        const hours = {
-            'eo': '150-200h', 'id': '900h', 'es': '600-750h', 'pt': '600-750h',
-            'fr': '600-750h', 'en': '700-900h', 'jbo': '1000h±', 'ru': '1100h',
-            'bn': '1100h', 'hi': '1100h', 'tlh': '1400h±', 'ar': '2200h', 'zh': '2200h+'
-        };
-        return hours[code] || '700-900h'; // Default to English hours
-    }
-
-    /**
-     * Detect user's platform for platform-specific instructions
-     */
-    detectPlatform() {
-        const ua = navigator.userAgent;
-        if (/iPad|iPhone|iPod/.test(ua)) return 'ios';
-        if (/Android/.test(ua)) return 'android';
-        if (/Mac/.test(ua)) return 'mac';
-        if (/Win/.test(ua)) return 'windows';
-        return 'desktop';
-    }
-
-    /**
-     * Detect if app is installed as PWA
-     */
-    detectPWAInstalled() {
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
-                           window.navigator.standalone === true;
-        return isStandalone;
-    }
 
     /**
      * Set up drag and drop functionality for languages
