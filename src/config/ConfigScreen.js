@@ -6,6 +6,7 @@ import { HelpSystem } from './HelpSystem.js';
 import { PLATFORMS } from './constants.js';
 import { detectPlatform, detectPWAInstalled } from '../utils/platformUtils.js';
 import { getLanguageFlag, getDifficultyLevel, getDifficultyText, getDefaultRank, getDefaultHours } from '../utils/languageUtils.js';
+import { PlayingTips } from './ui/PlayingTips.js';
 import './ConfigScreen.css';
 
 export class ConfigScreen {
@@ -67,7 +68,7 @@ export class ConfigScreen {
 
                 <main class="config-main">
                     ${this.createParentGuidanceSection()}
-                    ${this.createPlayingTipsSection()}
+                    ${new PlayingTips().render()}
                     ${this.createContentTypesSection()}
                     ${this.createEmojiCategoriesSection()}
                     ${this.createLanguageSection()}
@@ -323,31 +324,6 @@ export class ConfigScreen {
         `;
     }
 
-    /**
-     * Create playing tips section
-     */
-    createPlayingTipsSection() {
-        return `
-            <section class="playing-tips-section">
-                <h2 class="tips-title">👨‍👩‍👧 Tips for Playing Together</h2>
-                <div class="tips-content">
-                    <p class="tips-text">
-                        <strong>ToddleToy works best when a grown up plays along!</strong>
-                        Encourage your child to explore, ask questions, and discover new words together.
-                        <strong>ToddleToy is not a babysitter!</strong> Employing it as one may leave your child hungry and overtired, at best.
-                    </p>
-                    <p class="tips-note">
-                        💡 <strong>Tip:</strong> For the safest experience, see the "Getting Started" section above
-                        to install ToddleToy as an app and learn how to set up and use child safety features such as
-                        App Pinning and Guided Access.
-                    </p>
-                </div>
-                <button class="start-button" id="start-playing-btn-top">
-                    ▶️ START PLAYING
-                </button>
-            </section>
-        `;
-    }
 
     /**
      * Create content types configuration section
