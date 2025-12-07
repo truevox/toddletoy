@@ -12,6 +12,7 @@ import { ResourceBar } from './ui/ResourceBar.js'
 import { MovementManager } from './game/systems/MovementManager.js'
 import { AutoCleanupManager } from './game/systems/AutoCleanupManager.js'
 import GridManager from './game/systems/GridManager.js'
+import packageJson from '../package.json'
 
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -27,8 +28,8 @@ class GameScene extends Phaser.Scene {
 
     create() {
         // Version logging for troubleshooting
-        console.log('🎯 TODDLER TOY v1.0.43 - Smooth Teleport + Draggable Fix - Build:', new Date().toISOString());
-        
+        console.log(`🎯 TODDLER TOY v${packageJson.version} - Build:`, new Date().toISOString());
+
         // Initialize configuration manager if not already provided
         if (!this.configManager) {
             this.configManager = new ConfigManager();
@@ -36,7 +37,7 @@ class GameScene extends Phaser.Scene {
         } else {
             console.log('📋 Using provided ConfigManager in GameScene');
         }
-        
+
         // Initialize positioning system for collision detection
         try {
             this.positioningSystem = new PositioningSystem(this);
@@ -45,7 +46,7 @@ class GameScene extends Phaser.Scene {
             console.error('Failed to initialize PositioningSystem:', error);
             this.positioningSystem = null;
         }
-        
+
         // Initialize manager systems
         this.audioManager = new AudioManager(this);
         this.particleManager = new ParticleManager(this);
@@ -56,10 +57,10 @@ class GameScene extends Phaser.Scene {
         this.inputManager = new InputManager(this);
         this.movementManager = new MovementManager(this);
         this.autoCleanupManager = new AutoCleanupManager(this);
-        
+
         // Set up input event handlers from InputManager
         this.setupInputHandlers();
-        
+
         // Create text style with emoji support  
         this.textStyle = {
             fontSize: '32px',
@@ -67,7 +68,7 @@ class GameScene extends Phaser.Scene {
             fontFamily: 'Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
             align: 'center'
         };
-        
+
         // Create emoji-specific style (larger size)
         this.emojiStyle = {
             fontSize: '64px',
@@ -75,12 +76,12 @@ class GameScene extends Phaser.Scene {
             fontFamily: 'Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
             align: 'center'
         };
-        
+
         // Initialize game state
         this.objects = [];
         this.currentSpeech = null;
         this.currentSpeakingObject = null;
-        
+
         // Initialize dragging state
         this.isDragging = false;
         this.draggedObject = null;
@@ -96,16 +97,16 @@ class GameScene extends Phaser.Scene {
         };
 
         console.log('🎮 Game managers initialized successfully');
-        
+
         // Expose cache clearing utility in development mode
         if (this.configManager.isDevelopmentMode()) {
             window.clearToddleToyCache = () => this.configManager.clearAllCaches();
             console.log('🔧 Development mode: Use clearToddleToyCache() to clear all caches');
         }
-        
+
         // Pre-load critical data to avoid first-click delays
         this.preloadGameData();
-        
+
         // Restore game state from previous session if available
         this.restoreGameState();
 
@@ -381,21 +382,21 @@ class GameScene extends Phaser.Scene {
         try {
             // Cache busting timestamp
             const timestamp = Date.now();
-            
+
             // Pre-load emoji data with cache busting
             if (!this.emojiData) {
                 const response = await fetch(`/emojis.json?v=${timestamp}`);
                 this.emojiData = await response.json();
                 console.log('📦 Emoji data preloaded:', this.emojiData.length, 'emojis');
             }
-            
+
             // Pre-load things data with cache busting
             if (!this.thingsData) {
                 const response = await fetch(`/things.json?v=${timestamp}`);
                 this.thingsData = await response.json();
                 console.log('📦 Things data preloaded');
             }
-            
+
             this.dataLoaded = true;
             this.checkFullInitialization();
         } catch (error) {
@@ -408,7 +409,7 @@ class GameScene extends Phaser.Scene {
     checkFullInitialization() {
         // Check if fonts are also loaded
         this.fontsLoaded = document.fonts.check('1em Kaktovik') && document.fonts.check('1em Cistercian');
-        
+
         if (this.dataLoaded && this.fontsLoaded) {
             this.isFullyInitialized = true;
             console.log('✅ Game fully initialized - ready for interactions');
@@ -436,10 +437,10 @@ class GameScene extends Phaser.Scene {
         if (this.inputManager) {
             this.inputManager.update();
         }
-        
+
         // Update object movements (smooth lerping)
         this.movementManager.updateObjectMovements();
-        
+
         // Check for auto-cleanup
         this.autoCleanupManager.checkAutoCleanup();
     }
@@ -494,6 +495,13 @@ class GameScene extends Phaser.Scene {
         } else if (this.speechManager.getIsSpeaking() && this.speechManager.getCurrentSpeakingObject()) {
             // Teleport speaking object to tap location with smooth lerp AND make it draggable
             // FIX: This fixes the "teleport then drag is wonky" issue
+
+            // Prevent finding the object we JUST spawned (debounce double-events)
+            if (this.lastSpawnTime && (Date.now() - this.lastSpawnTime < 300)) {
+                console.log('🛑 Ignoring move request immediately after spawn');
+                return;
+            }
+
             const speakingObj = this.speechManager.getCurrentSpeakingObject();
             this.moveObjectTo(speakingObj, x, y, true); // true = smooth lerp animation
             this.audioManager.updateTonePosition(x, y, speakingObj.id);
@@ -591,7 +599,7 @@ class GameScene extends Phaser.Scene {
 
     async onInputKeyPress(data) {
         const { key, position } = data;
-        
+
         if (!this.speechManager.getIsSpeaking()) {
             const obj = await this.spawnObjectAt(position.x, position.y, 'random');
             this.speechManager.speakText(obj, 'both');
@@ -604,7 +612,7 @@ class GameScene extends Phaser.Scene {
 
     onInputKeyInterpolate(data) {
         const { position } = data;
-        
+
         if (this.speechManager.getCurrentSpeakingObject()) {
             this.moveObjectTo(this.speechManager.getCurrentSpeakingObject(), position.x, position.y);
         }
@@ -616,7 +624,7 @@ class GameScene extends Phaser.Scene {
 
     async onInputGamepadButtonDown(data) {
         const { position } = data;
-        
+
         if (!this.speechManager.getIsSpeaking()) {
             const obj = await this.spawnObjectAt(position.x, position.y, 'random');
             this.speechManager.speakText(obj, 'both');
@@ -651,7 +659,7 @@ class GameScene extends Phaser.Scene {
 
     moveObjectTo(obj, x, y, useSmooth = true) {
         if (!obj || !obj.active) return;
-        
+
         if (useSmooth) {
             // Delegate to movement manager
             this.movementManager.moveObjectTo(obj, x, y);
@@ -778,7 +786,7 @@ class GameScene extends Phaser.Scene {
             const spawnType = type === 'random' ? this.selectSpawnType() : type;
             let selectedItem;
             let actualType = spawnType;
-            
+
             // Get item based on type
             switch (spawnType) {
                 case 'emoji':
@@ -802,7 +810,7 @@ class GameScene extends Phaser.Scene {
                     selectedItem = await this.getRandomEmoji();
                     actualType = 'emoji';
             }
-            
+
             if (!selectedItem) {
                 console.warn('No item selected for spawn');
                 return null;
@@ -832,7 +840,7 @@ class GameScene extends Phaser.Scene {
             obj.type = actualType;
             obj.id = `object_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             obj.lastTouchedTime = Date.now();
-            
+
             // Add to objects array
             this.objects.push(obj);
 
@@ -844,14 +852,18 @@ class GameScene extends Phaser.Scene {
             // Display text labels with dynamic vertical offset (for object counting layout)
             const verticalOffset = obj.componentLayout?.labelVerticalOffset || 0;
             this.renderManager.displayTextLabels(obj, verticalOffset);
-            
+
+
             console.log(`✨ Spawned ${actualType}:`, displayText, 'at', x, y);
-            
+
+            // Track spawn time to prevent accidental immediate interaction
+            this.lastSpawnTime = Date.now();
+
             // Save game state after spawning
             this.saveGameState();
-            
+
             return obj;
-            
+
         } catch (error) {
             console.error('Error spawning object:', error);
             return null;
@@ -983,8 +995,8 @@ class GameScene extends Phaser.Scene {
                 components.push({
                     type: 'onlyApples',
                     object: comp,
-                    offsetX: 0,
-                    offsetY: objectCountingYOffset
+                    offsetX: comp.x - centerX, // Calculate offset from center
+                    offsetY: comp.y - centerY  // Calculate offset from center
                 });
             });
 
@@ -1013,9 +1025,9 @@ class GameScene extends Phaser.Scene {
         if (types.uppercaseLetters?.enabled && types.uppercaseLetters?.weight > 0) weights.push({ type: 'uppercaseLetters', weight: types.uppercaseLetters.weight });
         if (types.lowercaseLetters?.enabled && types.lowercaseLetters?.weight > 0) weights.push({ type: 'lowercaseLetters', weight: types.lowercaseLetters.weight });
         if (types.emojis?.enabled && types.emojis?.weight > 0) weights.push({ type: 'emoji', weight: types.emojis.weight });
-        
+
         if (weights.length === 0) return 'emoji';
-        
+
         // Weighted random selection with debug logging
         const totalWeight = weights.reduce((sum, item) => sum + item.weight, 0);
         let random = Math.random() * totalWeight;
@@ -1043,7 +1055,7 @@ class GameScene extends Phaser.Scene {
                 const response = await fetch(`/emojis.json?v=${Date.now()}`);
                 this.emojiData = await response.json();
             }
-            
+
             // Get filtered emojis based on enabled emoji categories
             const config = this.configManager ? this.configManager.getConfig() : null;
             let availableEmojis = this.emojiData;
@@ -1074,7 +1086,7 @@ class GameScene extends Phaser.Scene {
             // Select random emoji
             const randomIndex = Math.floor(Math.random() * availableEmojis.length);
             return availableEmojis[randomIndex];
-            
+
         } catch (error) {
             console.error('Error loading emoji data:', error);
             // Fallback emoji object
@@ -1095,15 +1107,15 @@ class GameScene extends Phaser.Scene {
                 const response = await fetch(`/things.json?v=${Date.now()}`);
                 this.thingsData = await response.json();
             }
-            
+
             const shapes = this.thingsData.shapes || [];
             if (shapes.length === 0) {
                 return { value: 'Circle', type: 'shape' };
             }
-            
+
             const randomIndex = Math.floor(Math.random() * shapes.length);
             return { ...shapes[randomIndex], type: 'shape' };
-            
+
         } catch (error) {
             console.error('Error loading shape data:', error);
             return { value: 'Circle', type: 'shape' };
@@ -1117,20 +1129,20 @@ class GameScene extends Phaser.Scene {
                 const response = await fetch(`/things.json?v=${Date.now()}`);
                 this.thingsData = await response.json();
             }
-            
+
             const letters = this.thingsData.letters || [];
             const isUppercase = configType === 'uppercaseLetters';
-            const filteredLetters = letters.filter(letter => 
+            const filteredLetters = letters.filter(letter =>
                 isUppercase ? letter.case === 'upper' : letter.case === 'lower'
             );
-            
+
             if (filteredLetters.length === 0) {
                 return { value: isUppercase ? 'A' : 'a', type: 'letter' };
             }
-            
+
             const randomIndex = Math.floor(Math.random() * filteredLetters.length);
             return { ...filteredLetters[randomIndex], type: 'letter' };
-            
+
         } catch (error) {
             console.error('Error loading letter data:', error);
             return { value: 'A', type: 'letter' };
@@ -1400,7 +1412,7 @@ class GameScene extends Phaser.Scene {
                 const cellKey = `${gridCell.row},${gridCell.col}`;
                 this.gridMode.occupiedCells.delete(cellKey);
             }
-            
+
             // Clean up component layout objects
             if (obj.componentLayout) {
                 // Clean up number mode components
@@ -1411,7 +1423,7 @@ class GameScene extends Phaser.Scene {
                         }
                     });
                 }
-                
+
                 // Clean up word objects
                 if (obj.allLanguageWords) {
                     obj.allLanguageWords.forEach(langGroup => {
@@ -1425,12 +1437,12 @@ class GameScene extends Phaser.Scene {
                     });
                 }
             }
-            
+
             // Destroy main object
             if (obj.destroy) {
                 obj.destroy();
             }
-            
+
         } catch (error) {
             console.warn('Error removing object:', error);
         }
@@ -1447,7 +1459,7 @@ class GameScene extends Phaser.Scene {
             localStorage.removeItem('toddleToyGameState');
             return;
         }
-        
+
         const gameState = {
             objects: this.objects.map(obj => ({
                 id: obj.id,
@@ -1460,7 +1472,7 @@ class GameScene extends Phaser.Scene {
             })),
             timestamp: Date.now()
         };
-        
+
         try {
             localStorage.setItem('toddleToyGameState', JSON.stringify(gameState));
             console.log('💾 Game state saved:', gameState.objects.length, 'objects');
@@ -1468,14 +1480,14 @@ class GameScene extends Phaser.Scene {
             console.warn('Failed to save game state:', error);
         }
     }
-    
+
     async restoreGameState() {
         try {
             const savedState = localStorage.getItem('toddleToyGameState');
             if (!savedState) return;
-            
+
             const gameState = JSON.parse(savedState);
-            
+
             // Check if saved state is recent (within 1 hour to avoid stale data)
             const ageHours = (Date.now() - gameState.timestamp) / (1000 * 60 * 60);
             if (ageHours > 1) {
@@ -1483,15 +1495,15 @@ class GameScene extends Phaser.Scene {
                 localStorage.removeItem('toddleToyGameState');
                 return;
             }
-            
+
             // Wait for game to be fully initialized before restoring
             if (!this.isFullyInitialized) {
                 setTimeout(() => this.restoreGameState(), 100);
                 return;
             }
-            
+
             console.log('📦 Restoring game state:', gameState.objects.length, 'objects');
-            
+
             // Restore each object
             for (const objData of gameState.objects) {
                 try {
@@ -1500,18 +1512,18 @@ class GameScene extends Phaser.Scene {
                     console.warn('Failed to restore object:', objData, error);
                 }
             }
-            
+
             console.log('✨ Game state restoration complete');
-            
+
         } catch (error) {
             console.warn('Failed to restore game state:', error);
             localStorage.removeItem('toddleToyGameState');
         }
     }
-    
+
     async restoreObject(objData) {
         if (!objData || !objData.itemData || !objData.type) return;
-        
+
         // Ensure restored items have color information when expected
         if (objData.type === 'letter' && (!objData.itemData.color || !objData.itemData.color.hex)) {
             objData.itemData.color = await this.getRandomColor();
@@ -1535,7 +1547,7 @@ class GameScene extends Phaser.Scene {
         obj.type = objData.type;
         obj.id = objData.id;
         obj.lastTouchedTime = objData.lastTouchedTime || Date.now();
-        
+
         // Add to objects array
         this.objects.push(obj);
 
@@ -1547,7 +1559,7 @@ class GameScene extends Phaser.Scene {
         // Display text labels with dynamic vertical offset (for object counting layout)
         const verticalOffset = obj.componentLayout?.labelVerticalOffset || 0;
         this.renderManager.displayTextLabels(obj, verticalOffset);
-        
+
         console.log(`✨ Restored ${objData.type}:`, displayText, 'at', objData.x, objData.y);
     }
 
@@ -1557,24 +1569,24 @@ class GameScene extends Phaser.Scene {
         if (this.audioManager) {
             this.audioManager.stopAllTones();
         }
-        
+
         // Cancel speech
         if (this.speechManager) {
             this.speechManager.cancelSpeech();
         }
-        
+
         // Clean up all objects
         this.objects.forEach(obj => this.removeObject(obj));
         this.objects = [];
-        
+
         // Clear movement queue
         this.movementManager.clearAllMovements();
-        
+
         // Reset state
         this.isDragging = false;
         this.draggedObject = null;
         this.currentSpeakingObject = null;
-        
+
         console.log('🧹 Toy state reset complete');
     }
 
@@ -1588,10 +1600,10 @@ class GameScene extends Phaser.Scene {
         if (this.inputManager) this.inputManager.destroy();
         if (this.movementManager) this.movementManager.destroy();
         if (this.autoCleanupManager) this.autoCleanupManager.destroy();
-        
+
         // Clean up objects
         this.resetToyState();
-        
+
         // Call parent destroy
         super.destroy();
     }
@@ -1602,7 +1614,7 @@ class ResponsiveGameManager {
         this.gameInstance = null;
         this.config = null;
         this.configManager = configManager;
-        
+
         this.initGame();
         this.setupResizeHandler();
     }
@@ -1635,7 +1647,7 @@ class ResponsiveGameManager {
         };
 
         this.gameInstance = new Phaser.Game(this.config);
-        
+
         // Wait for scene to be ready, then pass configManager
         this.gameInstance.events.once('ready', () => {
             const scene = this.gameInstance.scene.getScene('GameScene');
@@ -1644,12 +1656,12 @@ class ResponsiveGameManager {
                 console.log('📋 ConfigManager passed to GameScene after ready event');
             }
         });
-        
+
         // Global click debugging (remove in production)
         // window.addEventListener('click', (e) => {
         //     console.log('🔍 GLOBAL CLICK DETECTED:', e.clientX, e.clientY, e.target.tagName, e.target.className);
         // });
-        
+
         console.log('🎮 Responsive game initialized:', width, 'x', height);
     }
 
@@ -1658,7 +1670,7 @@ class ResponsiveGameManager {
             const scene = this.gameInstance.scene.scenes[0];
             const newWidth = Math.min(window.innerWidth, 1200);
             const newHeight = Math.min(window.innerHeight, 800);
-            
+
             this.gameInstance.scale.resize(newWidth, newHeight);
             console.log('🔄 Game resized to:', newWidth, 'x', newHeight);
         }
