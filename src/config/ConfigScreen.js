@@ -97,7 +97,7 @@ export class ConfigScreen {
                 </footer>
             </div>
         `;
-        
+
         // Add event listeners
         this.addEventListeners();
 
@@ -318,6 +318,28 @@ export class ConfigScreen {
     /**
      * Set up the emoji master toggle behavior
      */
+    updateEmojiMasterCheckbox() {
+        // Check if all categories are enabled
+        const categories = ['animals', 'food', 'vehicles', 'faces', 'nature', 'objects'];
+        const allEnabled = categories.every(cat => {
+            const el = this.container.querySelector(`#${cat}-enabled`);
+            return el && el.checked;
+        });
+
+        // Update master checkbox state without triggering change event
+        const masterCheckbox = this.container.querySelector('#emojis-all-categories');
+        if (masterCheckbox) {
+            masterCheckbox.checked = allEnabled;
+            masterCheckbox.indeterminate = !allEnabled && categories.some(cat => {
+                const el = this.container.querySelector(`#${cat}-enabled`);
+                return el && el.checked;
+            });
+        }
+    }
+
+    createParentGuidanceSection() {
+        return new ParentGuidance(this.deferredPrompt).render();
+    }
 
     /**
      * Load current configuration into the UI
@@ -486,7 +508,7 @@ export class ConfigScreen {
     saveCurrentConfig() {
         const config = this.buildConfigFromUI();
         const result = this.configManager.updateConfig(config);
-        
+
         if (result.warnings.length > 0) {
             console.warn('Configuration warnings:', result.warnings);
         }
@@ -623,14 +645,14 @@ export class ConfigScreen {
     startPlaying() {
         console.log('startPlaying called - saving config and navigating to toy');
         this.saveCurrentConfig();
-        
+
         // Verify config was saved
         const savedConfig = localStorage.getItem('toddleToyConfig');
         console.log('Config saved to localStorage:', !!savedConfig);
-        
+
         // Allow toy access since user went through config
         this.router.allowToyAccess();
-        
+
         this.hide(); // Hide the configuration screen
         this.router.navigate('/toy');
     }
@@ -702,7 +724,7 @@ export class ConfigScreen {
         this.container.style.display = 'block';
         this.isVisible = true;
         this.loadCurrentConfig(); // Refresh from current config
-        
+
         // Show PWA installation prompt for admin users
         if (isAdmin) {
             this.showPWAInstallPrompt();
@@ -729,9 +751,9 @@ export class ConfigScreen {
      */
     showPWAInstallPrompt() {
         // Check if already installed or if browser supports PWA installation
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
-                           window.navigator.standalone === true;
-        
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+            window.navigator.standalone === true;
+
         if (isStandalone) {
             // Already installed as PWA
             this.createNotification('✅ PWA Installed', 'ToddleToy is already installed as a Progressive Web App!', 'success');
@@ -741,14 +763,14 @@ export class ConfigScreen {
         // Check if installation is supported
         if ('serviceWorker' in navigator && 'BeforeInstallPromptEvent' in window) {
             this.createNotification(
-                '📱 Install as App', 
-                'Install ToddleToy as a PWA to use offline! Look for the "Install" button in your browser or use the browser menu to "Install App".', 
+                '📱 Install as App',
+                'Install ToddleToy as a PWA to use offline! Look for the "Install" button in your browser or use the browser menu to "Install App".',
                 'info'
             );
         } else {
             this.createNotification(
-                '💡 Use Offline', 
-                'ToddleToy works offline! Add it to your home screen for quick access. On mobile: use "Add to Home Screen" in your browser menu.', 
+                '💡 Use Offline',
+                'ToddleToy works offline! Add it to your home screen for quick access. On mobile: use "Add to Home Screen" in your browser menu.',
                 'info'
             );
         }
