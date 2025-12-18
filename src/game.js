@@ -1628,6 +1628,7 @@ class ResponsiveGameManager {
             type: Phaser.AUTO,
             width: width,
             height: height,
+            transparent: true,
             parent: 'game-container',
             scene: GameScene,
             scale: {
