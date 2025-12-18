@@ -492,25 +492,8 @@ class GameScene extends Phaser.Scene {
             this.autoCleanupManager.updateObjectTouchTime(hitObject);
             // Re-voice the object being dragged
             this.speechManager.speakText(hitObject, 'both');
-        } else if (this.speechManager.getIsSpeaking() && this.speechManager.getCurrentSpeakingObject()) {
-            // Teleport speaking object to tap location with smooth lerp AND make it draggable
-            // FIX: This fixes the "teleport then drag is wonky" issue
-
-            // Prevent finding the object we JUST spawned (debounce double-events)
-            if (this.lastSpawnTime && (Date.now() - this.lastSpawnTime < 300)) {
-                console.log('🛑 Ignoring move request immediately after spawn');
-                return;
-            }
-
-            const speakingObj = this.speechManager.getCurrentSpeakingObject();
-            this.moveObjectTo(speakingObj, x, y, true); // true = smooth lerp animation
-            this.audioManager.updateTonePosition(x, y, speakingObj.id);
-            this.particleManager.createSpawnBurst(x, y);
-            this.autoCleanupManager.updateObjectTouchTime(speakingObj);
-            // Start dragging immediately so finger movement works during/after lerp
-            this.startDragging(speakingObj, x, y);
-        } else if (!this.speechManager.getIsSpeaking()) {
-            // Spawn new object
+        } else {
+            // Spawn new object (Always spawn, even if speaking - per user request)
             console.log('🎯 Attempting to spawn object at', x, y);
             const obj = await this.spawnObjectAt(x, y, 'random');
             console.log('🎯 Spawn result:', obj);
