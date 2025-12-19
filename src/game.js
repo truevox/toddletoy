@@ -547,7 +547,8 @@ class GameScene extends Phaser.Scene {
             // FIX: This fixes the "teleport then drag is wonky" issue
 
             // Prevent finding the object we JUST spawned (debounce double-events)
-            if (this.lastSpawnTime && (Date.now() - this.lastSpawnTime < 300)) {
+            // INCREASED to 500ms for better safety on touch devices
+            if (this.lastSpawnTime && (Date.now() - this.lastSpawnTime < 500)) {
                 console.log('🛑 Ignoring move request immediately after spawn');
                 return;
             }
@@ -891,6 +892,10 @@ class GameScene extends Phaser.Scene {
             obj.id = `object_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             obj.lastTouchedTime = Date.now();
 
+            // CRITICAL FIX: Track spawn time IMMEDIATELY to prevent race condition with input handlers
+            // This ensures rapid taps during the spawn process are correctly debounced
+            this.lastSpawnTime = Date.now();
+
             // Add to objects array
             this.objects.push(obj);
 
@@ -905,9 +910,6 @@ class GameScene extends Phaser.Scene {
 
 
             console.log(`✨ Spawned ${actualType}:`, displayText, 'at', x, y);
-
-            // Track spawn time to prevent accidental immediate interaction
-            this.lastSpawnTime = Date.now();
 
             // Save game state after spawning
             this.saveGameState();
