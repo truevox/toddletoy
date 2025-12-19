@@ -114,6 +114,56 @@ class GameScene extends Phaser.Scene {
         this.initializeGridMode();
     }
 
+
+    update(time, delta) {
+        // Apply focus effects (visual fading)
+        this.updateObjectFocus();
+    }
+
+    updateObjectFocus() {
+        if (!this.objects || this.objects.length === 0) return;
+
+        const centerX = this.scale.width / 2;
+        const centerY = this.scale.height / 2;
+
+        // Calculate max distance (center to corner)
+        // We calculate this once per frame or cache it if optimization is needed
+        // For simplicity and responsiveness, we calc it here as screen size might change
+        const maxDist = Math.sqrt(Math.pow(centerX, 2) + Math.pow(centerY, 2));
+        const threshold = maxDist * 0.4; // 40% of max distance
+
+        this.objects.forEach(obj => {
+            if (!obj.body) return; // Skip if no physics body
+
+            const dx = obj.x - centerX;
+            const dy = obj.y - centerY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            let targetAlpha = 1.0;
+
+            if (dist > threshold) {
+                const range = maxDist - threshold;
+                const progress = (dist - threshold) / range;
+                const clampedProgress = Math.min(Math.max(progress, 0), 1);
+
+                // Min alpha 0.3
+                targetAlpha = 1.0 - (clampedProgress * 0.7);
+            }
+
+            // Apply alpha
+            if (obj.setAlpha) {
+                obj.setAlpha(targetAlpha);
+            }
+
+            // Also apply to any attached components/text
+            if (obj.list) {
+                obj.list.forEach(child => {
+                    if (child.setAlpha) child.setAlpha(targetAlpha);
+                });
+            }
+        });
+    }
+
     /**
      * Initialize Grid Mode based on configuration
      */
@@ -447,12 +497,25 @@ class GameScene extends Phaser.Scene {
 
     // Input event handlers
     async onInputPointerDown(data) {
-        console.log('🎯 onInputPointerDown called with data:', data);
+        // DEBUG: Generate unique ID for this input event to track duplicates
+        const eventId = Math.random().toString(36).substr(2, 5);
+        const timestamp = Date.now();
+        console.log(`🎯 [${eventId}] POINTER DOWN at ${timestamp} | x:${data.x}, y:${data.y}`);
+
+        // Log current speaking state
+        const isSpeaking = this.speechManager.getIsSpeaking();
+        const speakingObj = this.speechManager.getCurrentSpeakingObject();
+        console.log(`   [${eventId}] State: isSpeaking=${isSpeaking}, SpeakingObj=${speakingObj ? speakingObj.id : 'null'}`);
+
+        if (speakingObj) {
+            console.log(`   [${eventId}] SpeakingObj Data: Origin=(${speakingObj.originX},${speakingObj.originY}), Pos=(${speakingObj.x},${speakingObj.y})`);
+        }
+
         const { x, y } = data;
 
         // Warn if system not fully initialized (race condition debugging)
         if (!this.isFullyInitialized) {
-            console.warn('⚠️ Input received before full initialization (data:', this.dataLoaded, 'fonts:', this.fontsLoaded, ')');
+            console.warn(`⚠️ [${eventId}] Input received before full initialization`);
         }
 
         // Grid Mode: Map click to grid cell and spawn there
@@ -497,7 +560,8 @@ class GameScene extends Phaser.Scene {
             // FIX: This fixes the "teleport then drag is wonky" issue
 
             // Prevent finding the object we JUST spawned (debounce double-events)
-            if (this.lastSpawnTime && (Date.now() - this.lastSpawnTime < 300)) {
+            // INCREASED to 500ms for better safety on touch devices
+            if (this.lastSpawnTime && (Date.now() - this.lastSpawnTime < 500)) {
                 console.log('🛑 Ignoring move request immediately after spawn');
                 return;
             }
@@ -511,6 +575,12 @@ class GameScene extends Phaser.Scene {
             this.startDragging(speakingObj, x, y);
         } else if (!this.speechManager.getIsSpeaking()) {
             // Spawn new object
+            // DEBOUNCE GUARD: Prevent rapid double-spawns (ghost events)
+            if (this.lastSpawnTime && (Date.now() - this.lastSpawnTime < 500)) {
+                console.log('🛑 Ignoring spawn request immediately after previous spawn');
+                return;
+            }
+
             console.log('🎯 Attempting to spawn object at', x, y);
             const obj = await this.spawnObjectAt(x, y, 'random');
             console.log('🎯 Spawn result:', obj);
@@ -781,6 +851,10 @@ class GameScene extends Phaser.Scene {
     }
 
     async spawnObjectAt(x, y, type = 'random') {
+        // CRITICAL FIX: Track spawn time IMMEDIATELY (synchronously) to prevent race condition
+        // The previous location (after async loads) left a gap for "Ghost Events" to occur.
+        this.lastSpawnTime = Date.now();
+
         try {
             // Get spawn type based on configuration
             const spawnType = type === 'random' ? this.selectSpawnType() : type;
@@ -841,6 +915,9 @@ class GameScene extends Phaser.Scene {
             obj.id = `object_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
             obj.lastTouchedTime = Date.now();
 
+            // CRITICAL FIX: Track spawn time IMMEDIATELY to prevent race condition with input handlers
+            // [MOVED TO TOP OF FUNCTION]
+
             // Add to objects array
             this.objects.push(obj);
 
@@ -855,9 +932,6 @@ class GameScene extends Phaser.Scene {
 
 
             console.log(`✨ Spawned ${actualType}:`, displayText, 'at', x, y);
-
-            // Track spawn time to prevent accidental immediate interaction
-            this.lastSpawnTime = Date.now();
 
             // Save game state after spawning
             this.saveGameState();
@@ -1628,6 +1702,7 @@ class ResponsiveGameManager {
             type: Phaser.AUTO,
             width: width,
             height: height,
+            transparent: true,
             parent: 'game-container',
             scene: GameScene,
             scale: {

@@ -12,7 +12,7 @@ export class SpeechManager {
         this.currentSpeakingObject = null;
         this.currentLanguage = null;
         this.currentLanguageCodes = [];
-        
+
         this.initSpeech();
     }
 
@@ -22,7 +22,7 @@ export class SpeechManager {
             console.warn('Speech synthesis not supported in this browser');
             return;
         }
-        
+
         console.log('Speech synthesis initialized');
     }
 
@@ -175,6 +175,32 @@ export class SpeechManager {
                 console.warn('🗣️ Invalid speech volume in config:', speechConfig.volume, '- using default 70');
             }
         }
+
+        // Apply Focus Effect: Reduce volume if object is far from center
+        if (this.currentSpeakingObject && this.scene && this.scene.scale) {
+            const obj = this.currentSpeakingObject;
+            const centerX = this.scene.scale.width / 2;
+            const centerY = this.scene.scale.height / 2;
+            const maxDist = Math.sqrt(Math.pow(centerX, 2) + Math.pow(centerY, 2));
+            const threshold = maxDist * 0.4; // 40% threshold
+
+            const dx = obj.x - centerX;
+            const dy = obj.y - centerY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            if (dist > threshold) {
+                const range = maxDist - threshold;
+                const progress = (dist - threshold) / range;
+                const clampedProgress = Math.min(Math.max(progress, 0), 1);
+
+                // Min volume factor 0.2 (so final volume is 20% of config volume)
+                const focusFactor = 1.0 - (clampedProgress * 0.8);
+                volume *= focusFactor;
+
+                console.log(`🗣️ Focus Effect: Distance ${Math.round(dist)}/${Math.round(maxDist)} -> Volume Factor ${focusFactor.toFixed(2)}`);
+            }
+        }
+
         utterance.volume = volume;
 
         console.log('🗣️ Using speech rate:', rate, 'volume:', volume);
@@ -320,7 +346,7 @@ export class SpeechManager {
     destroy() {
         // Cancel any active speech
         this.cancelSpeech();
-        
+
         // Clear references
         this.currentSpeakingObject = null;
         this.currentLanguageCodes = [];

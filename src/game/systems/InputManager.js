@@ -12,13 +12,13 @@ export class InputManager {
         this.holdDuration = 500; // 500ms hold to start auto-drag
         this.isHolding = false;
         this.pointerIsDown = false;
-        
+
         // Advanced keyboard state
         this.keyPositions = {};
         this.keysHeld = new Set();
         this.interpolatedPosition = { x: 0, y: 0 };
         this.averageKeyPosition = { x: 0, y: 0 };
-        
+
         this.initializeInputHandlers();
     }
 
@@ -26,23 +26,26 @@ export class InputManager {
         console.log('🎮 InputManager.initializeInputHandlers called');
         console.log('🎮 Scene input object:', this.scene.input);
         console.log('🎮 Scene input enabled:', this.scene.input?.enabled);
-        
+
         // Pointer/touch input
         this.scene.input.on('pointerdown', this.onPointerDown, this);
         this.scene.input.on('pointermove', this.onPointerMove, this);
         this.scene.input.on('pointerup', this.onPointerUp, this);
-        
+
         console.log('🎮 Input event listeners attached');
-        
+
         // Test if we can manually trigger input detection
         console.log('🎮 Scene canvas:', this.scene.game.canvas);
-        
+
         // Add a test listener to see if Phaser receives ANY events
         this.scene.input.on('pointerover', () => console.log('🎮 PHASER RECEIVED: pointerover'));
         this.scene.input.on('pointermove', () => console.log('🎮 PHASER RECEIVED: pointermove'));
         this.scene.input.on('pointerdown', () => console.log('🎮 PHASER RECEIVED: pointerdown (raw)'));
-        
-        // Also test if the canvas itself receives DOM events
+
+        // DEBUGGING NOTE: These listeners are commented out because they cause DUPLICATE events
+        // on touch devices (one from DOM, one from Phaser), leading to the "teleport bug".
+        // Use Phaser's input system only for production logic.
+        /*
         if (this.scene.game.canvas) {
             this.scene.game.canvas.addEventListener('click', (e) => {
                 console.log('🎮 DOM CANVAS CLICK:', e.clientX, e.clientY);
@@ -51,10 +54,11 @@ export class InputManager {
                 console.log('🎮 DOM CANVAS POINTERDOWN:', e.clientX, e.clientY);
             });
         }
-        
+        */
+
         // Keyboard input
         this.initKeyboardInput();
-        
+
         // Gamepad input
         this.initGamepadInput();
     }
@@ -130,14 +134,14 @@ export class InputManager {
 
     onKeyDown(event) {
         const key = event.key.toUpperCase();
-        
+
         if (this.keyPositions[key]) {
             event.preventDefault();
-            
+
             if (!this.keysHeld.has(key)) {
                 this.keysHeld.add(key);
                 this.updateAverageKeyPosition();
-                
+
                 if (this.keysHeld.size === 1) {
                     // First key pressed - spawn object
                     const position = this.keyPositions[key];
@@ -152,12 +156,12 @@ export class InputManager {
 
     onKeyUp(event) {
         const key = event.key.toUpperCase();
-        
+
         if (this.keyPositions[key] && this.keysHeld.has(key)) {
             event.preventDefault();
             this.keysHeld.delete(key);
             this.updateAverageKeyPosition();
-            
+
             if (this.keysHeld.size === 0) {
                 this.emit('keyRelease', { key });
             } else {
@@ -175,7 +179,7 @@ export class InputManager {
 
         let totalX = 0;
         let totalY = 0;
-        
+
         this.keysHeld.forEach(key => {
             const pos = this.keyPositions[key];
             totalX += pos.x;
@@ -208,7 +212,7 @@ export class InputManager {
 
         // Update gamepad position based on stick input
         this.updateGamepadPosition(gamepad);
-        
+
         // Check gamepad buttons
         this.updateGamepadButtons(gamepad);
     }
@@ -226,10 +230,10 @@ export class InputManager {
         if (Math.abs(avgX) > 0.01 || Math.abs(avgY) > 0.01) {
             const screenWidth = this.scene.scale.width;
             const screenHeight = this.scene.scale.height;
-            
-            this.currentGamepadPosition.x = Math.max(50, Math.min(screenWidth - 50, 
+
+            this.currentGamepadPosition.x = Math.max(50, Math.min(screenWidth - 50,
                 this.currentGamepadPosition.x + avgX * 5));
-            this.currentGamepadPosition.y = Math.max(50, Math.min(screenHeight - 50, 
+            this.currentGamepadPosition.y = Math.max(50, Math.min(screenHeight - 50,
                 this.currentGamepadPosition.y + avgY * 5));
 
             this.emit('gamepadMove', { position: this.currentGamepadPosition });
@@ -242,14 +246,14 @@ export class InputManager {
             const isPressed = button.pressed;
 
             if (isPressed && !wasPressed) {
-                this.emit('gamepadButtonDown', { 
-                    button: index, 
-                    position: this.currentGamepadPosition 
+                this.emit('gamepadButtonDown', {
+                    button: index,
+                    position: this.currentGamepadPosition
                 });
             } else if (!isPressed && wasPressed) {
-                this.emit('gamepadButtonUp', { 
-                    button: index, 
-                    position: this.currentGamepadPosition 
+                this.emit('gamepadButtonUp', {
+                    button: index,
+                    position: this.currentGamepadPosition
                 });
             }
 
@@ -268,7 +272,7 @@ export class InputManager {
         this.scene.input.off('pointerdown', this.onPointerDown, this);
         this.scene.input.off('pointermove', this.onPointerMove, this);
         this.scene.input.off('pointerup', this.onPointerUp, this);
-        
+
         if (this.scene.input.keyboard) {
             this.scene.input.keyboard.off('keydown', this.onKeyDown, this);
             this.scene.input.keyboard.off('keyup', this.onKeyUp, this);
