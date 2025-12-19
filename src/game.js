@@ -114,6 +114,56 @@ class GameScene extends Phaser.Scene {
         this.initializeGridMode();
     }
 
+
+    update(time, delta) {
+        // Apply focus effects (visual fading)
+        this.updateObjectFocus();
+    }
+
+    updateObjectFocus() {
+        if (!this.objects || this.objects.length === 0) return;
+
+        const centerX = this.scale.width / 2;
+        const centerY = this.scale.height / 2;
+
+        // Calculate max distance (center to corner)
+        // We calculate this once per frame or cache it if optimization is needed
+        // For simplicity and responsiveness, we calc it here as screen size might change
+        const maxDist = Math.sqrt(Math.pow(centerX, 2) + Math.pow(centerY, 2));
+        const threshold = maxDist * 0.4; // 40% of max distance
+
+        this.objects.forEach(obj => {
+            if (!obj.body) return; // Skip if no physics body
+
+            const dx = obj.x - centerX;
+            const dy = obj.y - centerY;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+
+            let targetAlpha = 1.0;
+
+            if (dist > threshold) {
+                const range = maxDist - threshold;
+                const progress = (dist - threshold) / range;
+                const clampedProgress = Math.min(Math.max(progress, 0), 1);
+
+                // Min alpha 0.3
+                targetAlpha = 1.0 - (clampedProgress * 0.7);
+            }
+
+            // Apply alpha
+            if (obj.setAlpha) {
+                obj.setAlpha(targetAlpha);
+            }
+
+            // Also apply to any attached components/text
+            if (obj.list) {
+                obj.list.forEach(child => {
+                    if (child.setAlpha) child.setAlpha(targetAlpha);
+                });
+            }
+        });
+    }
+
     /**
      * Initialize Grid Mode based on configuration
      */
@@ -492,8 +542,25 @@ class GameScene extends Phaser.Scene {
             this.autoCleanupManager.updateObjectTouchTime(hitObject);
             // Re-voice the object being dragged
             this.speechManager.speakText(hitObject, 'both');
-        } else {
-            // Spawn new object (Always spawn, even if speaking - per user request)
+        } else if (this.speechManager.getIsSpeaking() && this.speechManager.getCurrentSpeakingObject()) {
+            // Teleport speaking object to tap location with smooth lerp AND make it draggable
+            // FIX: This fixes the "teleport then drag is wonky" issue
+
+            // Prevent finding the object we JUST spawned (debounce double-events)
+            if (this.lastSpawnTime && (Date.now() - this.lastSpawnTime < 300)) {
+                console.log('🛑 Ignoring move request immediately after spawn');
+                return;
+            }
+
+            const speakingObj = this.speechManager.getCurrentSpeakingObject();
+            this.moveObjectTo(speakingObj, x, y, true); // true = smooth lerp animation
+            this.audioManager.updateTonePosition(x, y, speakingObj.id);
+            this.particleManager.createSpawnBurst(x, y);
+            this.autoCleanupManager.updateObjectTouchTime(speakingObj);
+            // Start dragging immediately so finger movement works during/after lerp
+            this.startDragging(speakingObj, x, y);
+        } else if (!this.speechManager.getIsSpeaking()) {
+            // Spawn new object
             console.log('🎯 Attempting to spawn object at', x, y);
             const obj = await this.spawnObjectAt(x, y, 'random');
             console.log('🎯 Spawn result:', obj);
