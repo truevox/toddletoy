@@ -497,12 +497,25 @@ class GameScene extends Phaser.Scene {
 
     // Input event handlers
     async onInputPointerDown(data) {
-        console.log('🎯 onInputPointerDown called with data:', data);
+        // DEBUG: Generate unique ID for this input event to track duplicates
+        const eventId = Math.random().toString(36).substr(2, 5);
+        const timestamp = Date.now();
+        console.log(`🎯 [${eventId}] POINTER DOWN at ${timestamp} | x:${data.x}, y:${data.y}`);
+
+        // Log current speaking state
+        const isSpeaking = this.speechManager.getIsSpeaking();
+        const speakingObj = this.speechManager.getCurrentSpeakingObject();
+        console.log(`   [${eventId}] State: isSpeaking=${isSpeaking}, SpeakingObj=${speakingObj ? speakingObj.id : 'null'}`);
+
+        if (speakingObj) {
+            console.log(`   [${eventId}] SpeakingObj Data: Origin=(${speakingObj.originX},${speakingObj.originY}), Pos=(${speakingObj.x},${speakingObj.y})`);
+        }
+
         const { x, y } = data;
 
         // Warn if system not fully initialized (race condition debugging)
         if (!this.isFullyInitialized) {
-            console.warn('⚠️ Input received before full initialization (data:', this.dataLoaded, 'fonts:', this.fontsLoaded, ')');
+            console.warn(`⚠️ [${eventId}] Input received before full initialization`);
         }
 
         // Grid Mode: Map click to grid cell and spawn there
@@ -562,6 +575,12 @@ class GameScene extends Phaser.Scene {
             this.startDragging(speakingObj, x, y);
         } else if (!this.speechManager.getIsSpeaking()) {
             // Spawn new object
+            // DEBOUNCE GUARD: Prevent rapid double-spawns (ghost events)
+            if (this.lastSpawnTime && (Date.now() - this.lastSpawnTime < 500)) {
+                console.log('🛑 Ignoring spawn request immediately after previous spawn');
+                return;
+            }
+
             console.log('🎯 Attempting to spawn object at', x, y);
             const obj = await this.spawnObjectAt(x, y, 'random');
             console.log('🎯 Spawn result:', obj);
@@ -832,6 +851,10 @@ class GameScene extends Phaser.Scene {
     }
 
     async spawnObjectAt(x, y, type = 'random') {
+        // CRITICAL FIX: Track spawn time IMMEDIATELY (synchronously) to prevent race condition
+        // The previous location (after async loads) left a gap for "Ghost Events" to occur.
+        this.lastSpawnTime = Date.now();
+
         try {
             // Get spawn type based on configuration
             const spawnType = type === 'random' ? this.selectSpawnType() : type;
@@ -893,8 +916,7 @@ class GameScene extends Phaser.Scene {
             obj.lastTouchedTime = Date.now();
 
             // CRITICAL FIX: Track spawn time IMMEDIATELY to prevent race condition with input handlers
-            // This ensures rapid taps during the spawn process are correctly debounced
-            this.lastSpawnTime = Date.now();
+            // [MOVED TO TOP OF FUNCTION]
 
             // Add to objects array
             this.objects.push(obj);
