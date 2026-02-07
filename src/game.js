@@ -86,6 +86,10 @@ class GameScene extends Phaser.Scene {
         this.isDragging = false;
         this.draggedObject = null;
 
+        // Spawn-after-movement cooldown: block spawns for 200ms (1/5s) after any movement
+        this.lastMoveTime = 0;
+        this.SPAWN_AFTER_MOVE_DELAY = 200;
+
         // Initialize Grid Mode state (extra feature - optional structured layout)
         this.gridMode = {
             enabled: false,              // Grid mode toggle
@@ -464,6 +468,11 @@ class GameScene extends Phaser.Scene {
                 const { row, col } = gridCell;
                 console.log(`📐 Clicked grid cell: ${row},${col}`);
 
+                if (!this.canSpawnAfterMovement()) {
+                    console.log('🛑 Grid spawn blocked: too soon after movement');
+                    return;
+                }
+
                 // Spawn object in grid cell (replaces existing if present)
                 const obj = await this.spawnObjectInGridCell(row, col, 'random');
                 if (obj) {
@@ -477,24 +486,42 @@ class GameScene extends Phaser.Scene {
             return; // Skip free-form mode handling
         }
 
-        // Free-form Mode: Normal behavior
-        // Check for existing object at pointer position
+        // Free-form Mode: Check spawn eligibility FIRST, then move/drag
         const hitObject = this.getObjectUnderPointer(x, y);
-        console.log('🎯 hitObject:', hitObject, 'isSpeaking:', this.speechManager.getIsSpeaking());
+        const isSpeaking = this.speechManager.getIsSpeaking();
+        console.log('🎯 hitObject:', hitObject, 'isSpeaking:', isSpeaking);
 
-        if (hitObject && !this.speechManager.getIsSpeaking()) {
+        // 1. SPAWN CHECK (first priority) — empty space, not speaking
+        if (!hitObject && !isSpeaking) {
+            if (this.canSpawnAfterMovement()) {
+                console.log('🎯 Attempting to spawn object at', x, y);
+                const obj = await this.spawnObjectAt(x, y, 'random');
+                console.log('🎯 Spawn result:', obj);
+                if (obj) {
+                    this.speechManager.speakText(obj, 'both');
+                    this.audioManager.generateContinuousTone(x, y, obj.id);
+                    this.particleManager.createSpawnBurst(x, y);
+                }
+            } else {
+                console.log('🛑 Spawn blocked: too soon after movement (%dms)',
+                    Date.now() - this.lastMoveTime);
+            }
+            return;
+        }
+
+        // 2. DRAG/MOVE checks (only reached when spawn doesn't apply)
+        if (hitObject && !isSpeaking) {
             // Start dragging existing object when not speaking
             this.startDragging(hitObject, x, y);
             this.autoCleanupManager.updateObjectTouchTime(hitObject);
-        } else if (hitObject && this.speechManager.getIsSpeaking()) {
+        } else if (hitObject && isSpeaking) {
             // Allow dragging any object even during speech
             this.startDragging(hitObject, x, y);
             this.autoCleanupManager.updateObjectTouchTime(hitObject);
             // Re-voice the object being dragged
             this.speechManager.speakText(hitObject, 'both');
-        } else if (this.speechManager.getIsSpeaking() && this.speechManager.getCurrentSpeakingObject()) {
+        } else if (isSpeaking && this.speechManager.getCurrentSpeakingObject()) {
             // Teleport speaking object to tap location with smooth lerp AND make it draggable
-            // FIX: This fixes the "teleport then drag is wonky" issue
 
             // Prevent finding the object we JUST spawned (debounce double-events)
             if (this.lastSpawnTime && (Date.now() - this.lastSpawnTime < 300)) {
@@ -509,16 +536,6 @@ class GameScene extends Phaser.Scene {
             this.autoCleanupManager.updateObjectTouchTime(speakingObj);
             // Start dragging immediately so finger movement works during/after lerp
             this.startDragging(speakingObj, x, y);
-        } else if (!this.speechManager.getIsSpeaking()) {
-            // Spawn new object
-            console.log('🎯 Attempting to spawn object at', x, y);
-            const obj = await this.spawnObjectAt(x, y, 'random');
-            console.log('🎯 Spawn result:', obj);
-            if (obj) {
-                this.speechManager.speakText(obj, 'both');
-                this.audioManager.generateContinuousTone(x, y, obj.id);
-                this.particleManager.createSpawnBurst(x, y);
-            }
         }
     }
 
@@ -601,6 +618,10 @@ class GameScene extends Phaser.Scene {
         const { key, position } = data;
 
         if (!this.speechManager.getIsSpeaking()) {
+            if (!this.canSpawnAfterMovement()) {
+                console.log('🛑 Key spawn blocked: too soon after movement');
+                return;
+            }
             const obj = await this.spawnObjectAt(position.x, position.y, 'random');
             this.speechManager.speakText(obj, 'both');
             this.audioManager.generateContinuousTone(position.x, position.y, obj.id);
@@ -626,6 +647,10 @@ class GameScene extends Phaser.Scene {
         const { position } = data;
 
         if (!this.speechManager.getIsSpeaking()) {
+            if (!this.canSpawnAfterMovement()) {
+                console.log('🛑 Gamepad spawn blocked: too soon after movement');
+                return;
+            }
             const obj = await this.spawnObjectAt(position.x, position.y, 'random');
             this.speechManager.speakText(obj, 'both');
             this.audioManager.generateContinuousTone(position.x, position.y, obj.id);
@@ -660,6 +685,9 @@ class GameScene extends Phaser.Scene {
     moveObjectTo(obj, x, y, useSmooth = true) {
         if (!obj || !obj.active) return;
 
+        // Track movement time for spawn cooldown
+        this.lastMoveTime = Date.now();
+
         if (useSmooth) {
             // Delegate to movement manager
             this.movementManager.moveObjectTo(obj, x, y);
@@ -667,6 +695,16 @@ class GameScene extends Phaser.Scene {
             // Immediate positioning
             this.movementManager.setObjectPosition(obj, x, y);
         }
+    }
+
+    /**
+     * Check if enough time has passed since the last movement to allow spawning.
+     * Prevents accidental spawns when toddler is dragging/moving objects.
+     * @returns {boolean} true if spawning is allowed
+     */
+    canSpawnAfterMovement() {
+        if (this.lastMoveTime === 0) return true;
+        return (Date.now() - this.lastMoveTime) >= this.SPAWN_AFTER_MOVE_DELAY;
     }
 
 
