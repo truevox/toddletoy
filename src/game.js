@@ -90,6 +90,11 @@ class GameScene extends Phaser.Scene {
         this.lastMoveTime = 0;
         this.SPAWN_AFTER_MOVE_DELAY = 200;
 
+        // Movement-after-spawn lock: block movement for 200ms after spawn
+        // AND require the triggering input to be released first
+        this.MOVE_AFTER_SPAWN_DELAY = 200;
+        this.awaitingSpawnInputRelease = false;
+
         // Initialize Grid Mode state (extra feature - optional structured layout)
         this.gridMode = {
             enabled: false,              // Grid mode toggle
@@ -432,6 +437,7 @@ class GameScene extends Phaser.Scene {
         this.events.on('input:keyInterpolate', this.onInputKeyInterpolate, this);
         this.events.on('input:keyRelease', this.onInputKeyRelease, this);
         this.events.on('input:gamepadButtonDown', this.onInputGamepadButtonDown, this);
+        this.events.on('input:gamepadButtonUp', this.onInputGamepadButtonUp, this);
         this.events.on('input:gamepadMove', this.onInputGamepadMove, this);
         this.events.on('input:holdStart', this.onInputHoldStart, this);
     }
@@ -510,6 +516,12 @@ class GameScene extends Phaser.Scene {
         }
 
         // 2. DRAG/MOVE checks (only reached when spawn doesn't apply)
+        // Block all movement if post-spawn lock is active
+        if (!this.canMoveAfterSpawn()) {
+            console.log('🛑 Movement blocked: post-spawn lock active');
+            return;
+        }
+
         if (hitObject && !isSpeaking) {
             // Start dragging existing object when not speaking
             this.startDragging(hitObject, x, y);
@@ -522,13 +534,6 @@ class GameScene extends Phaser.Scene {
             this.speechManager.speakText(hitObject, 'both');
         } else if (isSpeaking && this.speechManager.getCurrentSpeakingObject()) {
             // Teleport speaking object to tap location with smooth lerp AND make it draggable
-
-            // Prevent finding the object we JUST spawned (debounce double-events)
-            if (this.lastSpawnTime && (Date.now() - this.lastSpawnTime < 300)) {
-                console.log('🛑 Ignoring move request immediately after spawn');
-                return;
-            }
-
             const speakingObj = this.speechManager.getCurrentSpeakingObject();
             this.moveObjectTo(speakingObj, x, y, true); // true = smooth lerp animation
             this.audioManager.updateTonePosition(x, y, speakingObj.id);
@@ -542,7 +547,7 @@ class GameScene extends Phaser.Scene {
     onInputPointerMove(data) {
         const { x, y } = data;
 
-        if (this.isDragging && this.draggedObject) {
+        if (this.isDragging && this.draggedObject && this.canMoveAfterSpawn()) {
             // Use immediate positioning during drag (no lerp lag)
             this.moveObjectTo(this.draggedObject, x, y, false); // false = instant, no smooth lerp
             this.audioManager.updateTonePosition(x, y, this.draggedObject.id);
@@ -551,6 +556,7 @@ class GameScene extends Phaser.Scene {
     }
 
     onInputPointerUp(data) {
+        this.awaitingSpawnInputRelease = false;
         if (this.isDragging && this.draggedObject) {
             this.stopDragging();
         }
@@ -626,7 +632,7 @@ class GameScene extends Phaser.Scene {
             this.speechManager.speakText(obj, 'both');
             this.audioManager.generateContinuousTone(position.x, position.y, obj.id);
             this.particleManager.createSpawnBurst(position.x, position.y);
-        } else if (this.speechManager.getCurrentSpeakingObject()) {
+        } else if (this.speechManager.getCurrentSpeakingObject() && this.canMoveAfterSpawn()) {
             this.moveObjectTo(this.speechManager.getCurrentSpeakingObject(), position.x, position.y);
         }
     }
@@ -634,13 +640,13 @@ class GameScene extends Phaser.Scene {
     onInputKeyInterpolate(data) {
         const { position } = data;
 
-        if (this.speechManager.getCurrentSpeakingObject()) {
+        if (this.speechManager.getCurrentSpeakingObject() && this.canMoveAfterSpawn()) {
             this.moveObjectTo(this.speechManager.getCurrentSpeakingObject(), position.x, position.y);
         }
     }
 
     onInputKeyRelease(data) {
-        // Handle key release if needed
+        this.awaitingSpawnInputRelease = false;
     }
 
     async onInputGamepadButtonDown(data) {
@@ -655,11 +661,15 @@ class GameScene extends Phaser.Scene {
             this.speechManager.speakText(obj, 'both');
             this.audioManager.generateContinuousTone(position.x, position.y, obj.id);
             this.particleManager.createSpawnBurst(position.x, position.y);
-        } else if (this.speechManager.getCurrentSpeakingObject()) {
+        } else if (this.speechManager.getCurrentSpeakingObject() && this.canMoveAfterSpawn()) {
             this.autoCleanupManager.updateObjectTouchTime(this.speechManager.getCurrentSpeakingObject());
             this.moveObjectTo(this.speechManager.getCurrentSpeakingObject(), position.x, position.y);
             this.audioManager.updateTonePosition(position.x, position.y, this.speechManager.getCurrentSpeakingObject().id);
         }
+    }
+
+    onInputGamepadButtonUp(data) {
+        this.awaitingSpawnInputRelease = false;
     }
 
     onInputGamepadMove(data) {
@@ -707,6 +717,16 @@ class GameScene extends Phaser.Scene {
         return (Date.now() - this.lastMoveTime) >= this.SPAWN_AFTER_MOVE_DELAY;
     }
 
+    /**
+     * Check if movement is allowed after a spawn.
+     * Requires BOTH: the triggering input to be released AND 200ms elapsed.
+     * @returns {boolean} true if movement is allowed
+     */
+    canMoveAfterSpawn() {
+        if (this.awaitingSpawnInputRelease) return false;
+        if (this.lastSpawnTime === 0) return true;
+        return (Date.now() - this.lastSpawnTime) >= this.MOVE_AFTER_SPAWN_DELAY;
+    }
 
     createPrimaryDisplayObject(actualType, itemData, displayText, x, y) {
         if (actualType === 'shape') {
@@ -896,6 +916,7 @@ class GameScene extends Phaser.Scene {
 
             // Track spawn time to prevent accidental immediate interaction
             this.lastSpawnTime = Date.now();
+            this.awaitingSpawnInputRelease = true;
 
             // Save game state after spawning
             this.saveGameState();

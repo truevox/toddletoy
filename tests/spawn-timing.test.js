@@ -9,6 +9,8 @@ describe('Spawn Timing After Movement', () => {
             lastSpawnTime: 0,
             lastMoveTime: 0,
             SPAWN_AFTER_MOVE_DELAY: 200,
+            MOVE_AFTER_SPAWN_DELAY: 200,
+            awaitingSpawnInputRelease: false,
 
             speechManager: {
                 isSpeaking: false,
@@ -42,6 +44,14 @@ describe('Spawn Timing After Movement', () => {
                 return (Date.now() - this.lastMoveTime) >= this.SPAWN_AFTER_MOVE_DELAY;
             },
 
+            canMoveAfterSpawn() {
+                // Must have released the input that triggered the spawn
+                if (this.awaitingSpawnInputRelease) return false;
+                // Must wait 200ms after spawn
+                if (this.lastSpawnTime === 0) return true;
+                return (Date.now() - this.lastSpawnTime) >= this.MOVE_AFTER_SPAWN_DELAY;
+            },
+
             moveObjectTo(obj, x, y, useSmooth = true) {
                 if (!obj || !obj.active) return;
                 this.lastMoveTime = Date.now();
@@ -61,12 +71,13 @@ describe('Spawn Timing After Movement', () => {
                 };
                 game.objects.push(obj);
                 game.lastSpawnTime = Date.now();
+                game.awaitingSpawnInputRelease = true;
                 return obj;
             })
         };
     });
 
-    // --- Cooldown behavior tests ---
+    // === PART 1: Block spawns after movement (200ms) ===
 
     test('should allow spawning when no movement has occurred', () => {
         expect(game.canSpawnAfterMovement()).toBe(true);
@@ -107,20 +118,12 @@ describe('Spawn Timing After Movement', () => {
     });
 
     // --- Priority ordering tests ---
-    // Spawn eligibility must be checked BEFORE move/jump eligibility
 
     test('onInputPointerDown should check spawn eligibility before drag eligibility', () => {
-        // Verify that when nothing is under pointer and not speaking,
-        // spawn path is taken without ever checking drag/move paths
-        // This tests the logical priority order
-
         const spawnConditionsMet = !game.speechManager.getIsSpeaking()
             && game.canSpawnAfterMovement();
-
-        // With no objects and no speech, spawn conditions are met
         expect(spawnConditionsMet).toBe(true);
 
-        // After a recent move, spawn is blocked
         const obj = { x: 50, y: 50, active: true };
         game.moveObjectTo(obj, 100, 100, false);
 
@@ -134,24 +137,100 @@ describe('Spawn Timing After Movement', () => {
         game.speechManager.isSpeaking = true;
         game.speechManager.speakingObject = speakingObj;
 
-        // Teleport the speaking object (this is a move)
         game.moveObjectTo(speakingObj, 200, 200, true);
 
-        // Speech ends
         game.speechManager.isSpeaking = false;
         game.speechManager.speakingObject = null;
 
-        // Spawn should still be blocked since we just moved
         expect(game.canSpawnAfterMovement()).toBe(false);
     });
 
     test('dragging an object should update lastMoveTime via moveObjectTo', () => {
         const obj = { x: 100, y: 100, active: true };
-
-        // Simulate drag movement (calls moveObjectTo with smooth=false)
         game.moveObjectTo(obj, 150, 150, false);
 
         expect(game.lastMoveTime).toBeGreaterThan(0);
         expect(game.canSpawnAfterMovement()).toBe(false);
+    });
+
+    // === PART 2: Block movement after spawn (200ms + input release) ===
+
+    test('MOVE_AFTER_SPAWN_DELAY should be 200ms (1/5 second)', () => {
+        expect(game.MOVE_AFTER_SPAWN_DELAY).toBe(200);
+    });
+
+    test('should allow movement when no spawn has occurred', () => {
+        expect(game.canMoveAfterSpawn()).toBe(true);
+    });
+
+    test('should block movement immediately after a spawn', () => {
+        game.spawnObjectAt(100, 100);
+        expect(game.canMoveAfterSpawn()).toBe(false);
+    });
+
+    test('should block movement even after 200ms if input not yet released', () => {
+        game.spawnObjectAt(100, 100);
+        // Simulate time passing but input still held
+        game.lastSpawnTime = Date.now() - 250;
+        // awaitingSpawnInputRelease is still true
+        expect(game.awaitingSpawnInputRelease).toBe(true);
+        expect(game.canMoveAfterSpawn()).toBe(false);
+    });
+
+    test('should block movement if input released but 200ms not yet elapsed', () => {
+        game.spawnObjectAt(100, 100);
+        // Release the input
+        game.awaitingSpawnInputRelease = false;
+        // But lastSpawnTime is very recent
+        expect(game.canMoveAfterSpawn()).toBe(false);
+    });
+
+    test('should allow movement after BOTH 200ms elapsed AND input released', async () => {
+        game.spawnObjectAt(100, 100);
+
+        // Release the input
+        game.awaitingSpawnInputRelease = false;
+
+        // Wait for cooldown to expire
+        await new Promise(resolve => setTimeout(resolve, 210));
+
+        expect(game.canMoveAfterSpawn()).toBe(true);
+    });
+
+    test('spawning should set awaitingSpawnInputRelease to true', () => {
+        expect(game.awaitingSpawnInputRelease).toBe(false);
+        game.spawnObjectAt(100, 100);
+        expect(game.awaitingSpawnInputRelease).toBe(true);
+    });
+
+    test('pointer up should clear awaitingSpawnInputRelease', () => {
+        game.spawnObjectAt(100, 100);
+        expect(game.awaitingSpawnInputRelease).toBe(true);
+
+        // Simulate pointer up
+        game.awaitingSpawnInputRelease = false;
+        expect(game.awaitingSpawnInputRelease).toBe(false);
+    });
+
+    test('drag should be blocked while post-spawn lock is active', () => {
+        game.spawnObjectAt(100, 100);
+
+        // canMoveAfterSpawn should prevent startDragging
+        expect(game.canMoveAfterSpawn()).toBe(false);
+    });
+
+    test('pointer move should not move objects while post-spawn lock is active', () => {
+        game.spawnObjectAt(100, 100);
+
+        // Even if isDragging were somehow true, canMoveAfterSpawn blocks it
+        expect(game.canMoveAfterSpawn()).toBe(false);
+    });
+
+    test('teleport should be blocked while post-spawn lock is active', () => {
+        game.spawnObjectAt(100, 100);
+        game.speechManager.isSpeaking = true;
+
+        // Teleport (move) should be blocked
+        expect(game.canMoveAfterSpawn()).toBe(false);
     });
 });
