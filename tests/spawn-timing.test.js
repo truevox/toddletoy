@@ -1,3 +1,62 @@
+// Mock Phaser and all game dependencies before importing GameScene
+jest.mock('phaser', () => ({
+    __esModule: true,
+    default: {
+        Scene: class Scene {
+            constructor() {}
+        },
+        GameObjects: {
+            Container: class Container {}
+        }
+    },
+    Scene: class Scene {
+        constructor() {}
+    }
+}));
+
+jest.mock('../src/config/ConfigManager.js', () => ({
+    ConfigManager: jest.fn()
+}));
+jest.mock('../src/positioning/PositioningSystem.js', () => ({
+    PositioningSystem: jest.fn()
+}));
+jest.mock('../src/game/systems/AudioManager.js', () => ({
+    AudioManager: jest.fn()
+}));
+jest.mock('../src/game/systems/InputManager.js', () => ({
+    InputManager: jest.fn()
+}));
+jest.mock('../src/game/systems/ParticleManager.js', () => ({
+    ParticleManager: jest.fn()
+}));
+jest.mock('../src/game/systems/RenderManager.js', () => ({
+    RenderManager: jest.fn()
+}));
+jest.mock('../src/game/systems/SpeechManager.js', () => ({
+    SpeechManager: jest.fn()
+}));
+jest.mock('../src/game/objects/ObjectManager.js', () => ({
+    ObjectManager: jest.fn()
+}));
+jest.mock('../src/game/systems/ObjectCountingRenderer.js', () => ({
+    ObjectCountingRenderer: jest.fn()
+}));
+jest.mock('../src/ui/ResourceBar.js', () => ({
+    ResourceBar: jest.fn()
+}));
+jest.mock('../src/game/systems/MovementManager.js', () => ({
+    MovementManager: jest.fn()
+}));
+jest.mock('../src/game/systems/AutoCleanupManager.js', () => ({
+    AutoCleanupManager: jest.fn()
+}));
+jest.mock('../src/game/systems/GridManager.js', () => ({
+    __esModule: true,
+    default: jest.fn()
+}));
+
+import { GameScene } from '../src/game.js';
+
 describe('Spawn Timing After Movement', () => {
     let game;
 
@@ -39,29 +98,6 @@ describe('Spawn Timing After Movement', () => {
                 updateObjectTouchTime: jest.fn()
             },
 
-            canSpawnAfterMovement() {
-                if (this.lastMoveTime === 0) return true;
-                return (Date.now() - this.lastMoveTime) >= this.SPAWN_AFTER_MOVE_DELAY;
-            },
-
-            canMoveAfterSpawn() {
-                // Must have released the input that triggered the spawn
-                if (this.awaitingSpawnInputRelease) return false;
-                // Must wait 200ms after spawn
-                if (this.lastSpawnTime === 0) return true;
-                return (Date.now() - this.lastSpawnTime) >= this.MOVE_AFTER_SPAWN_DELAY;
-            },
-
-            moveObjectTo(obj, x, y, useSmooth = true) {
-                if (!obj || !obj.active) return;
-                this.lastMoveTime = Date.now();
-                if (useSmooth) {
-                    this.movementManager.moveObjectTo(obj, x, y);
-                } else {
-                    this.movementManager.setObjectPosition(obj, x, y);
-                }
-            },
-
             spawnObjectAt: jest.fn().mockImplementation(function(x, y) {
                 const obj = {
                     x, y, active: true,
@@ -75,6 +111,11 @@ describe('Spawn Timing After Movement', () => {
                 return obj;
             })
         };
+
+        // Bind the actual methods from GameScene to the test's context
+        game.canSpawnAfterMovement = GameScene.prototype.canSpawnAfterMovement.bind(game);
+        game.canMoveAfterSpawn = GameScene.prototype.canMoveAfterSpawn.bind(game);
+        game.moveObjectTo = GameScene.prototype.moveObjectTo.bind(game);
     });
 
     // === PART 1: Block spawns after movement (200ms) ===
