@@ -481,11 +481,7 @@ class GameScene extends Phaser.Scene {
 
                 // Spawn object in grid cell (replaces existing if present)
                 const obj = await this.spawnObjectInGridCell(row, col, 'random');
-                if (obj) {
-                    this.speechManager.speakText(obj, 'both');
-                    this.audioManager.generateContinuousTone(x, y, obj.id);
-                    this.particleManager.createSpawnBurst(x, y);
-                }
+                this.announceObject(obj, x, y);
             } else {
                 console.log('📐 Click outside grid boundaries');
             }
@@ -500,14 +496,7 @@ class GameScene extends Phaser.Scene {
         // 1. SPAWN CHECK (first priority) — empty space, not speaking
         if (!hitObject && !isSpeaking) {
             if (this.canSpawnAfterMovement()) {
-                console.log('🎯 Attempting to spawn object at', x, y);
-                const obj = await this.spawnObjectAt(x, y, 'random');
-                console.log('🎯 Spawn result:', obj);
-                if (obj) {
-                    this.speechManager.speakText(obj, 'both');
-                    this.audioManager.generateContinuousTone(x, y, obj.id);
-                    this.particleManager.createSpawnBurst(x, y);
-                }
+                await this.spawnAndAnnounce(x, y, 'random');
             } else {
                 console.log('🛑 Spawn blocked: too soon after movement (%dms)',
                     Date.now() - this.lastMoveTime);
@@ -628,10 +617,7 @@ class GameScene extends Phaser.Scene {
                 console.log('🛑 Key spawn blocked: too soon after movement');
                 return;
             }
-            const obj = await this.spawnObjectAt(position.x, position.y, 'random');
-            this.speechManager.speakText(obj, 'both');
-            this.audioManager.generateContinuousTone(position.x, position.y, obj.id);
-            this.particleManager.createSpawnBurst(position.x, position.y);
+            await this.spawnAndAnnounce(position.x, position.y, 'random');
         } else if (this.speechManager.getCurrentSpeakingObject() && this.canMoveAfterSpawn()) {
             this.moveObjectTo(this.speechManager.getCurrentSpeakingObject(), position.x, position.y);
         }
@@ -657,10 +643,7 @@ class GameScene extends Phaser.Scene {
                 console.log('🛑 Gamepad spawn blocked: too soon after movement');
                 return;
             }
-            const obj = await this.spawnObjectAt(position.x, position.y, 'random');
-            this.speechManager.speakText(obj, 'both');
-            this.audioManager.generateContinuousTone(position.x, position.y, obj.id);
-            this.particleManager.createSpawnBurst(position.x, position.y);
+            await this.spawnAndAnnounce(position.x, position.y, 'random');
         } else if (this.speechManager.getCurrentSpeakingObject() && this.canMoveAfterSpawn()) {
             this.autoCleanupManager.updateObjectTouchTime(this.speechManager.getCurrentSpeakingObject());
             this.moveObjectTo(this.speechManager.getCurrentSpeakingObject(), position.x, position.y);
@@ -927,6 +910,38 @@ class GameScene extends Phaser.Scene {
             console.error('Error spawning object:', error);
             return null;
         }
+    }
+
+    /**
+     * Spawn an object and announce it with speech, audio, and particle effects.
+     * This helper consolidates the common pattern of spawning + announcing used across input handlers.
+     * @param {number} x - X coordinate
+     * @param {number} y - Y coordinate
+     * @param {string} type - Spawn type (default: 'random')
+     * @returns {Promise<Object|null>} The spawned object or null if spawn failed
+     */
+    async spawnAndAnnounce(x, y, type = 'random') {
+        console.log('🎯 Attempting to spawn object at', x, y);
+        const obj = await this.spawnObjectAt(x, y, type);
+        console.log('🎯 Spawn result:', obj);
+        if (obj) {
+            this.announceObject(obj, x, y);
+        }
+        return obj;
+    }
+
+    /**
+     * Announce an already-spawned object with speech, audio, and particle effects.
+     * Used after spawnObjectInGridCell or other specialized spawn methods.
+     * @param {Object} obj - The spawned object
+     * @param {number} x - X coordinate for audio/particles
+     * @param {number} y - Y coordinate for audio/particles
+     */
+    announceObject(obj, x, y) {
+        if (!obj) return;
+        this.speechManager.speakText(obj, 'both');
+        this.audioManager.generateContinuousTone(x, y, obj.id);
+        this.particleManager.createSpawnBurst(x, y);
     }
 
     renderAllNumberModes(obj, numberValue, centerX, centerY) {
