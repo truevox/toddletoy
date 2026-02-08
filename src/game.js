@@ -1762,7 +1762,7 @@ class ResponsiveGameManager {
 }
 
 // Export for main.js and routes
-export { ResponsiveGameManager };
+export { ResponsiveGameManager, GameScene };
 
 // Legacy export alias for compatibility
 export { ResponsiveGameManager as ToddlerToyGame };
