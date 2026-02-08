@@ -2,6 +2,7 @@ describe('Spawn Timing After Movement', () => {
     let game;
 
     beforeEach(() => {
+        jest.useFakeTimers();
         game = {
             objects: [],
             isDragging: false,
@@ -77,6 +78,10 @@ describe('Spawn Timing After Movement', () => {
         };
     });
 
+    afterEach(() => {
+        jest.useRealTimers();
+    });
+
     // === PART 1: Block spawns after movement (200ms) ===
 
     test('should allow spawning when no movement has occurred', () => {
@@ -89,19 +94,20 @@ describe('Spawn Timing After Movement', () => {
         expect(game.canSpawnAfterMovement()).toBe(false);
     });
 
-    test('should allow spawning after 200ms has passed since last movement', async () => {
+    test('should allow spawning after 200ms has passed since last movement', () => {
         const obj = { x: 100, y: 100, active: true };
         game.moveObjectTo(obj, 200, 200, false);
+        expect(game.canSpawnAfterMovement()).toBe(false);
 
-        await new Promise(resolve => setTimeout(resolve, 210));
+        jest.advanceTimersByTime(201);
         expect(game.canSpawnAfterMovement()).toBe(true);
     });
 
-    test('should reset the cooldown on each new movement', async () => {
+    test('should reset the cooldown on each new movement', () => {
         const obj = { x: 100, y: 100, active: true };
         game.moveObjectTo(obj, 200, 200, false);
 
-        await new Promise(resolve => setTimeout(resolve, 150));
+        jest.advanceTimersByTime(150);
         game.moveObjectTo(obj, 300, 300, false);
 
         expect(game.canSpawnAfterMovement()).toBe(false);
@@ -185,14 +191,14 @@ describe('Spawn Timing After Movement', () => {
         expect(game.canMoveAfterSpawn()).toBe(false);
     });
 
-    test('should allow movement after BOTH 200ms elapsed AND input released', async () => {
+    test('should allow movement after BOTH 200ms elapsed AND input released', () => {
         game.spawnObjectAt(100, 100);
 
         // Release the input
         game.awaitingSpawnInputRelease = false;
 
         // Wait for cooldown to expire
-        await new Promise(resolve => setTimeout(resolve, 210));
+        jest.advanceTimersByTime(201);
 
         expect(game.canMoveAfterSpawn()).toBe(true);
     });
