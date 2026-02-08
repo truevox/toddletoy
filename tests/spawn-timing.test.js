@@ -123,10 +123,6 @@ describe('Spawn Timing After Movement', () => {
         jest.useRealTimers();
     });
 
-    afterEach(() => {
-        jest.useRealTimers();
-    });
-
     // === PART 1: Block spawns after movement (200ms) ===
 
     test('should allow spawning when no movement has occurred', () => {
