@@ -7,8 +7,9 @@ import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
 const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
 const CACHE_PREFIX = `toddler-toy-v${APP_VERSION}`;
+const RUNTIME_CACHE_BASE = 'toddler-toy-v';
 
-precacheAndRoute(self.__WB_MANIFEST);
+precacheAndRoute(self.__WB_MANIFEST || []);
 cleanupOutdatedCaches();
 
 registerRoute(
@@ -56,5 +57,15 @@ self.addEventListener('message', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil((async () => {
+    const cacheNames = await caches.keys();
+    await Promise.all(
+      cacheNames
+        .filter((cacheName) =>
+          cacheName.startsWith(RUNTIME_CACHE_BASE) && !cacheName.startsWith(CACHE_PREFIX)
+        )
+        .map((cacheName) => caches.delete(cacheName))
+    );
+    await self.clients.claim();
+  })());
 });

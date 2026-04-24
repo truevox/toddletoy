@@ -1751,11 +1751,13 @@ class ResponsiveGameManager {
         window.addEventListener('pagehide', this.boundPageHideHandler);
         window.addEventListener('pageshow', this.boundPageShowHandler);
 
-        const canvas = this.gameInstance?.canvas;
-        if (canvas) {
-            canvas.addEventListener('webglcontextlost', this.boundWebglContextLostHandler, false);
-            canvas.addEventListener('webglcontextrestored', this.boundWebglContextRestoredHandler, false);
-        }
+        this.gameInstance?.events?.once('ready', () => {
+            const canvas = this.gameInstance?.canvas;
+            if (canvas) {
+                canvas.addEventListener('webglcontextlost', this.boundWebglContextLostHandler, false);
+                canvas.addEventListener('webglcontextrestored', this.boundWebglContextRestoredHandler, false);
+            }
+        });
     }
 
     handleVisibilityChange() {
@@ -1785,7 +1787,9 @@ class ResponsiveGameManager {
             this.gameInstance.loop.resetDelta();
         }
         this.gameInstance.scene.resume('GameScene');
-        this.gameInstance.sound.mute = false;
+        const audioConfig = this.configManager?.getAudioConfig();
+        const shouldRemainMuted = Boolean(audioConfig?.mute);
+        this.gameInstance.sound.mute = shouldRemainMuted;
         this.isAppPaused = false;
         console.log('▶️ Game resumed after background/lock state');
     }
