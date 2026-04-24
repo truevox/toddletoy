@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite'
-import { readFileSync, copyFileSync, mkdirSync } from 'fs'
-import { resolve } from 'path'
+import { readFileSync } from 'fs'
+import { VitePWA } from 'vite-plugin-pwa'
 
 // Read version from package.json
 const packageJson = JSON.parse(readFileSync('./package.json', 'utf-8'))
@@ -9,13 +9,7 @@ const version = packageJson.version
 export default defineConfig({
   root: '.',
   build: {
-    outDir: 'dist',
-    // Copy service worker after build
-    rollupOptions: {
-      output: {
-        // Ensure we can hook into the build lifecycle
-      }
-    }
+    outDir: 'dist'
   },
   server: {
     port: 4001,
@@ -27,21 +21,16 @@ export default defineConfig({
     __APP_VERSION__: JSON.stringify(version)
   },
   plugins: [
-    {
-      name: 'copy-service-worker',
-      closeBundle() {
-        // Copy service worker from root to dist after build completes
-        try {
-          mkdirSync(resolve(__dirname, 'dist'), { recursive: true })
-          copyFileSync(
-            resolve(__dirname, 'sw.js'),
-            resolve(__dirname, 'dist/sw.js')
-          )
-          console.log('✅ Service worker copied to dist/')
-        } catch (error) {
-          console.error('❌ Failed to copy service worker:', error)
-        }
+    VitePWA({
+      strategies: 'injectManifest',
+      srcDir: '.',
+      filename: 'sw.js',
+      injectRegister: false,
+      registerType: 'prompt',
+      manifest: false,
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff2,ttf,otf}']
       }
-    }
+    })
   ]
 });
