@@ -1,138 +1,71 @@
-// Service Worker for Toddler Toy PWA
-const CACHE_NAME = 'toddler-toy-v1.0.16';
-const urlsToCache = [
-  '/',
-  '/index.html',
-  '/src/main.js',
-  '/src/game.js',
-  '/public/emojis.json',
-  '/public/things.json',
-  '/manifest.json',
-  'https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.min.js'
-];
+/// <reference lib="webworker" />
+import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
+import { registerRoute } from 'workbox-routing';
+import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from 'workbox-strategies';
+import { ExpirationPlugin } from 'workbox-expiration';
+import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
-// Install event - cache resources
-self.addEventListener('install', (event) => {
-  console.log('[SW] Install event');
-  event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[SW] Caching app shell');
-        return cache.addAll(urlsToCache);
-      })
-      .catch((error) => {
-        console.error('[SW] Failed to cache:', error);
-      })
-  );
-});
+const APP_VERSION = typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev';
+const CACHE_PREFIX = `toddler-toy-v${APP_VERSION}`;
+const RUNTIME_CACHE_BASE = 'toddler-toy-v';
 
-// Activate event - cleanup old caches
-self.addEventListener('activate', (event) => {
-  console.log('[SW] Activate event');
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('[SW] Deleting old cache:', cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-  );
-});
+precacheAndRoute(self.__WB_MANIFEST || []);
+cleanupOutdatedCaches();
 
-// Fetch event - serve from cache, fallback to network
-self.addEventListener('fetch', (event) => {
-  // Skip Vite dev server resources
-  if (event.request.url.includes('/@vite/') || 
-      event.request.url.includes('?t=') ||
-      event.request.url.includes('localhost:4003')) {
-    return; // Let browser handle Vite dev resources
-  }
+registerRoute(
+  ({ request }) => request.mode === 'navigate',
+  createHandlerBoundToURL('/index.html')
+);
 
-  // Strategy for navigation requests (e.g., index.html)
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request) // Try network first
-        .then((response) => {
-          // If successful, cache and return
-          if (response && response.status === 200) {
-            const responseToCache = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, responseToCache);
-            });
-          }
-          return response;
-        })
-        .catch(() => {
-          // If network fails, try cache
-          console.log('[SW] Network failed for navigation, falling back to cache:', event.request.url);
-          return caches.match(event.request);
-        })
-    );
-    return;
-  }
+registerRoute(
+  ({ request }) => ['script', 'style', 'worker'].includes(request.destination),
+  new StaleWhileRevalidate({
+    cacheName: `${CACHE_PREFIX}-assets`
+  })
+);
 
-  // Default strategy for other requests (cache-first, then network)
-  event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        if (response) {
-          console.log('[SW] Serving from cache:', event.request.url);
-          return response;
-        }
+registerRoute(
+  ({ request, url }) => request.destination === 'font' || url.pathname.startsWith('/fonts/'),
+  new CacheFirst({
+    cacheName: `${CACHE_PREFIX}-fonts`,
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({ maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 30 })
+    ]
+  })
+);
 
-        console.log('[SW] Fetching from network:', event.request.url);
-        return fetch(event.request).then((response) => {
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
-          }
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-          return response;
-        });
-      })
-      .catch((error) => {
-        console.error('[SW] Fetch failed:', error);
-        if (event.request.destination === 'document') {
-          return caches.match('/index.html');
-        }
-      })
-  );
-});
+registerRoute(
+  ({ request, url }) => {
+    const isLocalJson = request.destination === '' && url.origin === self.location.origin && url.pathname.endsWith('.json');
+    return isLocalJson;
+  },
+  new NetworkFirst({
+    cacheName: `${CACHE_PREFIX}-data`,
+    networkTimeoutSeconds: 3,
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({ maxEntries: 20, maxAgeSeconds: 60 * 60 * 24 * 7 })
+    ]
+  })
+);
 
-// Background sync for offline actions (future enhancement)
-self.addEventListener('sync', (event) => {
-  console.log('[SW] Background sync:', event.tag);
-  // Could be used to sync user progress or settings when back online
-});
-
-// Push notifications (future enhancement)
-self.addEventListener('push', (event) => {
-  console.log('[SW] Push received:', event);
-  // Could be used for learning reminders or new content notifications
-});
-
-// Message handling between SW and main thread
 self.addEventListener('message', (event) => {
-  console.log('[SW] Message received:', event.data);
-  
-  if (event.data.type === 'SKIP_WAITING') {
+  if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
-  
-  if (event.data.type === 'GET_CACHE_SIZE') {
-    caches.open(CACHE_NAME).then((cache) => {
-      cache.keys().then((keys) => {
-        event.ports[0].postMessage({ 
-          type: 'CACHE_SIZE',
-          size: keys.length 
-        });
-      });
-    });
-  }
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil((async () => {
+    const cacheNames = await caches.keys();
+    await Promise.all(
+      cacheNames
+        .filter((cacheName) =>
+          cacheName.startsWith(RUNTIME_CACHE_BASE) && !cacheName.startsWith(CACHE_PREFIX)
+        )
+        .map((cacheName) => caches.delete(cacheName))
+    );
+    await self.clients.claim();
+  })());
 });
