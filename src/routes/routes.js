@@ -5,178 +5,192 @@ import { Router } from './Router.js';
 import { ConfigManager } from '../config/ConfigManager.js';
 import { ConfigScreen } from '../config/ConfigScreen.js';
 import { ToddlerToyGame } from '../game.js';
+import { ToyModeSelector } from '../modes/ToyModeSelector.js';
+import { OrreryToy } from '../toys/OrreryToy.js';
+
+// GlobeToy is lazy-imported to avoid blocking startup if the file isn't ready
+let GlobeToy = null;
 
 export class AppRoutes {
     constructor() {
         this.router = new Router();
         this.configManager = new ConfigManager();
+
+        // Screens / toys
+        this.modeSelector = null;
         this.configScreen = null;
         this.game = null;
+        this.orreryToy = null;
+        this.globeToy = null;
+
         this.currentScreen = null;
-        
+
         this.setupRoutes();
-        
-        // Initialize router after routes are set up
         this.router.init();
     }
 
     setupRoutes() {
-        // Setting up application routes
-        
-        // Default route: Configuration screen
+        // Root: toy mode selector (new entry point)
         this.router.addRoute('/', () => {
-            // Handling root route
+            this.showModeSelector();
+        });
+
+        // Config screen (was previously '/')
+        this.router.addRoute('/config', () => {
             this.showConfigScreen();
         });
-        
-        // Main toy route - only accessible via config screen
+
+        // Main sandbox toy – only accessible after going through /config
         this.router.addRoute('/toy', () => {
-            // Check if access is allowed (user came through config)
             if (!this.router.isToyAccessAllowed()) {
-                // Redirect to config if trying to access toy directly
-                console.log('Direct toy access denied, redirecting to config');
+                console.log('Direct toy access denied, redirecting to mode selector');
                 this.router.replace('/');
                 return;
             }
-            
-            // Handling toy route
             this.showToyScreen();
         });
-        
-        // Admin route: Always show config (bypass skip setting)
-        this.router.addRoute('/admin', () => {
-            // Handling admin route - show config with admin features
-            this.showConfigScreen(true, true); // forceShow=true, isAdmin=true
+
+        // Orrery solar-system toy
+        this.router.addRoute('/orrery', () => {
+            this.showOrreryScreen();
         });
-        
-        // Routes setup complete
+
+        // Globe toy
+        this.router.addRoute('/globe', () => {
+            this.showGlobeScreen();
+        });
+
+        // Admin: force-show config with admin flag
+        this.router.addRoute('/admin', () => {
+            this.showConfigScreen(true, true);
+        });
     }
 
-    /**
-     * Show configuration screen
-     * @param {boolean} forceShow - Force show config even if skip is enabled
-     * @param {boolean} isAdmin - Whether this is admin access
-     */
+    // ── Mode Selector ────────────────────────────────────────────────────────
+    showModeSelector() {
+        this.hideCurrentScreen();
+
+        if (!this.modeSelector) {
+            this.modeSelector = new ToyModeSelector(this.router, this.configManager);
+        }
+
+        this.modeSelector.show();
+        this.currentScreen = 'selector';
+        document.title = 'ToddleToy';
+    }
+
+    // ── Config Screen ────────────────────────────────────────────────────────
     showConfigScreen(forceShow = false, isAdmin = false) {
         console.log('showConfigScreen called, forceShow:', forceShow);
-        
-        // Check if we should skip config and go straight to toy
+
+        // Honour "skip config" preference – jump straight to toy
         if (!forceShow && this.configManager.shouldSkipConfig()) {
-            if (this.router.getCurrentRoute() !== '/toy') {
-                console.log('Skipping config, redirecting to toy');
-                // CRITICAL: Allow toy access before redirecting to prevent redirect loop
-                // User has saved config, so toy access should be granted
-                this.router.allowToyAccess();
-                this.router.replace('/toy');
-            } else {
-                console.log('Already on /toy, no redirect needed');
-            }
+            console.log('Skipping config, redirecting to toy');
+            this.router.allowToyAccess();
+            this.router.replace('/toy');
             return;
         }
 
-        console.log('Showing config screen');
         this.hideCurrentScreen();
-        
+
         if (!this.configScreen) {
-            console.log('Creating new ConfigScreen instance');
             this.configScreen = new ConfigScreen(this.configManager, this.router);
         }
-        
+
         this.configScreen.show(isAdmin);
         this.currentScreen = 'config';
-        
-        // Update page title
-        if (isAdmin) {
-            document.title = 'ToddleToy - Admin Configuration';
-        } else {
-            document.title = 'ToddleToy - Configure';
-        }
-        console.log('Config screen should now be visible');
+        document.title = isAdmin ? 'ToddleToy – Admin' : 'ToddleToy – Configure';
     }
 
-    /**
-     * Show toy/game screen
-     */
+    // ── Sandbox Toy ──────────────────────────────────────────────────────────
     showToyScreen() {
-        console.log('showToyScreen called');
-        
-        // Check if user has been through config - if not, redirect them
-        const hasVisitedConfig = localStorage.getItem('toddleToyConfig') !== null;
-        if (!hasVisitedConfig) {
-            if (this.router.getCurrentRoute() !== '/') {
-                console.log('No config found, redirecting to config screen');
-                this.router.replace('/');
-            } else {
-                console.log('Already on /, no redirect needed');
-            }
+        const hasConfig = localStorage.getItem('toddleToyConfig') !== null;
+        if (!hasConfig) {
+            this.router.replace('/');
             return;
         }
-        
-        console.log('Config found, proceeding to toy screen');
+
         this.hideCurrentScreen();
-        
-        // Create game instance if it doesn't exist
+
         if (!this.game) {
             this.game = new ToddlerToyGame(this.configManager);
         } else {
-            // Reset toy state when navigating from config
-            console.log('Resetting existing toy state');
             this.resetToyState();
         }
-        
+
         this.currentScreen = 'toy';
-        
-        // Update page title
-        document.title = 'ToddleToy - Interactive Learning';
+        document.title = 'ToddleToy – Play';
     }
 
-    /**
-     * Hide currently active screen
-     */
-    hideCurrentScreen() {
-        if (this.currentScreen === 'config' && this.configScreen) {
-            this.configScreen.hide();
-        } else if (this.currentScreen === 'toy' && this.game) {
-            // Pause or minimize game if needed
-            if (this.game.game && this.game.game.scene) {
-                const scene = this.game.game.scene.scenes[0];
-                if (scene && scene.scene) {
-                    scene.scene.pause();
+    // ── Orrery ───────────────────────────────────────────────────────────────
+    showOrreryScreen() {
+        this.hideCurrentScreen();
+
+        if (!this.orreryToy) {
+            this.orreryToy = new OrreryToy(this.router);
+        }
+
+        this.orreryToy.show();
+        this.currentScreen = 'orrery';
+        document.title = 'ToddleToy – Solar System';
+    }
+
+    // ── Globe ────────────────────────────────────────────────────────────────
+    async showGlobeScreen() {
+        this.hideCurrentScreen();
+
+        if (!this.globeToy) {
+            // Lazy-load so missing file doesn't crash startup
+            if (!GlobeToy) {
+                try {
+                    const mod = await import('../toys/GlobeToy.js');
+                    GlobeToy = mod.GlobeToy;
+                } catch (err) {
+                    console.error('GlobeToy failed to load:', err);
+                    this.router.replace('/');
+                    return;
                 }
             }
+            this.globeToy = new GlobeToy(this.router);
+        }
+
+        this.globeToy.show();
+        this.currentScreen = 'globe';
+        document.title = 'ToddleToy – World Globe';
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    hideCurrentScreen() {
+        switch (this.currentScreen) {
+            case 'selector':
+                if (this.modeSelector) this.modeSelector.hide();
+                break;
+            case 'config':
+                if (this.configScreen) this.configScreen.hide();
+                break;
+            case 'toy':
+                if (this.game && this.game.game && this.game.game.scene) {
+                    const scene = this.game.game.scene.scenes[0];
+                    if (scene && scene.scene) scene.scene.pause();
+                }
+                break;
+            case 'orrery':
+                if (this.orreryToy) this.orreryToy.hide();
+                break;
+            case 'globe':
+                if (this.globeToy) this.globeToy.hide();
+                break;
         }
     }
 
-    /**
-     * Get current route
-     */
-    getCurrentRoute() {
-        return this.router.getCurrentRoute();
-    }
-
-    /**
-     * Navigate to specific route
-     */
-    navigate(path) {
-        this.router.navigate(path);
-    }
-
-    /**
-     * Reset toy state - clear all objects and reset game
-     */
     resetToyState() {
         if (this.game && this.game.game && this.game.game.scene) {
             const scene = this.game.game.scene.scenes[0];
-            if (scene && scene.resetToyState) {
-                scene.resetToyState();
-            }
+            if (scene && scene.resetToyState) scene.resetToyState();
         }
     }
 
-    /**
-     * Get config manager instance
-     */
-    getConfigManager() {
-        return this.configManager;
-    }
+    getCurrentRoute() { return this.router.getCurrentRoute(); }
+    navigate(path)    { this.router.navigate(path); }
+    getConfigManager(){ return this.configManager; }
 }
