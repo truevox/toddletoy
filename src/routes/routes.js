@@ -8,9 +8,6 @@ import { ToddlerToyGame } from '../game.js';
 import { ToyModeSelector } from '../modes/ToyModeSelector.js';
 import { OrreryToy } from '../toys/OrreryToy.js';
 
-// GlobeToy is lazy-imported to avoid blocking startup if the file isn't ready
-let GlobeToy = null;
-
 export class AppRoutes {
     constructor() {
         this.router = new Router();
@@ -22,6 +19,8 @@ export class AppRoutes {
         this.game = null;
         this.orreryToy = null;
         this.globeToy = null;
+        // Cached GlobeToy class from lazy import (instance-scoped, not module-level)
+        this._GlobeToyClass = null;
 
         this.currentScreen = null;
 
@@ -141,17 +140,17 @@ export class AppRoutes {
 
         if (!this.globeToy) {
             // Lazy-load so missing file doesn't crash startup
-            if (!GlobeToy) {
+            if (!this._GlobeToyClass) {
                 try {
                     const mod = await import('../toys/GlobeToy.js');
-                    GlobeToy = mod.GlobeToy;
+                    this._GlobeToyClass = mod.GlobeToy;
                 } catch (err) {
                     console.error('GlobeToy failed to load:', err);
                     this.router.replace('/');
                     return;
                 }
             }
-            this.globeToy = new GlobeToy(this.router);
+            this.globeToy = new this._GlobeToyClass(this.router);
         }
 
         this.globeToy.show();
