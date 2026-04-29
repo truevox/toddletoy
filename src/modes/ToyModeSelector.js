@@ -79,18 +79,39 @@ export class ToyModeSelector {
 
         cards.forEach(({ mode, emoji, title, desc, borderColor, bgColor }) => {
             const card = this._buildCard(emoji, title, desc, borderColor, bgColor);
+
+            // Accessibility: keyboard and screen-reader support
+            card.setAttribute('role', 'button');
+            card.tabIndex = 0;
+            card.setAttribute('aria-label', `${title}. ${desc}`);
+
             card.addEventListener('click', () => this._selectMode(mode));
             card.addEventListener('touchend', (e) => {
                 e.preventDefault();
                 this._selectMode(mode);
             });
+            card.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    this._selectMode(mode);
+                }
+            });
+            card.addEventListener('focus', () => {
+                card.style.outline = '3px solid rgba(255,255,255,0.9)';
+                card.style.outlineOffset = '4px';
+            });
+            card.addEventListener('blur', () => {
+                card.style.outline = 'none';
+                card.style.outlineOffset = '0';
+            });
+
             grid.appendChild(card);
         });
 
         el.appendChild(grid);
 
         const version = document.createElement('p');
-        version.textContent = `v${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : '1.0.71'}`;
+        version.textContent = `v${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'}`;
         version.style.cssText = 'color:rgba(255,255,255,0.25); margin-top:40px; font-size:0.75rem;';
         el.appendChild(version);
 

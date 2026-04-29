@@ -126,7 +126,7 @@ export class AppRoutes {
         this.hideCurrentScreen();
 
         if (!this.orreryToy) {
-            this.orreryToy = new OrreryToy(this.router);
+            this.orreryToy = new OrreryToy(this.router, this.configManager);
         }
 
         this.orreryToy.show();
@@ -150,7 +150,9 @@ export class AppRoutes {
                     return;
                 }
             }
-            this.globeToy = new this._GlobeToyClass(this.router);
+            // Guard: user may have navigated away while the import was in-flight
+            if (this.router.getCurrentRoute() !== '/globe') return;
+            this.globeToy = new this._GlobeToyClass(this.router, this.configManager);
         }
 
         this.globeToy.show();

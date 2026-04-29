@@ -3,8 +3,9 @@
  * Shows all 8 planets orbiting the Sun; tap any to hear its name.
  */
 export class OrreryToy {
-    constructor(router) {
+    constructor(router, configManager = null) {
         this.router = router;
+        this.configManager = configManager;
         this.container = null;
         this.canvas = null;
         this.ctx = null;
@@ -286,7 +287,9 @@ export class OrreryToy {
         const x = (cx - rect.left) * scaleX;
         const y = (cy - rect.top) * scaleY;
 
-        const px = this.offCtx.getImageData(Math.round(x), Math.round(y), 1, 1).data;
+        const sampleX = Math.min(Math.max(Math.round(x), 0), this.offscreen.width - 1);
+        const sampleY = Math.min(Math.max(Math.round(y), 0), this.offscreen.height - 1);
+        const px = this.offCtx.getImageData(sampleX, sampleY, 1, 1).data;
         const idx = px[0] - 1; // R channel encodes planet index + 1
 
         const planets = OrreryToy.PLANETS;
@@ -321,9 +324,13 @@ export class OrreryToy {
 
     _speak(text) {
         if (!window.speechSynthesis) return;
+        const cfg = this.configManager?.getSpeechConfig?.() ?? {};
+        if (cfg.mute) return;
         window.speechSynthesis.cancel();
         const u = new SpeechSynthesisUtterance(text);
-        u.rate = 0.85; u.pitch = 1.15;
+        u.rate   = typeof cfg.rate   === 'number' ? cfg.rate   : 0.85;
+        u.volume = typeof cfg.volume === 'number' ? cfg.volume / 100 : 1;
+        u.pitch  = 1.15;
         window.speechSynthesis.speak(u);
     }
 }

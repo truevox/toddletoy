@@ -256,8 +256,9 @@ COUNTRIES.forEach(c => { COUNTRY_BY_ID[c.id] = c; });
 
 // ── GlobeToy class ────────────────────────────────────────────────────────────
 export class GlobeToy {
-  constructor(router) {
-    this.router    = router;
+  constructor(router, configManager = null) {
+    this.router        = router;
+    this.configManager = configManager;
     this.container = null;
     this.canvas    = null;
     this.ctx       = null;
@@ -276,6 +277,10 @@ export class GlobeToy {
     this._resizeH    = null;
     this._infoTimer  = null;
     this.selectedId  = null;
+
+    // Projection cache: keyed by poly array reference, stores typed arrays for xs/ys
+    this._polyCache  = new WeakMap();
+    this._cacheH     = 0;   // canvas height when ys were last computed
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -393,6 +398,12 @@ export class GlobeToy {
     const { canvas, ctx, hitCanvas, hitCtx } = this;
     const W = canvas.width, H = canvas.height;
 
+    // Invalidate y-cache when canvas height changes
+    if (H !== this._cacheH) {
+      this._polyCache = new WeakMap();
+      this._cacheH = H;
+    }
+
     // Ocean background
     ctx.fillStyle = '#1a6fa8';
     ctx.fillRect(0, 0, W, H);
@@ -407,50 +418,73 @@ export class GlobeToy {
       const y = this._py(lat, H);
       ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
     }
-    // Equator slightly brighter
     ctx.strokeStyle = 'rgba(255,255,255,0.12)';
     ctx.lineWidth = 1.5;
     const eq = this._py(0, H);
     ctx.beginPath(); ctx.moveTo(0, eq); ctx.lineTo(W, eq); ctx.stroke();
     ctx.restore();
 
-    // Draw countries
+    // Draw countries using cached projections
     COUNTRIES.forEach(country => {
       const isSelected = this.selectedId === country.id;
       const fill    = isSelected ? '#ffffff' : country.color;
       const hitFill = `rgb(${country.id},0,0)`;
 
       country.polys.forEach(poly => {
-        this._drawPoly(ctx,    poly, W, H, fill,    'rgba(0,0,0,0.35)', 0.6);
-        this._drawPoly(hitCtx, poly, W, H, hitFill, null,               0);
+        const proj = this._project(poly, W, H);
+        this._drawProjected(ctx,    proj, W, fill,    'rgba(0,0,0,0.35)', 0.6);
+        this._drawProjected(hitCtx, proj, W, hitFill, null,               0);
       });
     });
   }
 
-  _drawPoly(ctx, poly, W, H, fillStyle, strokeStyle, lineWidth) {
-    // Project all vertices
-    const pts = poly.map(([lon, lat]) => [this._px(lon, W), this._py(lat, H)]);
-
-    // Seam repair: if consecutive x values jump > W/2, adjust current x
-    for (let i = 1; i < pts.length; i++) {
-      const dx = pts[i][0] - pts[i-1][0];
-      if (dx >  W / 2) pts[i][0] -= W;
-      if (dx < -W / 2) pts[i][0] += W;
+  // Returns (and caches) a {xs, ys, count} projection for a poly at current lonOff.
+  // ys are stable across frames (only depend on H); xs recomputed each frame (depend on lonOff).
+  _project(poly, W, H) {
+    let entry = this._polyCache.get(poly);
+    if (!entry) {
+      const n = poly.length;
+      entry = {
+        lons: new Float32Array(n),
+        ys:   new Float32Array(n),
+        xs:   new Float32Array(n),
+        count: n,
+      };
+      for (let i = 0; i < n; i++) {
+        entry.lons[i] = poly[i][0];
+        entry.ys[i]   = this._py(poly[i][1], H);
+      }
+      this._polyCache.set(poly, entry);
     }
 
-    // Draw at dx offsets 0, +W, -W for seamless wrap
+    // Recompute xs (lonOff changes every frame during spin)
+    const { lons, xs, ys, count } = entry;
+    for (let i = 0; i < count; i++) xs[i] = this._px(lons[i], W);
+
+    // Seam repair
+    for (let i = 1; i < count; i++) {
+      const dx = xs[i] - xs[i - 1];
+      if (dx >  W / 2) xs[i] -= W;
+      if (dx < -W / 2) xs[i] += W;
+    }
+
+    return { xs, ys, count };
+  }
+
+  _drawProjected(ctx, { xs, ys, count }, W, fillStyle, strokeStyle, lineWidth) {
+    ctx.fillStyle = fillStyle;
+    if (strokeStyle && lineWidth > 0) {
+      ctx.strokeStyle = strokeStyle;
+      ctx.lineWidth   = lineWidth;
+    }
+
     for (const dx of [0, W, -W]) {
       ctx.beginPath();
-      ctx.moveTo(pts[0][0] + dx, pts[0][1]);
-      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i][0] + dx, pts[i][1]);
+      ctx.moveTo(xs[0] + dx, ys[0]);
+      for (let i = 1; i < count; i++) ctx.lineTo(xs[i] + dx, ys[i]);
       ctx.closePath();
-      ctx.fillStyle = fillStyle;
       ctx.fill();
-      if (strokeStyle && lineWidth > 0) {
-        ctx.strokeStyle = strokeStyle;
-        ctx.lineWidth   = lineWidth;
-        ctx.stroke();
-      }
+      if (strokeStyle && lineWidth > 0) ctx.stroke();
     }
   }
 
@@ -517,10 +551,14 @@ export class GlobeToy {
   // ── Hit detection ──────────────────────────────────────────────────────────
   _handleTap(cx, cy) {
     const rect  = this.canvas.getBoundingClientRect();
-    const sx    = this.canvas.width  / rect.width;
-    const sy    = this.canvas.height / rect.height;
-    const x     = Math.round((cx - rect.left) * sx);
-    const y     = Math.round((cy - rect.top)  * sy);
+    const cW    = this.hitCanvas.width;
+    const cH    = this.hitCanvas.height;
+    if (!rect.width || !rect.height || !cW || !cH) return;
+
+    const sx    = cW / rect.width;
+    const sy    = cH / rect.height;
+    const x     = Math.max(0, Math.min(cW - 1, Math.round((cx - rect.left) * sx)));
+    const y     = Math.max(0, Math.min(cH - 1, Math.round((cy - rect.top)  * sy)));
 
     const px    = this.hitCtx.getImageData(x, y, 1, 1).data;
     const id    = px[0];  // R channel = country id (0 = ocean)
@@ -559,9 +597,13 @@ export class GlobeToy {
 
   _speak(text) {
     if (!window.speechSynthesis) return;
+    const cfg = this.configManager?.getSpeechConfig?.() ?? {};
+    if (cfg.mute) return;
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.85; u.pitch = 1.1;
+    u.rate   = typeof cfg.rate   === 'number' ? cfg.rate   : 0.85;
+    u.volume = typeof cfg.volume === 'number' ? cfg.volume / 100 : 1;
+    u.pitch  = 1.1;
     window.speechSynthesis.speak(u);
   }
 }
