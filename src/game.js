@@ -1096,23 +1096,17 @@ class GameScene extends Phaser.Scene {
 
         if (weights.length === 0) return 'emoji';
 
-        // Weighted random selection with debug logging
+        // Weighted random selection
         const totalWeight = weights.reduce((sum, item) => sum + item.weight, 0);
         let random = Math.random() * totalWeight;
-
-        // DEBUG: Log weight distribution (disable after testing)
-        const weightSummary = weights.map(w => `${w.type}:${w.weight}`).join(', ');
 
         for (const item of weights) {
             random -= item.weight;
             if (random <= 0) {
-                // DEBUG: Log selection details
-                console.log(`🎲 Spawn weights [${weightSummary}] total:${totalWeight} → Selected: ${item.type}`);
                 return item.type;
             }
         }
 
-        console.log(`🎲 Spawn weights [${weightSummary}] → Fallback: ${weights[0].type}`);
         return weights[0].type;
     }
 
