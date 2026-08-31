@@ -15,6 +15,7 @@ import GridManager from './game/systems/GridManager.js'
 import packageJson from '../package.json'
 import emojiDataBundled from '../public/emojis.json'
 import thingsDataBundled from '../public/things.json'
+import { normaliseBound, applyRangeFilter, generateRangeFallback } from './game/utils/numberRangeGenerator.js'
 
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -1250,114 +1251,11 @@ class GameScene extends Phaser.Scene {
             return { value: 1, type: 'number' };
         }
 
-        const getRangeForType = () => {
-            if (!this.configManager) return null;
-
-            if (configType === 'smallNumbers' && this.configManager.getSmallNumberRange) {
-                return this.configManager.getSmallNumberRange();
-            }
-
-            if (configType === 'largeNumbers' && this.configManager.getLargeNumberRange) {
-                return this.configManager.getLargeNumberRange();
-            }
-
-            return null;
-        };
-
-        const range = getRangeForType();
-
-        const normaliseBound = (value, fallback) => {
-            if (value === undefined || value === null) {
-                return fallback;
-            }
-
-            const numeric = Number(value);
-            return Number.isFinite(numeric) ? numeric : fallback;
-        };
-
+        const range = this.getNumberRangeForType(configType);
         const min = normaliseBound(range?.min, undefined);
         const max = normaliseBound(range?.max, undefined);
 
-        const applyRangeFilter = (list) => {
-            if (min === undefined && max === undefined) {
-                return list;
-            }
-
-            return list.filter(num => {
-                const value = typeof num.value === 'number' ? num.value : Number(num.value);
-                if (Number.isNaN(value)) return false;
-                if (min !== undefined && value < min) return false;
-                if (max !== undefined && value > max) return false;
-                return true;
-            });
-        };
-
-        const generateRangeFallback = () => {
-            // Only attempt generation when we have a valid numeric span
-            const fallbackMin = normaliseBound(min, configType === 'smallNumbers' ? 0 : 12);
-            const fallbackMax = normaliseBound(max, configType === 'smallNumbers' ? 10 : 9999);
-
-            if (fallbackMin > fallbackMax) {
-                return null;
-            }
-
-            const randomValue = Math.floor(Math.random() * (fallbackMax - fallbackMin + 1)) + fallbackMin;
-
-            const languageLocales = {
-                en: 'en-US',
-                es: 'es-ES',
-                zh: 'zh-CN',
-                hi: 'hi-IN',
-                ar: 'ar-SA',
-                fr: 'fr-FR',
-                bn: 'bn-BD',
-                pt: 'pt-PT',
-                ru: 'ru-RU',
-                id: 'id-ID'
-            };
-
-            const enabledLanguages = this.configManager?.getConfig()?.languages?.enabled || [];
-            const generated = {
-                value: randomValue,
-                type: 'number',
-                categories: ['counting', 'generated'],
-                source: 'generated-range'
-            };
-
-            const ensureEntry = (code, formatter) => {
-                try {
-                    generated[code] = formatter ? formatter.format(randomValue) : String(randomValue);
-                } catch (fmtError) {
-                    console.warn('Failed to format number for language', code, fmtError);
-                    generated[code] = String(randomValue);
-                }
-            };
-
-            // Always provide English fallback even if not explicitly enabled
-            const getFormatter = (locale) => {
-                if (!locale || typeof Intl === 'undefined' || !Intl.NumberFormat) {
-                    return null;
-                }
-
-                try {
-                    return new Intl.NumberFormat(locale);
-                } catch (err) {
-                    console.warn('Failed to create number formatter for locale', locale, err);
-                    return null;
-                }
-            };
-
-            ensureEntry('en', getFormatter(languageLocales.en));
-
-            enabledLanguages.forEach(lang => {
-                const locale = languageLocales[lang.code];
-                ensureEntry(lang.code, getFormatter(locale));
-            });
-
-            return generated;
-        };
-
-        let filteredNumbers = applyRangeFilter(numbers);
+        let filteredNumbers = applyRangeFilter(numbers, min, max);
         let selectedNumber;
 
         if (filteredNumbers.length === 0) {
@@ -1365,7 +1263,7 @@ class GameScene extends Phaser.Scene {
                 console.warn(`No numbers available for ${configType} in range ${min ?? '-∞'}-${max ?? '+∞'}. Attempting to generate values.`);
             }
 
-            selectedNumber = generateRangeFallback();
+            selectedNumber = generateRangeFallback({ min, max, configType, configManager: this.configManager });
 
             if (!selectedNumber) {
                 // Fall back to legacy heuristics before finally resorting to the raw dataset
@@ -1396,6 +1294,20 @@ class GameScene extends Phaser.Scene {
         number.color = color;
 
         return number;
+    }
+
+    getNumberRangeForType(configType) {
+        if (!this.configManager) return null;
+
+        if (configType === 'smallNumbers' && this.configManager.getSmallNumberRange) {
+            return this.configManager.getSmallNumberRange();
+        }
+
+        if (configType === 'largeNumbers' && this.configManager.getLargeNumberRange) {
+            return this.configManager.getLargeNumberRange();
+        }
+
+        return null;
     }
 
     // Auto-cleanup system
