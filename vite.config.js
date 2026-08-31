@@ -29,7 +29,11 @@ export default defineConfig({
       registerType: 'prompt',
       manifest: false,
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff2,ttf,otf}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,json,woff2,ttf,otf}'],
+        // emojis.json/things.json are bundled directly into the JS at build
+        // time (see src/game.js) and are no longer fetched at runtime, so
+        // precaching them separately would just be dead weight.
+        globIgnores: ['emojis.json', 'things.json']
       }
     })
   ]
