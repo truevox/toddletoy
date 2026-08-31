@@ -13,6 +13,8 @@ import { MovementManager } from './game/systems/MovementManager.js'
 import { AutoCleanupManager } from './game/systems/AutoCleanupManager.js'
 import GridManager from './game/systems/GridManager.js'
 import packageJson from '../package.json'
+import emojiDataBundled from '../public/emojis.json'
+import thingsDataBundled from '../public/things.json'
 
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -388,31 +390,23 @@ class GameScene extends Phaser.Scene {
     }
 
     async preloadGameData() {
-        try {
-            // Cache busting timestamp
-            const timestamp = Date.now();
-
-            // Pre-load emoji data with cache busting
-            if (!this.emojiData) {
-                const response = await fetch(`/emojis.json?v=${timestamp}`);
-                this.emojiData = await response.json();
-                console.log('📦 Emoji data preloaded:', this.emojiData.length, 'emojis');
-            }
-
-            // Pre-load things data with cache busting
-            if (!this.thingsData) {
-                const response = await fetch(`/things.json?v=${timestamp}`);
-                this.thingsData = await response.json();
-                console.log('📦 Things data preloaded');
-            }
-
-            this.dataLoaded = true;
-            this.checkFullInitialization();
-        } catch (error) {
-            console.error('Error preloading game data:', error);
-            this.dataLoaded = true; // Continue anyway
-            this.checkFullInitialization();
+        // Emoji/things data is bundled at build time (imported directly from
+        // public/emojis.json and public/things.json) rather than fetched at
+        // runtime. This makes offline play structurally impossible to break:
+        // there is no network request to fail, no cache-busting query string
+        // to defeat the Workbox precache, and no per-tap fetch cost.
+        if (!this.emojiData) {
+            this.emojiData = emojiDataBundled;
+            console.log('📦 Emoji data ready (bundled):', this.emojiData.length, 'emojis');
         }
+
+        if (!this.thingsData) {
+            this.thingsData = thingsDataBundled;
+            console.log('📦 Things data ready (bundled)');
+        }
+
+        this.dataLoaded = true;
+        this.checkFullInitialization();
     }
 
     checkFullInitialization() {
@@ -1123,332 +1117,291 @@ class GameScene extends Phaser.Scene {
     }
 
     async getRandomEmoji() {
-        try {
-            // Load emoji data if not already cached
-            if (!this.emojiData) {
-                const response = await fetch(`/emojis.json?v=${Date.now()}`);
-                this.emojiData = await response.json();
-            }
-
-            // Get filtered emojis based on enabled emoji categories
-            const config = this.configManager ? this.configManager.getConfig() : null;
-            let availableEmojis = this.emojiData;
-
-            // Filter by enabled emoji categories (animals, food, vehicles, etc.)
-            if (config && config.emojiCategories) {
-                const enabledCategories = Object.entries(config.emojiCategories)
-                    .filter(([key, val]) => val.enabled)
-                    .map(([key]) => key);
-
-                if (enabledCategories.length > 0) {
-                    availableEmojis = availableEmojis.filter(emoji =>
-                        emoji.categories && emoji.categories.some(cat =>
-                            enabledCategories.includes(cat)
-                        )
-                    );
-
-                    console.log(`🎯 Filtered emojis: ${availableEmojis.length} available from categories [${enabledCategories.join(', ')}]`);
-                }
-            }
-
-            // Fallback to all emojis if no valid ones after filtering
-            if (availableEmojis.length === 0) {
-                console.warn('⚠️ No emojis matched enabled categories, using all emojis as fallback');
-                availableEmojis = this.emojiData;
-            }
-
-            // Select random emoji
-            const randomIndex = Math.floor(Math.random() * availableEmojis.length);
-            return availableEmojis[randomIndex];
-
-        } catch (error) {
-            console.error('Error loading emoji data:', error);
-            // Fallback emoji object
-            return {
-                emoji: '🎯',
-                en: 'Target',
-                type: 'emoji',
-                categories: ['fun'],
-                colors: ['red', 'white']
-            };
+        // Emoji data is bundled at build time (see the import at the top of this
+        // file), so it is always available - no network fetch, no failure mode.
+        if (!this.emojiData) {
+            this.emojiData = emojiDataBundled;
         }
+
+        // Get filtered emojis based on enabled emoji categories
+        const config = this.configManager ? this.configManager.getConfig() : null;
+        let availableEmojis = this.emojiData;
+
+        // Filter by enabled emoji categories (animals, food, vehicles, etc.)
+        if (config && config.emojiCategories) {
+            const enabledCategories = Object.entries(config.emojiCategories)
+                .filter(([key, val]) => val.enabled)
+                .map(([key]) => key);
+
+            if (enabledCategories.length > 0) {
+                availableEmojis = availableEmojis.filter(emoji =>
+                    emoji.categories && emoji.categories.some(cat =>
+                        enabledCategories.includes(cat)
+                    )
+                );
+
+                console.log(`🎯 Filtered emojis: ${availableEmojis.length} available from categories [${enabledCategories.join(', ')}]`);
+            }
+        }
+
+        // Fallback to all emojis if no valid ones after filtering
+        if (availableEmojis.length === 0) {
+            console.warn('⚠️ No emojis matched enabled categories, using all emojis as fallback');
+            availableEmojis = this.emojiData;
+        }
+
+        // Select random emoji
+        const randomIndex = Math.floor(Math.random() * availableEmojis.length);
+        return availableEmojis[randomIndex];
     }
 
     async getRandomShape() {
-        try {
-            // Load things data if not already cached
-            if (!this.thingsData) {
-                const response = await fetch(`/things.json?v=${Date.now()}`);
-                this.thingsData = await response.json();
-            }
+        if (!this.thingsData) {
+            this.thingsData = thingsDataBundled;
+        }
 
-            const shapes = this.thingsData.shapes || [];
-            if (shapes.length === 0) {
-                return { value: 'Circle', type: 'shape' };
-            }
-
-            const randomIndex = Math.floor(Math.random() * shapes.length);
-            return { ...shapes[randomIndex], type: 'shape' };
-
-        } catch (error) {
-            console.error('Error loading shape data:', error);
+        const shapes = this.thingsData.shapes || [];
+        if (shapes.length === 0) {
+            console.error('⚠️ No shapes found in bundled things.json data - check public/things.json');
             return { value: 'Circle', type: 'shape' };
         }
+
+        const randomIndex = Math.floor(Math.random() * shapes.length);
+        return { ...shapes[randomIndex], type: 'shape' };
     }
 
     async getRandomLetter(configType = 'uppercaseLetters') {
-        try {
-            // Load things data if not already cached
-            if (!this.thingsData) {
-                const response = await fetch(`/things.json?v=${Date.now()}`);
-                this.thingsData = await response.json();
-            }
-
-            const letters = this.thingsData.letters || [];
-            const isUppercase = configType === 'uppercaseLetters';
-            const filteredLetters = letters.filter(letter =>
-                isUppercase ? letter.case === 'upper' : letter.case === 'lower'
-            );
-
-            if (filteredLetters.length === 0) {
-                return { value: isUppercase ? 'A' : 'a', type: 'letter' };
-            }
-
-            const randomIndex = Math.floor(Math.random() * filteredLetters.length);
-            return { ...filteredLetters[randomIndex], type: 'letter' };
-
-        } catch (error) {
-            console.error('Error loading letter data:', error);
-            return { value: 'A', type: 'letter' };
+        if (!this.thingsData) {
+            this.thingsData = thingsDataBundled;
         }
+
+        const letters = this.thingsData.letters || [];
+        const isUppercase = configType === 'uppercaseLetters';
+        const filteredLetters = letters.filter(letter =>
+            isUppercase ? letter.case === 'upper' : letter.case === 'lower'
+        );
+
+        if (filteredLetters.length === 0) {
+            console.error('⚠️ No letters found in bundled things.json data - check public/things.json');
+            return { value: isUppercase ? 'A' : 'a', type: 'letter' };
+        }
+
+        const randomIndex = Math.floor(Math.random() * filteredLetters.length);
+        return { ...filteredLetters[randomIndex], type: 'letter' };
     }
 
     async getRandomColor(allowedCategories = null) {
-        try {
-            // Load things data if not already cached
-            if (!this.thingsData) {
-                const response = await fetch(`/things.json?v=${Date.now()}`);
-                this.thingsData = await response.json();
+        if (!this.thingsData) {
+            this.thingsData = thingsDataBundled;
+        }
+
+        // Get enabled color categories from config
+        const config = this.configManager ? this.configManager.getConfig() : null;
+        const colorCategories = config?.colorCategories || {};
+
+        // Get enabled category names
+        const enabledCategories = Object.entries(colorCategories)
+            .filter(([key, value]) => value.enabled)
+            .map(([key, value]) => key);
+
+        // Filter colors by enabled categories
+        const colors = this.thingsData.colors || [];
+        const allowedSet = Array.isArray(allowedCategories) && allowedCategories.length > 0
+            ? new Set(allowedCategories)
+            : null;
+
+        const matchesAllowed = (color) => {
+            if (!allowedSet) return true;
+            if (color.category && allowedSet.has(color.category)) return true;
+            if (Array.isArray(color.categories)) {
+                return color.categories.some(cat => allowedSet.has(cat));
             }
+            return false;
+        };
 
-            // Get enabled color categories from config
-            const config = this.configManager ? this.configManager.getConfig() : null;
-            const colorCategories = config?.colorCategories || {};
+        let availableColors = colors.filter(color =>
+            (enabledCategories.length === 0 || enabledCategories.includes(color.category)) && matchesAllowed(color)
+        );
 
-            // Get enabled category names
-            const enabledCategories = Object.entries(colorCategories)
-                .filter(([key, value]) => value.enabled)
-                .map(([key, value]) => key);
+        // If filtering by enabled categories removed all options, fallback to allowed categories regardless of config
+        if (availableColors.length === 0 && allowedSet) {
+            availableColors = colors.filter(matchesAllowed);
+        }
 
-            // Filter colors by enabled categories
-            const colors = this.thingsData.colors || [];
-            const allowedSet = Array.isArray(allowedCategories) && allowedCategories.length > 0
-                ? new Set(allowedCategories)
-                : null;
+        // Fallback to all colors if none available
+        if (availableColors.length === 0) {
+            availableColors = colors;
+        }
 
-            const matchesAllowed = (color) => {
-                if (!allowedSet) return true;
-                if (color.category && allowedSet.has(color.category)) return true;
-                if (Array.isArray(color.categories)) {
-                    return color.categories.some(cat => allowedSet.has(cat));
-                }
-                return false;
-            };
-
-            let availableColors = colors.filter(color =>
-                (enabledCategories.length === 0 || enabledCategories.includes(color.category)) && matchesAllowed(color)
-            );
-
-            // If filtering by enabled categories removed all options, fallback to allowed categories regardless of config
-            if (availableColors.length === 0 && allowedSet) {
-                availableColors = colors.filter(matchesAllowed);
-            }
-
-            // Fallback to all colors if none available
-            if (availableColors.length === 0) {
-                availableColors = colors;
-            }
-
-            // Select random color
-            if (availableColors.length === 0) {
-                return { value: 'White', en: 'White', hex: '#ffffff' };
-            }
-
-            const randomIndex = Math.floor(Math.random() * availableColors.length);
-            const chosenColor = availableColors[randomIndex];
-            return { ...chosenColor };
-
-        } catch (error) {
-            console.error('Error loading color data:', error);
+        // Select random color
+        if (availableColors.length === 0) {
+            console.error('⚠️ No colors found in bundled things.json data - check public/things.json');
             return { value: 'White', en: 'White', hex: '#ffffff' };
         }
+
+        const randomIndex = Math.floor(Math.random() * availableColors.length);
+        const chosenColor = availableColors[randomIndex];
+        return { ...chosenColor };
     }
 
     async getRandomNumber(configType = 'smallNumbers') {
-        try {
-            // Load things data if not already cached
-            if (!this.thingsData) {
-                const response = await fetch(`/things.json?v=${Date.now()}`);
-                this.thingsData = await response.json();
+        if (!this.thingsData) {
+            this.thingsData = thingsDataBundled;
+        }
+
+        const numbers = this.thingsData.numbers || [];
+
+        if (numbers.length === 0) {
+            console.error('⚠️ No numbers found in bundled things.json data - check public/things.json');
+            return { value: 1, type: 'number' };
+        }
+
+        const getRangeForType = () => {
+            if (!this.configManager) return null;
+
+            if (configType === 'smallNumbers' && this.configManager.getSmallNumberRange) {
+                return this.configManager.getSmallNumberRange();
             }
 
-            const numbers = this.thingsData.numbers || [];
-
-            if (numbers.length === 0) {
-                return { value: 1, type: 'number' };
+            if (configType === 'largeNumbers' && this.configManager.getLargeNumberRange) {
+                return this.configManager.getLargeNumberRange();
             }
 
-            const getRangeForType = () => {
-                if (!this.configManager) return null;
+            return null;
+        };
 
-                if (configType === 'smallNumbers' && this.configManager.getSmallNumberRange) {
-                    return this.configManager.getSmallNumberRange();
-                }
+        const range = getRangeForType();
 
-                if (configType === 'largeNumbers' && this.configManager.getLargeNumberRange) {
-                    return this.configManager.getLargeNumberRange();
-                }
+        const normaliseBound = (value, fallback) => {
+            if (value === undefined || value === null) {
+                return fallback;
+            }
 
+            const numeric = Number(value);
+            return Number.isFinite(numeric) ? numeric : fallback;
+        };
+
+        const min = normaliseBound(range?.min, undefined);
+        const max = normaliseBound(range?.max, undefined);
+
+        const applyRangeFilter = (list) => {
+            if (min === undefined && max === undefined) {
+                return list;
+            }
+
+            return list.filter(num => {
+                const value = typeof num.value === 'number' ? num.value : Number(num.value);
+                if (Number.isNaN(value)) return false;
+                if (min !== undefined && value < min) return false;
+                if (max !== undefined && value > max) return false;
+                return true;
+            });
+        };
+
+        const generateRangeFallback = () => {
+            // Only attempt generation when we have a valid numeric span
+            const fallbackMin = normaliseBound(min, configType === 'smallNumbers' ? 0 : 12);
+            const fallbackMax = normaliseBound(max, configType === 'smallNumbers' ? 10 : 9999);
+
+            if (fallbackMin > fallbackMax) {
                 return null;
+            }
+
+            const randomValue = Math.floor(Math.random() * (fallbackMax - fallbackMin + 1)) + fallbackMin;
+
+            const languageLocales = {
+                en: 'en-US',
+                es: 'es-ES',
+                zh: 'zh-CN',
+                hi: 'hi-IN',
+                ar: 'ar-SA',
+                fr: 'fr-FR',
+                bn: 'bn-BD',
+                pt: 'pt-PT',
+                ru: 'ru-RU',
+                id: 'id-ID'
             };
 
-            const range = getRangeForType();
+            const enabledLanguages = this.configManager?.getConfig()?.languages?.enabled || [];
+            const generated = {
+                value: randomValue,
+                type: 'number',
+                categories: ['counting', 'generated'],
+                source: 'generated-range'
+            };
 
-            const normaliseBound = (value, fallback) => {
-                if (value === undefined || value === null) {
-                    return fallback;
+            const ensureEntry = (code, formatter) => {
+                try {
+                    generated[code] = formatter ? formatter.format(randomValue) : String(randomValue);
+                } catch (fmtError) {
+                    console.warn('Failed to format number for language', code, fmtError);
+                    generated[code] = String(randomValue);
                 }
-
-                const numeric = Number(value);
-                return Number.isFinite(numeric) ? numeric : fallback;
             };
 
-            const min = normaliseBound(range?.min, undefined);
-            const max = normaliseBound(range?.max, undefined);
-
-            const applyRangeFilter = (list) => {
-                if (min === undefined && max === undefined) {
-                    return list;
-                }
-
-                return list.filter(num => {
-                    const value = typeof num.value === 'number' ? num.value : Number(num.value);
-                    if (Number.isNaN(value)) return false;
-                    if (min !== undefined && value < min) return false;
-                    if (max !== undefined && value > max) return false;
-                    return true;
-                });
-            };
-
-            const generateRangeFallback = () => {
-                // Only attempt generation when we have a valid numeric span
-                const fallbackMin = normaliseBound(min, configType === 'smallNumbers' ? 0 : 12);
-                const fallbackMax = normaliseBound(max, configType === 'smallNumbers' ? 10 : 9999);
-
-                if (fallbackMin > fallbackMax) {
+            // Always provide English fallback even if not explicitly enabled
+            const getFormatter = (locale) => {
+                if (!locale || typeof Intl === 'undefined' || !Intl.NumberFormat) {
                     return null;
                 }
 
-                const randomValue = Math.floor(Math.random() * (fallbackMax - fallbackMin + 1)) + fallbackMin;
-
-                const languageLocales = {
-                    en: 'en-US',
-                    es: 'es-ES',
-                    zh: 'zh-CN',
-                    hi: 'hi-IN',
-                    ar: 'ar-SA',
-                    fr: 'fr-FR',
-                    bn: 'bn-BD',
-                    pt: 'pt-PT',
-                    ru: 'ru-RU',
-                    id: 'id-ID'
-                };
-
-                const enabledLanguages = this.configManager?.getConfig()?.languages?.enabled || [];
-                const generated = {
-                    value: randomValue,
-                    type: 'number',
-                    categories: ['counting', 'generated'],
-                    source: 'generated-range'
-                };
-
-                const ensureEntry = (code, formatter) => {
-                    try {
-                        generated[code] = formatter ? formatter.format(randomValue) : String(randomValue);
-                    } catch (fmtError) {
-                        console.warn('Failed to format number for language', code, fmtError);
-                        generated[code] = String(randomValue);
-                    }
-                };
-
-                // Always provide English fallback even if not explicitly enabled
-                const getFormatter = (locale) => {
-                    if (!locale || typeof Intl === 'undefined' || !Intl.NumberFormat) {
-                        return null;
-                    }
-
-                    try {
-                        return new Intl.NumberFormat(locale);
-                    } catch (err) {
-                        console.warn('Failed to create number formatter for locale', locale, err);
-                        return null;
-                    }
-                };
-
-                ensureEntry('en', getFormatter(languageLocales.en));
-
-                enabledLanguages.forEach(lang => {
-                    const locale = languageLocales[lang.code];
-                    ensureEntry(lang.code, getFormatter(locale));
-                });
-
-                return generated;
+                try {
+                    return new Intl.NumberFormat(locale);
+                } catch (err) {
+                    console.warn('Failed to create number formatter for locale', locale, err);
+                    return null;
+                }
             };
 
-            let filteredNumbers = applyRangeFilter(numbers);
-            let selectedNumber;
+            ensureEntry('en', getFormatter(languageLocales.en));
 
-            if (filteredNumbers.length === 0) {
-                if (range) {
-                    console.warn(`No numbers available for ${configType} in range ${min ?? '-∞'}-${max ?? '+∞'}. Attempting to generate values.`);
-                }
+            enabledLanguages.forEach(lang => {
+                const locale = languageLocales[lang.code];
+                ensureEntry(lang.code, getFormatter(locale));
+            });
 
-                selectedNumber = generateRangeFallback();
+            return generated;
+        };
 
-                if (!selectedNumber) {
-                    // Fall back to legacy heuristics before finally resorting to the raw dataset
-                    if (configType === 'smallNumbers') {
-                        filteredNumbers = numbers.filter(num => num.value <= 10);
-                    } else if (configType === 'largeNumbers') {
-                        filteredNumbers = numbers.filter(num => num.value >= 12);
-                    }
+        let filteredNumbers = applyRangeFilter(numbers);
+        let selectedNumber;
 
-                    if (filteredNumbers.length > 0) {
-                        const legacyIndex = Math.floor(Math.random() * filteredNumbers.length);
-                        selectedNumber = { ...filteredNumbers[legacyIndex], type: 'number' };
-                    }
-                }
+        if (filteredNumbers.length === 0) {
+            if (range) {
+                console.warn(`No numbers available for ${configType} in range ${min ?? '-∞'}-${max ?? '+∞'}. Attempting to generate values.`);
             }
+
+            selectedNumber = generateRangeFallback();
 
             if (!selectedNumber) {
-                // Normal path: use filtered dataset values
-                const pool = filteredNumbers.length > 0 ? filteredNumbers : numbers;
-                const randomIndex = Math.floor(Math.random() * pool.length);
-                selectedNumber = { ...pool[randomIndex], type: 'number' };
+                // Fall back to legacy heuristics before finally resorting to the raw dataset
+                if (configType === 'smallNumbers') {
+                    filteredNumbers = numbers.filter(num => num.value <= 10);
+                } else if (configType === 'largeNumbers') {
+                    filteredNumbers = numbers.filter(num => num.value >= 12);
+                }
+
+                if (filteredNumbers.length > 0) {
+                    const legacyIndex = Math.floor(Math.random() * filteredNumbers.length);
+                    selectedNumber = { ...filteredNumbers[legacyIndex], type: 'number' };
+                }
             }
-
-            const number = { ...selectedNumber };
-
-            // Assign a random color to the number
-            const color = await this.getRandomColor();
-            number.color = color;
-
-            return number;
-
-        } catch (error) {
-            console.error('Error loading number data:', error);
-            return { value: 1, type: 'number' };
         }
+
+        if (!selectedNumber) {
+            // Normal path: use filtered dataset values
+            const pool = filteredNumbers.length > 0 ? filteredNumbers : numbers;
+            const randomIndex = Math.floor(Math.random() * pool.length);
+            selectedNumber = { ...pool[randomIndex], type: 'number' };
+        }
+
+        const number = { ...selectedNumber };
+
+        // Assign a random color to the number
+        const color = await this.getRandomColor();
+        number.color = color;
+
+        return number;
     }
 
     // Auto-cleanup system
