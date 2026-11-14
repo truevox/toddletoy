@@ -14,7 +14,7 @@ Keep every agent aligned on process, communication, and quality while collaborat
 - Start with `PICK-UP-HERE.md` for high-level project context and current status.
 - Review `CLAUDE.md` for the canonical, detailed workflow patterns.
 - Check `CLAUDE-TODO.md` for task tracking; update it when completing work or creating follow-ups.
-- Skim the repository root for additional context files (e.g., `GRIDNOTES.md`, `SECURITY.md`, `CONTRIBUTING.md`).
+- Skim the repository root for additional context files (e.g., `GRIDNOTES.md`, `CONTRIBUTING.md`).
 - Use the `docs/` directory for product context and UX references.
 - Maintain scratch notes in `notes/agents/your-name.md` instead of sprinkling TODOs into code.
 
@@ -55,11 +55,11 @@ Repeat until the feature is complete:
 
 ## 📦 Versioning & Releases
 - Bump the project version whenever shipped behavior or assets change.
-- Keep versions consistent across `package.json`, service worker caches, manifests, and any surfaced logs.
-- Stay in the `0.x.x` series until Marvin approves a `1.0.0` launch.
+- `package.json` is the single source of the version: the service worker cache name and the startup log are built from it at build time. The web manifest has no version field.
+- The project is past `1.0.0`; use patch bumps (`1.0.x`) unless Marvin asks otherwise.
 
 ## 🧪 Testing & Quality Gates
-- Use existing npm scripts: `npm test`, `npm run lint`, `npm run e2e`, etc.
+- Use existing npm scripts: `npm test`, `npm run lint`, `npm run test:e2e` (or `npm run test:e2e:chromium`), etc. See `CONTRIBUTING.md` for the full list.
 - Run relevant tests before committing; record commands and outcomes in PRs.
 - Treat Jest/Playwright snapshots as code—review diffs before accepting.
 - Keep CI workflows current when adding new tooling.
@@ -86,7 +86,7 @@ Repeat until the feature is complete:
 - If you cannot finish, leave clear notes in `PICK-UP-HERE.md` or `CLAUDE-TODO.md`.
 
 ## 🔒 Security, Privacy, and Data Hygiene
-- Never commit secrets or production data. Use `.env.example` for env vars.
+- Never commit secrets or production data. There is no `.env.example`; `.env.local` and `.env.*.local` files are git-ignored, so keep any local secrets in those.
 - Redact any PII in logs, tests, or screenshots.
 - Call out security/auth/storage changes explicitly in PRs and add targeted tests.
 
