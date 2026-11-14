@@ -47,7 +47,7 @@ export function drawCompareScene(ctx, S, C) {
       ctx.beginPath(); ctx.arc(x, oy, rr, 0, TAU); ctx.stroke();
     }
     const down = it.labelRow === 0;
-    const reach = Math.max(it.r * (it.i === 6 ? 2.3 : 1), 18) + 24;
+    const reach = Math.max(it.r * (it.i === 6 ? 1.15 : 1), 18) + 24;
     ctx.fillStyle = sel ? '#ffd54f' : '#fff';
     ctx.font = `${sel ? 700 : 600} ${it.r > 30 ? 16 : 14}px "Trebuchet MS",Arial,sans-serif`;
     ctx.fillText(b.name, x, oy + (down ? reach : -reach));
