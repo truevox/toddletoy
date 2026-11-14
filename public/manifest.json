@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "ToddleToy",
+  "short_name": "ToddleToy",
+  "description": "Interactive learning toy for toddlers: tap to make shapes, letters, numbers and emojis that are spoken aloud in multiple languages.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "theme_color": "#4CAF50",
+  "background_color": "#000000",
+  "categories": ["education", "games", "kids"],
+  "lang": "en",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
