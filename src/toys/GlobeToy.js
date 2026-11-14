@@ -381,6 +381,9 @@ export class GlobeToy {
     d.selLon = this._sel && this._sel.country.anchor ? this._sel.country.anchor.lon.toFixed(2) : '';
     d.selLat = this._sel && this._sel.country.anchor ? this._sel.country.anchor.lat.toFixed(2) : '';
     d.game = this.play.game.active ? (this.play.game.target ? this.play.game.target.name : '') : '';
+    const gt = this.play.game.active && this.play.game.target;
+    d.gameLon = gt ? gt.anchor.lon.toFixed(2) : ''; d.gameLat = gt ? gt.anchor.lat.toFixed(2) : '';
+    d.pulse = this._pulse ? this._pulse.country.name : '';
     d.flying = this._fly ? '1' : '0';
   }
 
