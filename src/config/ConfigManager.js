@@ -1,3 +1,4 @@
+import { safeStorage } from '../utils/safeStorage.js';
 import { getDefaults } from './manager/ConfigDefaults.js';
 import { migrateLanguageStructure, mergeWithDefaults } from './manager/ConfigMigration.js';
 import { validateConfig } from './manager/ConfigValidation.js';
@@ -28,11 +29,11 @@ export class ConfigManager {
             // Clear cache in development mode if force refresh detected
             if (this.isDevelopmentMode() && this.isForceRefresh()) {
                 console.log('🔄 Development mode force refresh detected - clearing localStorage cache');
-                localStorage.removeItem(this.storageKey);
+                safeStorage.removeItem(this.storageKey);
                 return this.getDefaults();
             }
             
-            const stored = localStorage.getItem(this.storageKey);
+            const stored = safeStorage.getItem(this.storageKey);
             if (stored) {
                 const parsed = JSON.parse(stored);
                 // Migrate old language structure if needed
@@ -81,7 +82,7 @@ export class ConfigManager {
     saveConfig(config = this.config) {
         try {
             this.config = config;
-            localStorage.setItem(this.storageKey, JSON.stringify(config));
+            safeStorage.setItem(this.storageKey, JSON.stringify(config));
             return true;
         } catch (error) {
             console.error('Failed to save config to localStorage:', error);
@@ -245,7 +246,7 @@ export class ConfigManager {
     async clearAllCaches() {
         try {
             // Clear localStorage
-            localStorage.removeItem(this.storageKey);
+            safeStorage.removeItem(this.storageKey);
             console.log('✅ localStorage cache cleared');
             
             // Clear Service Worker caches

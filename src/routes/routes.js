@@ -2,11 +2,13 @@
  * Route definitions for the toddler toy application
  */
 import { Router } from './Router.js';
+import { safeStorage } from '../utils/safeStorage.js';
 import { ConfigManager } from '../config/ConfigManager.js';
 import { ConfigScreen } from '../config/ConfigScreen.js';
 import { ToddlerToyGame } from '../game.js';
 import { ToyModeSelector } from '../modes/ToyModeSelector.js';
 import { OrreryToy } from '../toys/OrreryToy.js';
+import { ParentExitButton } from '../ui/ParentExitButton.js';
 
 export class AppRoutes {
     constructor() {
@@ -19,6 +21,7 @@ export class AppRoutes {
         this.game = null;
         this.orreryToy = null;
         this.globeToy = null;
+        this.parentExit = null; // hold-to-exit corner control, shown only on the sandbox toy
         // Cached GlobeToy class from lazy import (instance-scoped, not module-level)
         this._GlobeToyClass = null;
 
@@ -103,7 +106,7 @@ export class AppRoutes {
 
     // ── Sandbox Toy ──────────────────────────────────────────────────────────
     showToyScreen() {
-        const hasConfig = localStorage.getItem('toddleToyConfig') !== null;
+        const hasConfig = safeStorage.getItem('toddleToyConfig') !== null;
         if (!hasConfig) {
             this.router.replace('/');
             return;
@@ -114,11 +117,31 @@ export class AppRoutes {
         if (!this.game) {
             this.game = new ToddlerToyGame(this.configManager);
         } else {
+            const scene = this.getGameScene();
+            if (scene && scene.scene && scene.scene.isPaused()) scene.scene.resume();
             this.resetToyState();
         }
 
         this.currentScreen = 'toy';
         document.title = 'ToddleToy – Play';
+        this.showParentExit();
+    }
+
+    // ── Parent exit (hold-to-exit) ───────────────────────────────────────────
+    showParentExit() {
+        if (!this.parentExit) {
+            this.parentExit = new ParentExitButton({ onExit: () => this.exitToy() });
+        }
+        this.parentExit.show();
+    }
+
+    /** Deliberate parent exit from the sandbox back to the toy selector */
+    exitToy() {
+        if (this.currentScreen !== 'toy') return;
+        // Stop tones/speech and clear objects so nothing keeps playing behind the selector
+        this.resetToyState();
+        // Programmatic navigation to a registered route unlocks the toy in Router.handleRouteChange
+        this.router.navigate('/');
     }
 
     // ── Orrery ───────────────────────────────────────────────────────────────
@@ -170,9 +193,15 @@ export class AppRoutes {
                 if (this.configScreen) this.configScreen.hide();
                 break;
             case 'toy':
-                if (this.game && this.game.game && this.game.game.scene) {
-                    const scene = this.game.game.scene.scenes[0];
-                    if (scene && scene.scene) scene.scene.pause();
+                if (this.parentExit) this.parentExit.hide();
+                {
+                    // Stop speech/tones and freeze the scene while another screen is on top
+                    const scene = this.getGameScene();
+                    if (scene) {
+                        if (scene.speechManager) scene.speechManager.cancelSpeech();
+                        if (scene.audioManager && scene.audioManager.stopAllTones) scene.audioManager.stopAllTones();
+                        if (scene.scene) scene.scene.pause();
+                    }
                 }
                 break;
             case 'orrery':
@@ -184,11 +213,16 @@ export class AppRoutes {
         }
     }
 
+    /** The running Phaser GameScene, or null before the sandbox has been opened */
+    getGameScene() {
+        const phaserGame = this.game && this.game.gameInstance;
+        if (!phaserGame || !phaserGame.scene) return null;
+        return phaserGame.scene.getScene('GameScene') || null;
+    }
+
     resetToyState() {
-        if (this.game && this.game.game && this.game.game.scene) {
-            const scene = this.game.game.scene.scenes[0];
-            if (scene && scene.resetToyState) scene.resetToyState();
-        }
+        const scene = this.getGameScene();
+        if (scene && scene.resetToyState) scene.resetToyState();
     }
 
     getCurrentRoute() { return this.router.getCurrentRoute(); }

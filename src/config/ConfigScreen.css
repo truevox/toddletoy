@@ -1153,3 +1153,109 @@ kbd {
         opacity: 1;
     }
 }
+
+/* ── Phone / narrow layout fixes ─────────────────────────────────────────── */
+/* Header utility buttons flow above the title instead of overlapping it. */
+@media (max-width: 900px) {
+    .header-top-right {
+        position: static;
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        align-items: center;
+        gap: 8px 10px;
+        margin-bottom: 14px;
+    }
+    .header-top-right .version-display {
+        flex-basis: 100%;
+        text-align: center;
+        order: 3;
+        font-size: 0.8rem;
+    }
+    .header-top-right .documentation-button {
+        margin-right: 0;
+    }
+    .header-top-right .update-status {
+        flex-basis: 100%;
+        text-align: center;
+        order: 4;
+        min-height: 0;
+    }
+    .header-top-right .documentation-button,
+    .header-top-right .update-button {
+        min-height: 44px;
+        padding: 8px 16px;
+    }
+}
+
+@media (max-width: 480px) {
+    .config-title {
+        font-size: 2.2rem;
+    }
+    .config-subtitle {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    /* grid tracks default to min-content width; minmax(0,1fr) lets columns shrink to the viewport */
+    .language-drag-container {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
+    }
+    .language-column {
+        min-width: 0;
+        min-height: 0;
+        padding: 14px;
+    }
+    .language-item {
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+    .config-section {
+        padding: 20px 16px;
+    }
+    .weight-slider {
+        min-width: 0;
+    }
+    /* Primary controls: comfortable tap targets */
+    .config-screen input[type="number"],
+    .config-screen select,
+    .range-input {
+        min-height: 44px;
+        box-sizing: border-box;
+    }
+    .reset-undo-button {
+        min-height: 44px;
+    }
+    .help-icon-btn {
+        width: 32px;
+        height: 32px;
+    }
+}
+
+@media (max-width: 768px) {
+    .start-button {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding: 20px 16px;
+        font-size: clamp(1.1rem, 5.5vw, 1.6rem);
+    }
+    /* Absolute bottom-left placement collides with the skip-config row on phones */
+    .reset-undo-button {
+        position: static;
+        display: block;
+        margin: 16px auto 0;
+    }
+    .config-actions {
+        padding: 4px 0;
+    }
+}
+
+@media (max-width: 768px) {
+    /* keep the last controls clear of the floating "Need Help?" button */
+    .config-footer {
+        padding-bottom: 72px;
+    }
+}

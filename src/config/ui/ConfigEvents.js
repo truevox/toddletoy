@@ -3,6 +3,7 @@
  * Functions take the owning ConfigScreen instance as first argument and call
  * back through it (screen.method) so instance-level spies still intercept.
  */
+import { on } from './domHelpers.js';
 
 /**
  * Add event listeners to interactive elements
@@ -72,8 +73,7 @@ export function addEventListeners(screen) {
     });
 
     // Cleanup timer validation
-    const cleanupTimerInput = screen.container.querySelector('#cleanup-timer-seconds');
-    cleanupTimerInput.addEventListener('input', (e) => {
+    on(screen.container, '#cleanup-timer-seconds', 'input', (e) => {
         let value = parseInt(e.target.value);
         if (value < 5) {
             e.target.value = 5;
@@ -115,79 +115,59 @@ export function setupAudioControls(screen) {
     const speechVolumeValue = screen.container.querySelector('#speech-volume-value');
     const speechMuteCheckbox = screen.container.querySelector('#speech-mute');
 
-    // Audio volume slider - update display and sync mute
-    audioVolumeSlider.addEventListener('input', (e) => {
-        const value = parseInt(e.target.value);
-        audioVolumeValue.textContent = `${value}%`;
+    const setValueText = (el, text) => { if (el) el.textContent = text; };
 
-        // Auto-engage mute when volume hits 0
-        if (value === 0) {
-            audioMuteCheckbox.checked = true;
-        } else if (audioMuteCheckbox.checked) {
-            // Auto-disengage mute when volume goes above 0
-            audioMuteCheckbox.checked = false;
+    // Each pair below (volume slider + mute checkbox) is wired independently, and
+    // tolerates the other half or its value label being absent.
+    const wireVolume = (slider, valueEl, muteBox, fallbackVolume) => {
+        if (slider) {
+            slider.addEventListener('input', (e) => {
+                const value = parseInt(e.target.value);
+                setValueText(valueEl, `${value}%`);
+                // Auto-engage mute at 0, auto-disengage above 0
+                if (muteBox) {
+                    if (value === 0) muteBox.checked = true;
+                    else if (muteBox.checked) muteBox.checked = false;
+                }
+            });
         }
-    });
+        if (muteBox) {
+            muteBox.addEventListener('change', (e) => {
+                if (!slider) return;
+                if (e.target.checked) {
+                    // Store current volume before muting
+                    slider.dataset.previousVolume = slider.value;
+                    slider.value = 0;
+                    setValueText(valueEl, '0%');
+                } else {
+                    const previousVolume = slider.dataset.previousVolume || fallbackVolume;
+                    slider.value = previousVolume;
+                    setValueText(valueEl, `${previousVolume}%`);
+                }
+            });
+        }
+    };
 
-    // Audio mute checkbox - sync with volume
-    audioMuteCheckbox.addEventListener('change', (e) => {
-        if (e.target.checked) {
-            // Store current volume before muting
-            audioVolumeSlider.dataset.previousVolume = audioVolumeSlider.value;
-            audioVolumeSlider.value = 0;
-            audioVolumeValue.textContent = '0%';
-        } else {
-            // Restore previous volume or set to 50 if was 0
-            const previousVolume = audioVolumeSlider.dataset.previousVolume || '50';
-            audioVolumeSlider.value = previousVolume;
-            audioVolumeValue.textContent = `${previousVolume}%`;
-        }
-    });
+    wireVolume(audioVolumeSlider, audioVolumeValue, audioMuteCheckbox, '50');
+    wireVolume(speechVolumeSlider, speechVolumeValue, speechMuteCheckbox, '70');
 
     // Tone duration slider - update display with formatted text
-    toneDurationSlider.addEventListener('input', (e) => {
-        const value = parseInt(e.target.value);
-        let displayText;
+    if (toneDurationSlider) {
+        toneDurationSlider.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            let displayText;
 
-        if (value === -1) {
-            displayText = 'Until Destroyed';
-        } else if (value < 1000) {
-            displayText = `${value}ms`;
-        } else {
-            displayText = `${(value / 1000).toFixed(1)}s`;
-        }
+            if (value === -1) {
+                displayText = 'Until Destroyed';
+            } else if (value < 1000) {
+                displayText = `${value}ms`;
+            } else {
+                displayText = `${(value / 1000).toFixed(1)}s`;
+            }
 
-        toneDurationValue.textContent = displayText;
-    });
-
-    // Speech volume slider - update display and sync mute
-    speechVolumeSlider.addEventListener('input', (e) => {
-        const value = parseInt(e.target.value);
-        speechVolumeValue.textContent = `${value}%`;
-
-        // Auto-engage mute when volume hits 0
-        if (value === 0) {
-            speechMuteCheckbox.checked = true;
-        } else if (speechMuteCheckbox.checked) {
-            // Auto-disengage mute when volume goes above 0
-            speechMuteCheckbox.checked = false;
-        }
-    });
-
-    // Speech mute checkbox - sync with volume
-    speechMuteCheckbox.addEventListener('change', (e) => {
-        if (e.target.checked) {
-            // Store current volume before muting
-            speechVolumeSlider.dataset.previousVolume = speechVolumeSlider.value;
-            speechVolumeSlider.value = 0;
-            speechVolumeValue.textContent = '0%';
-        } else {
-            // Restore previous volume or set to 70 if was 0
-            const previousVolume = speechVolumeSlider.dataset.previousVolume || '70';
-            speechVolumeSlider.value = previousVolume;
-            speechVolumeValue.textContent = `${previousVolume}%`;
-        }
-    });
+            setValueText(toneDurationValue, displayText);
+        });
+    }
 
     // Grid Mode toggle - show/hide settings
     const gridModeCheckbox = screen.container.querySelector('#grid-mode-enabled');
