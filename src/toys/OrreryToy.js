@@ -2,6 +2,9 @@
  * OrreryToy - Flat animated solar system for toddlers
  * Shows all 8 planets orbiting the Sun; tap any to hear its name.
  */
+import { orreryLayout, planetDrawRadius, planetPosition, pickNearest, hitSun } from './orrery-math.js';
+import { speakText, cancelSpeech } from './toy-speech.js';
+
 export class OrreryToy {
     constructor(router, configManager = null) {
         this.router = router;
@@ -9,14 +12,19 @@ export class OrreryToy {
         this.container = null;
         this.canvas = null;
         this.ctx = null;
-        this.offscreen = null; // for hit-detection
-        this.offCtx = null;
         this.rafId = null;
-        this.startTime = null;
         this.stars = [];
         this.selectedIdx = null;
         this.labelTimer = null;
-        this._resizeHandler = null;
+        this._visible = false;
+        this._elapsedMs = 0;
+        this._lastNow = 0;
+        this._w = 0; this._h = 0; this._dpr = 1;
+        this._loop = (now) => this._tick(now);
+        this._resizeHandler = () => {
+            this._syncCanvasSize();
+            this._generateStars();
+        };
     }
 
     // ── Planet catalogue ─────────────────────────────────────────────────────
@@ -40,22 +48,39 @@ export class OrreryToy {
             document.body.appendChild(this.container);
         }
         this.container.style.display = 'block';
-        this.startTime = performance.now();
+        if (!this._visible) {
+            this._visible = true;
+            window.addEventListener('resize', this._resizeHandler);
+            window.addEventListener('orientationchange', this._resizeHandler);
+        }
+        this._syncCanvasSize();
+        this._generateStars();
+        this._lastNow = 0;
         this._startLoop();
     }
 
     hide() {
-        if (this.container) this.container.style.display = 'none';
+        this._visible = false;
         this._stopLoop();
+        clearTimeout(this.labelTimer);
+        this.labelTimer = null;
+        this.selectedIdx = null;
+        if (this.infoPanel) this.infoPanel.style.opacity = '0';
+        window.removeEventListener('resize', this._resizeHandler);
+        window.removeEventListener('orientationchange', this._resizeHandler);
+        cancelSpeech();
+        if (this.container) this.container.style.display = 'none';
     }
 
     destroy() {
-        this._stopLoop();
-        if (this._resizeHandler) window.removeEventListener('resize', this._resizeHandler);
+        this.hide();
         if (this.container && this.container.parentNode) {
             this.container.parentNode.removeChild(this.container);
         }
         this.container = null;
+        this.canvas = null;
+        this.ctx = null;
+        this.infoPanel = null;
     }
 
     // ── DOM construction ──────────────────────────────────────────────────────
@@ -64,18 +89,10 @@ export class OrreryToy {
         wrap.id = 'orrery-toy';
         wrap.style.cssText = 'position:fixed;inset:0;background:#000010;z-index:500;overflow:hidden;';
 
-        // Main canvas
         this.canvas = document.createElement('canvas');
-        this.canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
+        this.canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;touch-action:none;';
         wrap.appendChild(this.canvas);
-
-        // Offscreen canvas for hit detection
-        this.offscreen = document.createElement('canvas');
-        this.offCtx = this.offscreen.getContext('2d');
-
-        this._syncCanvasSize();
         this.ctx = this.canvas.getContext('2d');
-        this._generateStars();
 
         // Info panel (shown when planet tapped)
         this.infoPanel = document.createElement('div');
@@ -85,34 +102,32 @@ export class OrreryToy {
             border-radius:18px; padding:14px 32px; color:#fff;
             font-size:clamp(1rem,4vw,1.5rem); text-align:center;
             pointer-events:none; opacity:0; transition:opacity 0.3s;
-            white-space:nowrap; max-width:90vw;
+            max-width:90vw; box-sizing:border-box;
         `;
         wrap.appendChild(this.infoPanel);
 
-        // Back button
+        // Back button (>= 44px tall touch target)
         const back = document.createElement('button');
         back.textContent = '← Back';
         back.style.cssText = `
-            position:absolute; top:16px; left:16px;
+            position:absolute; top:12px; left:16px; min-height:44px; min-width:44px;
             background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.3);
-            color:#fff; padding:9px 20px; border-radius:30px;
+            color:#fff; padding:0 20px; border-radius:30px;
             cursor:pointer; font-size:0.95rem; z-index:10;
             font-family:Arial,sans-serif;
         `;
         back.addEventListener('click', () => this.router.navigate('/'));
         wrap.appendChild(back);
 
-        // Title
         const title = document.createElement('div');
         title.textContent = '☀️ Solar System';
         title.style.cssText = `
-            position:absolute; top:18px; left:50%; transform:translateX(-50%);
+            position:absolute; top:22px; left:50%; transform:translateX(-50%);
             color:rgba(255,255,255,0.7); font-size:1.1rem;
             pointer-events:none; white-space:nowrap; font-family:Arial,sans-serif;
         `;
         wrap.appendChild(title);
 
-        // Hint
         const hint = document.createElement('div');
         hint.textContent = 'Tap a planet!';
         hint.style.cssText = `
@@ -122,32 +137,25 @@ export class OrreryToy {
         `;
         wrap.appendChild(hint);
 
-        // Input events
         this.canvas.addEventListener('pointerdown', e => this._handleTap(e.clientX, e.clientY));
-
-        // Resize
-        this._resizeHandler = () => {
-            this._syncCanvasSize();
-            this._generateStars();
-        };
-        window.addEventListener('resize', this._resizeHandler);
-
         return wrap;
     }
 
     _syncCanvasSize() {
-        const w = window.innerWidth, h = window.innerHeight;
-        this.canvas.width = w; this.canvas.height = h;
-        this.offscreen.width = w; this.offscreen.height = h;
+        if (!this.canvas) return;
+        this._dpr = Math.min(2, window.devicePixelRatio || 1);
+        this._w = window.innerWidth; this._h = window.innerHeight;
+        this.canvas.width = Math.max(1, Math.round(this._w * this._dpr));
+        this.canvas.height = Math.max(1, Math.round(this._h * this._dpr));
     }
 
     _generateStars() {
         this.stars = [];
-        const count = Math.round((this.canvas.width * this.canvas.height) / 3000);
+        const count = Math.round((this._w * this._h) / 3000);
         for (let i = 0; i < count; i++) {
             this.stars.push({
-                x: Math.random() * this.canvas.width,
-                y: Math.random() * this.canvas.height,
+                x: Math.random() * this._w,
+                y: Math.random() * this._h,
                 r: Math.random() * 1.4 + 0.3,
                 phase: Math.random() * Math.PI * 2,
             });
@@ -156,11 +164,17 @@ export class OrreryToy {
 
     // ── Animation loop ────────────────────────────────────────────────────────
     _startLoop() {
-        const loop = (now) => {
-            this.rafId = requestAnimationFrame(loop);
-            this._draw(now - (this.startTime || now));
-        };
-        this.rafId = requestAnimationFrame(loop);
+        if (this.rafId || !this._visible) return;
+        this.rafId = requestAnimationFrame(this._loop);
+    }
+
+    _tick(now) {
+        this.rafId = null;
+        if (!this._visible) return;
+        if (this._lastNow) this._elapsedMs += Math.min(100, now - this._lastNow);
+        this._lastNow = now;
+        this._draw(this._elapsedMs);
+        this.rafId = requestAnimationFrame(this._loop);
     }
 
     _stopLoop() {
@@ -168,20 +182,27 @@ export class OrreryToy {
     }
 
     // ── Drawing ───────────────────────────────────────────────────────────────
+    _items(ms) {
+        const layout = orreryLayout(this._w, this._h);
+        const t = ms / 1000;
+        const items = OrreryToy.PLANETS.map(p => {
+            const pos = planetPosition(p, t, layout);
+            return { x: pos.x, y: pos.y, r: planetDrawRadius(p.radius, layout.scale) };
+        });
+        return { layout, items, t };
+    }
+
     _draw(ms) {
-        const { ctx, canvas } = this;
-        const W = canvas.width, H = canvas.height;
-        const cx = W / 2, cy = H / 2;
+        const { ctx } = this;
+        if (!ctx) return;
+        const W = this._w, H = this._h;
         const planets = OrreryToy.PLANETS;
+        const { layout, items, t } = this._items(ms);
+        const { cx, cy, scale } = layout;
 
-        // Scale so outermost orbit fits
-        const maxOrbit = planets[planets.length - 1].orbitR;
-        const scale = (Math.min(W, H) * 0.44) / maxOrbit;
-
+        ctx.setTransform(this._dpr, 0, 0, this._dpr, 0, 0);
         ctx.clearRect(0, 0, W, H);
 
-        // Stars
-        const t = ms / 1000;
         this.stars.forEach(s => {
             const alpha = 0.45 + 0.45 * Math.sin(t * 0.8 + s.phase);
             ctx.beginPath();
@@ -193,11 +214,10 @@ export class OrreryToy {
         // Orbit rings
         ctx.save();
         ctx.setLineDash([4, 8]);
-        planets.forEach(p => {
+        planets.forEach((p, i) => {
             ctx.beginPath();
             ctx.arc(cx, cy, p.orbitR * scale, 0, Math.PI * 2);
-            ctx.strokeStyle = this.selectedIdx !== null && planets[this.selectedIdx] === p
-                ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)';
+            ctx.strokeStyle = this.selectedIdx === i ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)';
             ctx.lineWidth = 1;
             ctx.stroke();
         });
@@ -205,7 +225,7 @@ export class OrreryToy {
         ctx.restore();
 
         // Sun
-        const sunPulse = 28 + 4 * Math.sin(t * 1.5);
+        const sunPulse = layout.sunR + 4 * Math.min(1, scale) * Math.sin(t * 1.5);
         const sunGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, sunPulse * 2.2);
         sunGrad.addColorStop(0,   '#FFFFFF');
         sunGrad.addColorStop(0.25,'#FFF176');
@@ -217,19 +237,10 @@ export class OrreryToy {
         ctx.fillStyle = sunGrad;
         ctx.fill();
 
-        // Offscreen hit canvas
-        const oc = this.offCtx;
-        oc.clearRect(0, 0, W, H);
-
-        // Planets
         planets.forEach((p, i) => {
-            const angle = (p.startDeg * Math.PI / 180) + (Math.PI * 2 / p.periodS) * t;
-            const px = cx + Math.cos(angle) * p.orbitR * scale;
-            const py = cy + Math.sin(angle) * p.orbitR * scale;
-            const r = p.radius;
+            const { x: px, y: py, r } = items[i];
             const selected = this.selectedIdx === i;
 
-            // Glow for selected
             if (selected) {
                 const g = ctx.createRadialGradient(px, py, r, px, py, r * 3.5);
                 g.addColorStop(0, p.glowColor + 'CC');
@@ -240,7 +251,6 @@ export class OrreryToy {
                 ctx.fill();
             }
 
-            // Planet body
             const bodyGrad = ctx.createRadialGradient(px - r * 0.3, py - r * 0.3, r * 0.1, px, py, r);
             bodyGrad.addColorStop(0, p.glowColor);
             bodyGrad.addColorStop(1, p.bodyColor);
@@ -249,7 +259,6 @@ export class OrreryToy {
             ctx.fillStyle = bodyGrad;
             ctx.fill();
 
-            // Saturn rings
             if (p.name === 'Saturn') {
                 ctx.save();
                 ctx.translate(px, py);
@@ -262,53 +271,37 @@ export class OrreryToy {
                 ctx.restore();
             }
 
-            // Planet emoji label (small, appears beside planet)
             if (selected) {
                 ctx.font = `${r * 2}px serif`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.fillText(p.emoji, px, py);
             }
-
-            // Hit offscreen: each planet gets a unique solid color
-            const hitColor = `rgb(${i + 1},0,0)`;
-            oc.beginPath();
-            oc.arc(px, py, Math.max(r + 6, 20), 0, Math.PI * 2);
-            oc.fillStyle = hitColor;
-            oc.fill();
         });
     }
 
     // ── Interaction ───────────────────────────────────────────────────────────
-    _handleTap(cx, cy) {
-        const rect = this.canvas.getBoundingClientRect();
-        const scaleX = this.canvas.width / rect.width;
-        const scaleY = this.canvas.height / rect.height;
-        const x = (cx - rect.left) * scaleX;
-        const y = (cy - rect.top) * scaleY;
+    _handleTap(clientX, clientY) {
+        try {
+            if (!this.canvas) return;
+            const rect = this.canvas.getBoundingClientRect();
+            const x = clientX - rect.left, y = clientY - rect.top;
+            const { layout, items } = this._items(this._elapsedMs);
+            const planets = OrreryToy.PLANETS;
 
-        const sampleX = Math.min(Math.max(Math.round(x), 0), this.offscreen.width - 1);
-        const sampleY = Math.min(Math.max(Math.round(y), 0), this.offscreen.height - 1);
-        const px = this.offCtx.getImageData(sampleX, sampleY, 1, 1).data;
-        const idx = px[0] - 1; // R channel encodes planet index + 1
-
-        const planets = OrreryToy.PLANETS;
-        if (idx >= 0 && idx < planets.length) {
-            this.selectedIdx = idx;
-            const p = planets[idx];
-            this._showInfo(`${p.emoji} ${p.name} — ${p.fact}`);
-            this._speak(p.name);
-        } else {
-            // Tapped Sun?
-            const W = this.canvas.width, H = this.canvas.height;
-            const dx = x - W / 2, dy = y - H / 2;
-            const maxOrbit = planets[planets.length - 1].orbitR;
-            const scale = (Math.min(W, H) * 0.44) / maxOrbit;
-            if (Math.hypot(dx, dy) < 30 * scale) {
+            const idx = pickNearest(items, x, y, 28);
+            if (idx >= 0) {
+                const p = planets[idx];
+                this.selectedIdx = idx;
+                this._showInfo(`${p.emoji} ${p.name} — ${p.fact}`);
+                speakText(this.configManager, p.name, 1.15);
+            } else if (hitSun(layout, x, y)) {
                 this.selectedIdx = null;
                 this._showInfo('☀️ The Sun — Our star!');
-                this._speak('The Sun');
+                speakText(this.configManager, 'The Sun', 1.15);
             }
+        } catch (err) {
+            console.warn('OrreryToy tap failed:', err);
         }
     }
 
@@ -317,20 +310,8 @@ export class OrreryToy {
         this.infoPanel.textContent = text;
         this.infoPanel.style.opacity = '1';
         this.labelTimer = setTimeout(() => {
-            this.infoPanel.style.opacity = '0';
+            if (this.infoPanel) this.infoPanel.style.opacity = '0';
             this.selectedIdx = null;
         }, 5000);
-    }
-
-    _speak(text) {
-        if (!window.speechSynthesis) return;
-        const cfg = this.configManager?.getSpeechConfig?.() ?? {};
-        if (cfg.mute) return;
-        window.speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        u.rate   = typeof cfg.rate   === 'number' ? cfg.rate   : 0.85;
-        u.volume = typeof cfg.volume === 'number' ? cfg.volume / 100 : 1;
-        u.pitch  = 1.15;
-        window.speechSynthesis.speak(u);
     }
 }
