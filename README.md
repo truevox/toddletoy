@@ -192,7 +192,7 @@ ToddleToy is designed with TDD principles and modular architecture. See [CLAUDE.
 
 ## 📄 License
 
-This project is developed for educational purposes.
+MIT — see [LICENSE](./LICENSE). Bundled third-party components are listed in [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md).
 
 ## 🙏 Acknowledgments
 
