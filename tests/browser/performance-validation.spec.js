@@ -3,6 +3,7 @@ import {
     collectErrors, seedConfig, skipOnboarding, gotoSelector, enterSandbox, startPlaying, tapSpawn, objectCount,
     waitForSpawnReady, waitForObjectCount, SANDBOX_CARD, clickCanvas,
 } from './helpers/app.js';
+import { tapFreeSpot } from './helpers/scene.js';
 
 /**
  * Performance and resource budgets. Budgets are deliberately generous (CI
@@ -34,7 +35,7 @@ test.describe('Performance budgets', () => {
         await enterSandbox(page);
         const start = Date.now();
         for (let i = 0; i < 20; i++) {
-            await tapSpawn(page, 0.05 + (i % 10) * 0.095, 0.15 + Math.floor(i / 10) * 0.5);
+            await tapFreeSpot(page);
         }
         expect(Date.now() - start).toBeLessThan(15000);
         expect(await objectCount(page)).toBe(20);
@@ -43,7 +44,7 @@ test.describe('Performance budgets', () => {
 
     test('the frame loop keeps running with many objects on screen', async ({ page }) => {
         await enterSandbox(page);
-        for (let i = 0; i < 12; i++) await tapSpawn(page, 0.08 + (i % 6) * 0.16, 0.2 + Math.floor(i / 6) * 0.5);
+        for (let i = 0; i < 12; i++) await tapFreeSpot(page);
         const fps = await page.evaluate(() => new Promise((resolve) => {
             let n = 0; const t0 = performance.now();
             const tick = () => { n++; if (performance.now() - t0 >= 1000) resolve(n); else requestAnimationFrame(tick); };
@@ -100,7 +101,7 @@ test.describe('Resource management', () => {
     test('exiting the toy returns display list, tweens and tones to the empty baseline', async ({ page }) => {
         await enterSandbox(page);
         const baseline = await census(page);
-        for (let i = 0; i < 10; i++) await tapSpawn(page, 0.08 + (i % 5) * 0.2, 0.2 + Math.floor(i / 5) * 0.5);
+        for (let i = 0; i < 10; i++) await tapFreeSpot(page);
         const busy = await census(page);
         expect(busy.children).toBeGreaterThan(baseline.children);
 
@@ -158,7 +159,7 @@ test.describe('Resource management', () => {
         const heap = () => page.evaluate(() => performance.memory.usedJSHeapSize);
         const start = await heap();
         for (let cycle = 0; cycle < 3; cycle++) {
-            for (let i = 0; i < 8; i++) await tapSpawn(page, 0.1 + i * 0.1, 0.5);
+            for (let i = 0; i < 8; i++) await tapFreeSpot(page);
             await page.evaluate(() => window.appRoutes.exitToy());
             await page.locator(SANDBOX_CARD).click();
             await startPlaying(page);

@@ -41,13 +41,18 @@ test.describe('CSS extraction', () => {
         expect(s.radius).toBe('20px');
     });
 
-    test('the bottom start button has its gradient and padding', async ({ page }) => {
+    test('the bottom start button has its gradient and generous padding', async ({ page, isMobile }) => {
         const s = await page.locator('.start-button').last().evaluate((el) => {
             const cs = getComputedStyle(el);
             return { bg: cs.background, padding: cs.padding };
         });
         expect(s.bg).toContain('linear-gradient');
-        expect(s.padding).toContain('24px');
-        expect(s.padding).toContain('48px');
+        if (isMobile) {
+            // phones use a compact responsive padding, still a comfortable touch target
+            expect(parseFloat(s.padding)).toBeGreaterThanOrEqual(16);
+        } else {
+            expect(s.padding).toContain('24px');
+            expect(s.padding).toContain('48px');
+        }
     });
 });

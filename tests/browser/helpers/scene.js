@@ -1,5 +1,5 @@
 /** Scene-level helpers: dragging, attachment geometry, pixel presence. */
-import { canvasPoint } from './app.js';
+import { canvasPoint, waitForSpawnReady, objectCount, waitForObjectCount, lastObject } from './app.js';
 
 /** Wait until the scene accepts drags (post-spawn lock released). */
 export async function waitForMoveReady(page) {
@@ -62,4 +62,33 @@ export async function forceNumberValue(page, value) {
         if (!s.__origGetRandomNumber) s.__origGetRandomNumber = s.getRandomNumber.bind(s);
         s.getRandomNumber = async (t) => ({ ...(await s.__origGetRandomNumber(t)), value });
     }, value);
+}
+
+/**
+ * Tap on empty canvas space that no existing object covers (objects are large
+ * on phones, so fixed fractions can land on a previous object and start a
+ * drag instead of spawning). Returns the new object's summary.
+ */
+export async function tapFreeSpot(page) {
+    await waitForSpawnReady(page);
+    const spot = await page.evaluate(() => {
+        const s = window.appRoutes.getGameScene();
+        const W = s.scale.width, H = s.scale.height, m = 60;
+        let best = null;
+        for (let gy = 0; gy < 14; gy++) {
+            for (let gx = 0; gx < 8; gx++) {
+                const x = m + (gx + 0.5) * ((W - 2 * m) / 8), y = m + (gy + 0.5) * ((H - 2 * m) / 14);
+                if (s.getObjectUnderPointer(x, y)) continue;
+                const d = Math.min(1e9, ...s.objects.map((o) => Math.hypot(o.x - x, o.y - y)));
+                if (!best || d > best.d) best = { x, y, d };
+            }
+        }
+        return best;
+    });
+    if (!spot) throw new Error('no free spot left on the canvas');
+    const before = await objectCount(page);
+    const o = await canvasPoint(page, 0, 0);
+    await page.mouse.click(o.x + spot.x, o.y + spot.y);
+    await waitForObjectCount(page, before + 1);
+    return lastObject(page);
 }

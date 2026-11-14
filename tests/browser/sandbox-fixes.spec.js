@@ -117,7 +117,7 @@ test.describe('Sandbox regressions', () => {
         }
     });
 
-    test('L, 5 and Space each spawn an object; Q spawns at 10% / 10%', async ({ page, context }) => {
+    test('L, 5 and Space each spawn an object; Q spawns at 10% / 10%', async ({ page, context, isMobile }) => {
         // emojis only: numbers are legitimately nudged down to fit their numerals on screen
         await seedConfig(context, { content: {
             shapes: { enabled: false }, smallNumbers: { enabled: false }, largeNumbers: { enabled: false },
@@ -138,8 +138,15 @@ test.describe('Sandbox regressions', () => {
         await waitForObjectCount(page, before + 1);
         const objs = await allObjects(page);
         const q = objs[objs.length - 1];
-        expect(q.x).toBeCloseTo(width * 0.1, 0);
-        expect(q.y).toBeCloseTo(height * 0.1, 0);
+        if (isMobile) { // narrow screens clamp the object (and its labels) inward
+            expect(q.x).toBeGreaterThanOrEqual(width * 0.1 - 1);
+            expect(q.x).toBeLessThan(width * 0.4);
+            expect(q.y).toBeGreaterThanOrEqual(height * 0.1 - 1);
+            expect(q.y).toBeLessThan(height * 0.3);
+        } else {
+            expect(q.x).toBeCloseTo(width * 0.1, 0);
+            expect(q.y).toBeCloseTo(height * 0.1, 0);
+        }
         expect(c.pageErrors).toEqual([]);
     });
 
