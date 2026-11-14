@@ -23,7 +23,6 @@ export class RenderManager {
 
     getDisplayText(item, type) {
         if (type === 'emoji') {
-            console.log('Displaying emoji:', item.emoji, 'Unicode:', item.emoji.charCodeAt(0));
             return item.emoji;
         } else if (type === 'number') {
             return String(item.value);

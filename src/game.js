@@ -20,6 +20,7 @@ import { SceneInputHandler } from './game/systems/SceneInputHandler.js'
 import { ResponsiveGameManager } from './game/ResponsiveGameManager.js'
 import { ObjectFactory } from './game/objects/ObjectFactory.js'
 import { ObjectLifecycle } from './game/objects/ObjectLifecycle.js'
+import { remapPosition } from './positioning/BoundsClamp.js'
 import { ContentSelector } from './game/systems/ContentSelector.js'
 
 class GameScene extends Phaser.Scene {
@@ -77,6 +78,11 @@ class GameScene extends Phaser.Scene {
 
         // Set up input event handlers from InputManager
         this.setupInputHandlers();
+
+        // Keep objects reachable when the viewport changes (resize / rotation)
+        this.lastKnownSize = { width: this.scale.width, height: this.scale.height };
+        this.scale.on('resize', this.handleScaleResize, this);
+        this.events.once('shutdown', () => this.scale.off('resize', this.handleScaleResize, this));
 
         // Create text style with emoji support  
         this.textStyle = {
@@ -282,9 +288,48 @@ class GameScene extends Phaser.Scene {
             // Delegate to movement manager
             this.movementManager.moveObjectTo(obj, x, y);
         } else {
-            // Immediate positioning
-            this.movementManager.setObjectPosition(obj, x, y);
+            // Immediate positioning (still clamped to the visible area)
+            this.movementManager.moveObjectTo(obj, x, y, false);
         }
+    }
+
+    /**
+     * Pull an object (with all its labels and number-mode rows) fully inside the
+     * visible area. Used after spawn/restore and on resize.
+     * @returns {boolean} true if the object had to move
+     */
+    keepObjectInBounds(obj) {
+        if (!obj || !obj.active || !this.movementManager || !this.movementManager.clampPosition) return false;
+        const target = this.movementManager.clampPosition(obj, obj.x, obj.y);
+        if (Math.abs(target.x - obj.x) < 0.5 && Math.abs(target.y - obj.y) < 0.5) return false;
+        this.movementManager.setObjectPosition(obj, target.x, target.y);
+        return true;
+    }
+
+    /**
+     * Scale resize / device rotation: bring every object back inside the new
+     * bounds (proportional remap, then clamp so components stay attached).
+     */
+    handleScaleResize() {
+        const width = this.scale?.width;
+        const height = this.scale?.height;
+        if (!width || !height) return;
+
+        const previous = this.lastKnownSize || { width, height };
+        this.lastKnownSize = { width, height };
+
+        (this.objects || []).forEach(obj => {
+            if (!obj || !obj.active) return;
+            if (this.movementManager) this.movementManager.clearMovement(obj.id);
+            const target = remapPosition(obj.x, obj.y, previous, { width, height });
+            this.movementManager.setObjectPosition(obj, target.x, target.y);
+            this.keepObjectInBounds(obj);
+        });
+
+        if (this.inputManager && this.inputManager.handleResize) {
+            this.inputManager.handleResize(previous);
+        }
+        this.saveGameState();
     }
 
     /**

@@ -212,7 +212,6 @@ export class GridModeController {
         const existingObject = this.scene.gridMode.occupiedCells.get(cellKey);
         if (existingObject) {
             // Remove existing object first (with particle effects, but no auto-respawn since we're about to spawn)
-            console.log(`📐 Replacing object in cell ${cellKey}`);
             await this.scene.removeObjectFromGridCell(row, col, false); // false = don't auto-respawn
         }
 
@@ -234,7 +233,6 @@ export class GridModeController {
             // Track in occupied cells map
             this.scene.gridMode.occupiedCells.set(cellKey, obj);
 
-            console.log(`📐 Spawned object in grid cell ${cellKey}:`, obj.data?.itemData);
         }
 
         return obj;
@@ -248,7 +246,6 @@ export class GridModeController {
         const obj = this.scene.gridMode.occupiedCells.get(cellKey);
 
         if (obj) {
-            console.log(`📐 Removing object from grid cell ${cellKey}`);
 
             // Add fun particle effects before removal
             if (obj.x !== undefined && obj.y !== undefined) {
@@ -265,7 +262,6 @@ export class GridModeController {
 
             // Auto-respawn a new object in this cell if in grid mode
             if (autoRespawn && this.scene.gridMode.enabled && this.scene.gridMode.gridManager) {
-                console.log(`📐 Auto-respawning in empty cell ${cellKey}`);
                 // Small delay for visual effect
                 await new Promise(resolve => setTimeout(resolve, 300));
                 await this.scene.spawnObjectInGridCell(row, col, 'random');
