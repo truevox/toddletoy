@@ -1259,3 +1259,39 @@ kbd {
         padding-bottom: 72px;
     }
 }
+
+/* Quick start: lets a parent begin without scrolling past the guidance */
+.quick-start {
+    margin-top: 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.quick-start .start-button {
+    margin-bottom: 0;
+}
+
+.quick-start-note {
+    margin: 0;
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.95rem;
+    max-width: 32em;
+}
+
+.back-to-toys-button {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    color: #fff;
+    border-radius: 999px;
+    min-height: 44px;
+    padding: 8px 20px;
+    font-size: 0.95rem;
+    cursor: pointer;
+}
+
+.back-to-toys-button:hover,
+.back-to-toys-button:focus-visible {
+    background: rgba(255, 255, 255, 0.15);
+}

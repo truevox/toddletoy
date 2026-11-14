@@ -5,7 +5,6 @@ import { Router } from './Router.js';
 import { safeStorage } from '../utils/safeStorage.js';
 import { ConfigManager } from '../config/ConfigManager.js';
 import { ConfigScreen } from '../config/ConfigScreen.js';
-import { ToddlerToyGame } from '../game.js';
 import { ToyModeSelector } from '../modes/ToyModeSelector.js';
 import { OrreryToy } from '../toys/OrreryToy.js';
 import { ParentExitButton } from '../ui/ParentExitButton.js';
@@ -24,6 +23,7 @@ export class AppRoutes {
         this.parentExit = null; // hold-to-exit corner control, shown only on the sandbox toy
         // Cached GlobeToy class from lazy import (instance-scoped, not module-level)
         this._GlobeToyClass = null;
+        this._gameModulePromise = null;
 
         this.currentScreen = null;
 
@@ -100,6 +100,8 @@ export class AppRoutes {
         }
 
         this.configScreen.show(isAdmin);
+        // Warm the game bundle while the parent reads the settings
+        this.loadGameModule().catch(() => { this._gameModulePromise = null; });
         this.currentScreen = 'config';
         document.title = isAdmin ? 'ToddleToy – Admin' : 'ToddleToy – Configure';
     }
@@ -114,17 +116,36 @@ export class AppRoutes {
 
         this.hideCurrentScreen();
 
-        if (!this.game) {
-            this.game = new ToddlerToyGame(this.configManager);
-        } else {
-            const scene = this.getGameScene();
-            if (scene && scene.scene && scene.scene.isPaused()) scene.scene.resume();
-            this.resetToyState();
-        }
-
         this.currentScreen = 'toy';
         document.title = 'ToddleToy – Play';
         this.showParentExit();
+
+        if (this.game) {
+            const scene = this.getGameScene();
+            if (scene && scene.scene && scene.scene.isPaused()) scene.scene.resume();
+            this.resetToyState();
+            return;
+        }
+
+        // The game engine is a large chunk; it is fetched the first time the
+        // sandbox is opened (and warmed up from the config screen).
+        this.loadGameModule().then((GameClass) => {
+            // The user may have left, or a second navigation may have won the race
+            if (this.game || this.currentScreen !== 'toy') return;
+            this.game = new GameClass(this.configManager);
+        }).catch((err) => {
+            console.error('Sandbox failed to load:', err);
+            this._gameModulePromise = null;
+            if (this.currentScreen === 'toy') this.router.navigate('/');
+        });
+    }
+
+    /** Lazy-load the Phaser game bundle once */
+    loadGameModule() {
+        if (!this._gameModulePromise) {
+            this._gameModulePromise = import('../game.js').then((mod) => mod.ToddlerToyGame);
+        }
+        return this._gameModulePromise;
     }
 
     // ── Parent exit (hold-to-exit) ───────────────────────────────────────────

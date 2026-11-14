@@ -134,7 +134,6 @@ class ResponsiveGameManager {
             const newHeight = Math.min(window.innerHeight, 800);
 
             this.gameInstance.scale.resize(newWidth, newHeight);
-            console.log('🔄 Game resized to:', newWidth, 'x', newHeight);
         }
     }
 

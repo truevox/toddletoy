@@ -1,360 +1,325 @@
 /**
- * GlobeToy - Spinnable flat world map for toddlers
- * Swipe to spin; tap a country to hear its name and see its flag.
+ * GlobeToy - a real spinning globe for toddlers.
+ * Drag to spin (with momentum) and tilt; tap a country to see its flag, read
+ * its name and hear it spoken. Country outlines: Natural Earth 1:110m
+ * (public domain) via the `world-atlas` package.
  */
+import { getGlobeData } from './globe-data.js';
+import { GlobeRenderer } from './globe-render.js';
+import { pickCountry } from './globe-pick.js';
+import { makeView, clampTilt, wrapLon, DEG } from './globe-math.js';
+import { speakText, cancelSpeech } from './toy-speech.js';
 
-import { COUNTRIES, COUNTRY_BY_ID } from './globe-countries.js';
+const TAP_SLOP_PX = 8;
+const IDLE_BEFORE_SPIN_MS = 3500;
+const SPIN_DEG_PER_MS = 6 / 1000;
+const MOMENTUM_DECAY = 0.93;          // per 16.7ms frame
+const MIN_VELOCITY = 0.002;           // deg/ms below which momentum stops
+const INFO_MS = 5000;
+const FADE_MS = 400;
 
-// ── GlobeToy class ────────────────────────────────────────────────────────────
 export class GlobeToy {
   constructor(router, configManager = null) {
-    this.router        = router;
+    this.router = router;
     this.configManager = configManager;
     this.container = null;
-    this.canvas    = null;
-    this.ctx       = null;
-    this.hitCanvas = null;
-    this.hitCtx    = null;
+    this.renderer = null;
+    this.autoSpin = true;
 
-    this.lonOff    = -10;   // start with Atlantic roughly centred
-    this.velDeg    = 0;     // momentum in degrees per frame
-    this.rafId     = null;
+    this.lon = -30;
+    this.lat = 20;
+    this._vLon = 0; this._vLat = 0;     // momentum, deg/ms
+    this._ptr = null;                    // active pointer drag state
+    this._raf = 0;
+    this._last = 0;
+    this._dirty = false;
+    this._visible = false;
+    this._lastInteract = 0;
+    this._sel = null;                    // { country, born, dying }
+    this._infoTimer = null;
+    this._countries = null;
 
-    this._ptrs       = {};  // active pointers
-    this._lastPtrX   = null;
-    this._lastPtrT   = null;
-    this._dragging   = false;
-
-    this._resizeH    = null;
-    this._infoTimer  = null;
-    this.selectedId  = null;
-
-    // Projection cache: keyed by poly array reference, stores typed arrays for xs/ys
-    this._polyCache  = new WeakMap();
-    this._cacheH     = 0;   // canvas height when ys were last computed
+    this._frame = (now) => this._onFrame(now);
+    this._onResize = () => { this._resize(); this._requestFrame(); };
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
   show() {
+    if (!this._countries) this._countries = getGlobeData().countries;
     if (!this.container) {
       this.container = this._build();
       document.body.appendChild(this.container);
     }
     this.container.style.display = 'block';
-    this._render();
+    if (!this._visible) {
+      this._visible = true;
+      window.addEventListener('resize', this._onResize);
+      window.addEventListener('orientationchange', this._onResize);
+    }
+    this._resize();
+    this._last = 0;
+    this._lastInteract = performance.now() - IDLE_BEFORE_SPIN_MS + 1200;
+    this._dirty = true;
+    this._requestFrame();
   }
 
   hide() {
-    if (this.container) this.container.style.display = 'none';
+    this._visible = false;
     this._stopLoop();
+    clearTimeout(this._infoTimer);
+    this._infoTimer = null;
+    this._ptr = null;
+    this._vLon = this._vLat = 0;
+    this._sel = null;
+    if (this.infoPanel) this.infoPanel.style.opacity = '0';
+    window.removeEventListener('resize', this._onResize);
+    window.removeEventListener('orientationchange', this._onResize);
+    cancelSpeech();
+    if (this.container) this.container.style.display = 'none';
   }
 
   destroy() {
-    this._stopLoop();
-    if (this._resizeH) window.removeEventListener('resize', this._resizeH);
-    if (this.container && this.container.parentNode)
+    this.hide();
+    if (this.container && this.container.parentNode) {
       this.container.parentNode.removeChild(this.container);
+    }
     this.container = null;
+    this.renderer = null;
+    this.canvas = null;
+    this.infoPanel = null;
   }
 
-  // ── DOM construction ───────────────────────────────────────────────────────
+  /** Set the view centre (degrees). Latitude is clamped to the tilt limit. */
+  setView(lon, lat) {
+    this.lon = wrapLon(lon);
+    this.lat = clampTilt(lat);
+    this._dirty = true;
+    this._requestFrame();
+  }
+
+  getView() { return { lon: this.lon, lat: this.lat }; }
+
+  // ── DOM ────────────────────────────────────────────────────────────────────
   _build() {
     const wrap = document.createElement('div');
     wrap.id = 'globe-toy';
-    wrap.style.cssText = 'position:fixed;inset:0;background:#0a1628;z-index:500;overflow:hidden;font-family:Arial,sans-serif;';
+    wrap.style.cssText = 'position:fixed;inset:0;background:#030612;z-index:500;overflow:hidden;font-family:Arial,sans-serif;';
 
-    // Main canvas
+    const bg = document.createElement('canvas');
+    bg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;';
+    wrap.appendChild(bg);
+
     this.canvas = document.createElement('canvas');
     this.canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;cursor:grab;touch-action:none;';
     wrap.appendChild(this.canvas);
+    this.renderer = new GlobeRenderer(bg, this.canvas);
 
-    // Offscreen hit canvas (never attached to DOM)
-    this.hitCanvas = document.createElement('canvas');
-    this.hitCtx    = this.hitCanvas.getContext('2d', { willReadFrequently: true });
-
-    this._syncSize();
-    this.ctx = this.canvas.getContext('2d');
-
-    // Info panel
     this.infoPanel = document.createElement('div');
+    this.infoPanel.setAttribute('aria-live', 'polite');
     this.infoPanel.style.cssText = `
       position:absolute;bottom:64px;left:50%;transform:translateX(-50%);
       background:rgba(0,10,30,0.88);border:1px solid rgba(255,255,255,0.22);
       border-radius:18px;padding:12px 28px;color:#fff;
       font-size:clamp(1.1rem,5vw,1.7rem);text-align:center;
       pointer-events:none;opacity:0;transition:opacity 0.3s;
-      white-space:nowrap;max-width:90vw;
+      max-width:88vw;box-sizing:border-box;
     `;
     wrap.appendChild(this.infoPanel);
 
-    // Back button
     const back = document.createElement('button');
     back.textContent = '← Back';
     back.style.cssText = `
-      position:absolute;top:16px;left:16px;
+      position:absolute;top:12px;left:16px;min-height:44px;min-width:44px;
       background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);
-      color:#fff;padding:9px 20px;border-radius:30px;
+      color:#fff;padding:0 20px;border-radius:30px;
       cursor:pointer;font-size:0.95rem;z-index:10;font-family:Arial,sans-serif;
     `;
     back.addEventListener('click', () => this.router.navigate('/'));
     wrap.appendChild(back);
 
-    // Title
     const title = document.createElement('div');
     title.textContent = '🌍 World Globe';
     title.style.cssText = `
-      position:absolute;top:18px;left:50%;transform:translateX(-50%);
+      position:absolute;top:22px;left:50%;transform:translateX(-50%);
       color:rgba(255,255,255,0.75);font-size:1.1rem;pointer-events:none;white-space:nowrap;
     `;
     wrap.appendChild(title);
 
-    // Hint
     const hint = document.createElement('div');
-    hint.textContent = 'Swipe to spin  •  Tap a country!';
+    hint.textContent = 'Drag to spin the Earth  •  Tap a country!';
     hint.style.cssText = `
       position:absolute;bottom:20px;left:50%;transform:translateX(-50%);
-      color:rgba(255,255,255,0.3);font-size:0.8rem;pointer-events:none;white-space:nowrap;
+      color:rgba(255,255,255,0.4);font-size:0.8rem;pointer-events:none;white-space:nowrap;
     `;
     wrap.appendChild(hint);
 
-    // Pointer events
-    this.canvas.addEventListener('pointerdown',  e => this._onDown(e));
-    this.canvas.addEventListener('pointermove',  e => this._onMove(e));
-    this.canvas.addEventListener('pointerup',    e => this._onUp(e));
-    this.canvas.addEventListener('pointercancel',e => this._onUp(e));
-
-    // Resize
-    this._resizeH = () => { this._syncSize(); this._render(); };
-    window.addEventListener('resize', this._resizeH);
-
+    const c = this.canvas;
+    c.addEventListener('pointerdown', e => this._onDown(e));
+    c.addEventListener('pointermove', e => this._onMove(e));
+    c.addEventListener('pointerup', e => this._onUp(e, false));
+    c.addEventListener('pointercancel', e => this._onUp(e, true));
     return wrap;
   }
 
-  _syncSize() {
-    const w = window.innerWidth, h = window.innerHeight;
-    if (this.canvas)    { this.canvas.width = w;    this.canvas.height = h; }
-    if (this.hitCanvas) { this.hitCanvas.width = w; this.hitCanvas.height = h; }
+  _resize() {
+    if (!this.renderer) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    this.renderer.resize(window.innerWidth, window.innerHeight, dpr);
+    this._dirty = true;
   }
 
-  // ── Projection helpers ─────────────────────────────────────────────────────
-  _px(lon, W) {
-    return (((lon - this.lonOff + 180) % 360 + 360) % 360) / 360 * W;
-  }
-  _py(lat, H) {
-    return (90 - lat) / 180 * H;
-  }
-
-  // ── Drawing ────────────────────────────────────────────────────────────────
-  _render() {
-    const { canvas, ctx, hitCanvas, hitCtx } = this;
-    const W = canvas.width, H = canvas.height;
-
-    // Invalidate y-cache when canvas height changes
-    if (H !== this._cacheH) {
-      this._polyCache = new WeakMap();
-      this._cacheH = H;
-    }
-
-    // Ocean background
-    ctx.fillStyle = '#1a6fa8';
-    ctx.fillRect(0, 0, W, H);
-    hitCtx.fillStyle = '#000000';
-    hitCtx.fillRect(0, 0, W, H);
-
-    // Latitude grid lines (subtle)
-    ctx.save();
-    ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-    ctx.lineWidth = 1;
-    for (let lat = -60; lat <= 60; lat += 30) {
-      const y = this._py(lat, H);
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
-    }
-    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
-    ctx.lineWidth = 1.5;
-    const eq = this._py(0, H);
-    ctx.beginPath(); ctx.moveTo(0, eq); ctx.lineTo(W, eq); ctx.stroke();
-    ctx.restore();
-
-    // Draw countries using cached projections
-    COUNTRIES.forEach(country => {
-      const isSelected = this.selectedId === country.id;
-      const fill    = isSelected ? '#ffffff' : country.color;
-      const hitFill = `rgb(${country.id},0,0)`;
-
-      country.polys.forEach(poly => {
-        const proj = this._project(poly, W, H);
-        this._drawProjected(ctx,    proj, W, fill,    'rgba(0,0,0,0.35)', 0.6);
-        this._drawProjected(hitCtx, proj, W, hitFill, null,               0);
-      });
-    });
-  }
-
-  // Returns (and caches) a {xs, ys, count} projection for a poly at current lonOff.
-  // ys are stable across frames (only depend on H); xs recomputed each frame (depend on lonOff).
-  _project(poly, W, H) {
-    let entry = this._polyCache.get(poly);
-    if (!entry) {
-      const n = poly.length;
-      entry = {
-        lons: new Float32Array(n),
-        ys:   new Float32Array(n),
-        xs:   new Float32Array(n),
-        count: n,
-      };
-      for (let i = 0; i < n; i++) {
-        entry.lons[i] = poly[i][0];
-        entry.ys[i]   = this._py(poly[i][1], H);
-      }
-      this._polyCache.set(poly, entry);
-    }
-
-    // Recompute xs (lonOff changes every frame during spin)
-    const { lons, xs, ys, count } = entry;
-    for (let i = 0; i < count; i++) xs[i] = this._px(lons[i], W);
-
-    // Seam repair
-    for (let i = 1; i < count; i++) {
-      const dx = xs[i] - xs[i - 1];
-      if (dx >  W / 2) xs[i] -= W;
-      if (dx < -W / 2) xs[i] += W;
-    }
-
-    return { xs, ys, count };
-  }
-
-  _drawProjected(ctx, { xs, ys, count }, W, fillStyle, strokeStyle, lineWidth) {
-    ctx.fillStyle = fillStyle;
-    if (strokeStyle && lineWidth > 0) {
-      ctx.strokeStyle = strokeStyle;
-      ctx.lineWidth   = lineWidth;
-    }
-
-    for (const dx of [0, W, -W]) {
-      ctx.beginPath();
-      ctx.moveTo(xs[0] + dx, ys[0]);
-      for (let i = 1; i < count; i++) ctx.lineTo(xs[i] + dx, ys[i]);
-      ctx.closePath();
-      ctx.fill();
-      if (strokeStyle && lineWidth > 0) ctx.stroke();
-    }
-  }
-
-  // ── Pointer handling ───────────────────────────────────────────────────────
+  // ── Input ──────────────────────────────────────────────────────────────────
   _onDown(e) {
-    this.canvas.setPointerCapture(e.pointerId);
-    this._ptrs[e.pointerId] = e.clientX;
-    this._lastPtrX = e.clientX;
-    this._lastPtrT = performance.now();
-    this._dragging  = false;
-    this.velDeg     = 0;
-    this._stopLoop();
+    if (this._ptr) return; // single pointer only
+    try { this.canvas.setPointerCapture(e.pointerId); } catch (_) { /* synthetic events */ }
+    this._ptr = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY,
+                  t: performance.now(), moved: false };
+    this._vLon = this._vLat = 0;
+    this._lastInteract = performance.now();
   }
 
   _onMove(e) {
-    if (!(e.pointerId in this._ptrs)) return;
-    const dx = e.clientX - this._lastPtrX;
-    if (Math.abs(dx) > 2) this._dragging = true;
-    const degPerPx = 360 / this.canvas.width;
-    const dlon = -dx * degPerPx;
-
-    // Estimate velocity (degrees/ms → converted to degrees/frame at ~60fps)
+    const p = this._ptr;
+    if (!p || p.id !== e.pointerId) return;
+    if (!p.moved && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) > TAP_SLOP_PX) p.moved = true;
+    if (!p.moved) return;
     const now = performance.now();
-    const dt  = now - this._lastPtrT;
-    if (dt > 0) this.velDeg = (dlon / dt) * (1000 / 60);
-
-    this.lonOff     += dlon;
-    this._lastPtrX   = e.clientX;
-    this._lastPtrT   = now;
-    this._ptrs[e.pointerId] = e.clientX;
-    this._render();
+    const dt = Math.max(1, now - p.t);
+    const R = this.renderer.R;
+    const dx = e.clientX - p.x, dy = e.clientY - p.y;
+    const cosLat = Math.max(0.5, Math.cos(this.lat / DEG));
+    const dLon = -(dx / R) * DEG / cosLat;
+    const dLat = (dy / R) * DEG;
+    this.lon = wrapLon(this.lon + dLon);
+    this.lat = clampTilt(this.lat + dLat);
+    // smoothed velocity for momentum on release
+    this._vLon = this._vLon * 0.5 + (dLon / dt) * 0.5;
+    this._vLat = this._vLat * 0.5 + (dLat / dt) * 0.5;
+    p.x = e.clientX; p.y = e.clientY; p.t = now; p.lastMove = now;
+    this._lastInteract = now;
+    this._dirty = true;
+    this._requestFrame();
   }
 
-  _onUp(e) {
-    if (!(e.pointerId in this._ptrs)) return;
-    delete this._ptrs[e.pointerId];
-
-    if (!this._dragging) {
+  _onUp(e, cancelled) {
+    const p = this._ptr;
+    if (!p || p.id !== e.pointerId) return;
+    this._ptr = null;
+    const now = performance.now();
+    this._lastInteract = now;
+    if (cancelled) { this._vLon = this._vLat = 0; return; }
+    if (!p.moved) {
+      this._vLon = this._vLat = 0;
       this._handleTap(e.clientX, e.clientY);
-    } else if (Math.abs(this.velDeg) > 0.1) {
-      this._startMomentum();
-    }
-    this._dragging = false;
-  }
-
-  _startMomentum() {
-    const loop = () => {
-      this.velDeg *= 0.93;
-      this.lonOff += this.velDeg;
-      this._render();
-      if (Math.abs(this.velDeg) > 0.05) {
-        this.rafId = requestAnimationFrame(loop);
-      } else {
-        this.rafId = null;
-      }
-    };
-    this.rafId = requestAnimationFrame(loop);
-  }
-
-  _stopLoop() {
-    if (this.rafId) { cancelAnimationFrame(this.rafId); this.rafId = null; }
-  }
-
-  // ── Hit detection ──────────────────────────────────────────────────────────
-  _handleTap(cx, cy) {
-    const rect  = this.canvas.getBoundingClientRect();
-    const cW    = this.hitCanvas.width;
-    const cH    = this.hitCanvas.height;
-    if (!rect.width || !rect.height || !cW || !cH) return;
-
-    const sx    = cW / rect.width;
-    const sy    = cH / rect.height;
-    const x     = Math.max(0, Math.min(cW - 1, Math.round((cx - rect.left) * sx)));
-    const y     = Math.max(0, Math.min(cH - 1, Math.round((cy - rect.top)  * sy)));
-
-    const px    = this.hitCtx.getImageData(x, y, 1, 1).data;
-    const id    = px[0];  // R channel = country id (0 = ocean)
-
-    if (id > 0 && COUNTRY_BY_ID[id]) {
-      const country = COUNTRY_BY_ID[id];
-      this.selectedId = id;
-      this._render();
-      const flag = this._flag(country.code);
-      this._showInfo(`${flag} ${country.name}`);
-      this._speak(country.name);
     } else {
-      this.selectedId = null;
-      this._render();
+      // finger rested before lifting: no fling
+      if (now - (p.lastMove || now) > 90) this._vLon = this._vLat = 0;
+      this._requestFrame();
     }
   }
 
-  // ── Info panel ─────────────────────────────────────────────────────────────
+  // ── Tap ────────────────────────────────────────────────────────────────────
+  _handleTap(clientX, clientY) {
+    if (!this.renderer || !this._countries) return;
+    const rect = this.canvas.getBoundingClientRect();
+    const { cx, cy, R } = this.renderer;
+    const nx = (clientX - rect.left - cx) / R;
+    const ny = (cy - (clientY - rect.top)) / R;
+    if (nx * nx + ny * ny > 1) return; // tapped space
+    const hit = pickCountry(this._countries, makeView(this.lon, this.lat), nx, ny, R, 28);
+    if (hit) {
+      this._select(hit.country);
+      this._showInfo(`${hit.country.flag} ${hit.country.name}`);
+      speakText(this.configManager, hit.country.name, 1.1);
+    } else {
+      this._select(null);
+      this._showInfo('🌊 Ocean');
+      speakText(this.configManager, 'Ocean', 1.1);
+    }
+  }
+
+  _select(country) {
+    const now = performance.now();
+    if (this._sel && this._sel.country && country !== this._sel.country) {
+      this._sel = null;
+    }
+    if (country) this._sel = { country, born: now, dying: null };
+    this._dirty = true;
+    this._requestFrame();
+  }
+
   _showInfo(text) {
     clearTimeout(this._infoTimer);
     this.infoPanel.textContent = text;
     this.infoPanel.style.opacity = '1';
     this._infoTimer = setTimeout(() => {
       this.infoPanel.style.opacity = '0';
-      this.selectedId = null;
-      this._render();
-    }, 5000);
+      if (this._sel) this._sel.dying = performance.now();
+      this._requestFrame();
+    }, INFO_MS);
   }
 
-  // ── Utilities ──────────────────────────────────────────────────────────────
-  _flag(code) {
-    return String.fromCodePoint(
-      ...code.toUpperCase().split('').map(c => 127397 + c.charCodeAt(0))
-    );
+  _selectionAmount(now) {
+    const s = this._sel;
+    if (!s) return 0;
+    if (s.dying !== null) {
+      const f = 1 - (now - s.dying) / FADE_MS;
+      if (f <= 0) { this._sel = null; this._dirty = true; return 0; }
+      return f;
+    }
+    const age = now - s.born;
+    return Math.min(1, age / 150) * (0.85 + 0.15 * Math.sin(age / 220));
   }
 
-  _speak(text) {
-    if (!window.speechSynthesis) return;
-    const cfg = this.configManager?.getSpeechConfig?.() ?? {};
-    if (cfg.mute) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate   = typeof cfg.rate   === 'number' ? cfg.rate   : 0.85;
-    u.volume = typeof cfg.volume === 'number' ? cfg.volume / 100 : 1;
-    u.pitch  = 1.1;
-    window.speechSynthesis.speak(u);
+  // ── Frame loop (runs only while something is moving) ──────────────────────
+  _requestFrame() {
+    if (this._raf || !this._visible) return;
+    this._raf = requestAnimationFrame(this._frame);
+  }
+
+  _stopLoop() {
+    if (this._raf) { cancelAnimationFrame(this._raf); this._raf = 0; }
+  }
+
+  _onFrame(now) {
+    this._raf = 0;
+    if (!this._visible || !this.renderer) return;
+    const dt = this._last ? Math.min(64, now - this._last) : 16;
+    this._last = now;
+    let moving = false;
+
+    if (this._ptr) {
+      moving = false; // drag redraws are event-driven via _dirty
+    } else if (Math.abs(this._vLon) > MIN_VELOCITY || Math.abs(this._vLat) > MIN_VELOCITY) {
+      this.lon = wrapLon(this.lon + this._vLon * dt);
+      this.lat = clampTilt(this.lat + this._vLat * dt);
+      const decay = Math.pow(MOMENTUM_DECAY, dt / 16.67);
+      this._vLon *= decay; this._vLat *= decay;
+      if (Math.abs(this.lat) >= 60) this._vLat = 0;
+      this._dirty = true; moving = true;
+    } else {
+      this._vLon = this._vLat = 0;
+      if (this.autoSpin) {
+        if (now - this._lastInteract > IDLE_BEFORE_SPIN_MS) {
+          this.lon = wrapLon(this.lon + SPIN_DEG_PER_MS * dt);
+          this._dirty = true;
+        }
+        moving = true; // keep ticking (cheap) until the idle delay elapses
+      }
+    }
+
+    const amount = this._selectionAmount(now);
+    if (this._sel) { this._dirty = true; moving = true; }
+
+    if (this._dirty) {
+      this._dirty = false;
+      this.renderer.draw(makeView(this.lon, this.lat), this._countries,
+        { country: this._sel ? this._sel.country : null, amount });
+    }
+    if (moving || this._dirty) {
+      this._raf = requestAnimationFrame(this._frame);
+    } else {
+      this._last = 0;
+    }
   }
 }

@@ -49,7 +49,6 @@ export class AudioManager {
         // Check if audio is muted in config
         const audioConfig = this.scene.configManager ? this.scene.configManager.getAudioConfig() : null;
         if (audioConfig && audioConfig.mute) {
-            console.log('🔇 Audio tones are muted');
             return null;
         }
 

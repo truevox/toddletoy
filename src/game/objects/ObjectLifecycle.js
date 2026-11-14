@@ -80,8 +80,8 @@ export class ObjectLifecycle {
             const verticalOffset = obj.componentLayout?.labelVerticalOffset || 0;
             this.scene.renderManager.displayTextLabels(obj, verticalOffset);
 
-
-            console.log(`✨ Spawned ${actualType}:`, displayText, 'at', x, y);
+            // Keep the whole composite (glyph, labels, rows) inside the visible area
+            this.scene.keepObjectInBounds(obj);
 
             // Track spawn time to prevent accidental immediate interaction
             this.scene.lastSpawnTime = Date.now();
@@ -107,11 +107,10 @@ export class ObjectLifecycle {
      * @returns {Promise<Object|null>} The spawned object or null if spawn failed
      */
     async spawnAndAnnounce(x, y, type = 'random') {
-        console.log('🎯 Attempting to spawn object at', x, y);
         const obj = await this.scene.spawnObjectAt(x, y, type);
-        console.log('🎯 Spawn result:', obj);
         if (obj) {
-            this.scene.announceObject(obj, x, y);
+            // Use the (possibly clamped) final position for audio/particles
+            this.scene.announceObject(obj, obj.x, obj.y);
         }
         return obj;
     }

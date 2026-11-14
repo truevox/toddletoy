@@ -32,7 +32,6 @@ export class GameStateStore {
 
         try {
             safeStorage.setItem('toddleToyGameState', JSON.stringify(gameState));
-            console.log('💾 Game state saved:', gameState.objects.length, 'objects');
         } catch (error) {
             console.warn('Failed to save game state:', error);
         }
@@ -125,6 +124,7 @@ export class GameStateStore {
         // Display text labels with dynamic vertical offset (for object counting layout)
         const verticalOffset = obj.componentLayout?.labelVerticalOffset || 0;
         this.scene.renderManager.displayTextLabels(obj, verticalOffset);
+        if (this.scene.keepObjectInBounds) this.scene.keepObjectInBounds(obj);
 
         console.log(`✨ Restored ${objData.type}:`, displayText, 'at', objData.x, objData.y);
     }

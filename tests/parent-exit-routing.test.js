@@ -57,6 +57,14 @@ describe('Parent exit wiring in AppRoutes / Router', () => {
         app.router.navigate('/toy');
     };
 
+    test('the game is not created if the user leaves before the bundle loads', async () => {
+        enterToy();
+        app.router.navigate('/orrery');
+        await app.loadGameModule();
+        await Promise.resolve();
+        expect(app.game).toBeNull();
+    });
+
     test('exit button exists only while the sandbox toy is the current screen', () => {
         expect(visible()).toBe(false);          // config
         enterToy();
@@ -68,8 +76,12 @@ describe('Parent exit wiring in AppRoutes / Router', () => {
         expect(visible()).toBe(false);          // selector
     });
 
-    test('holding the button leaves the toy for the selector and unlocks the router', () => {
+    test('holding the button leaves the toy for the selector and unlocks the router', async () => {
         enterToy();
+        // The game bundle is lazy-loaded; let the dynamic import resolve
+        await app.loadGameModule();
+        await Promise.resolve();
+        expect(app.game).toBeTruthy();
         expect(app.router.isToyLocked()).toBe(true);
         holdExit();
         expect(window.location.pathname).toBe('/');

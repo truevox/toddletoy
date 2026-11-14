@@ -2,6 +2,8 @@
  * MovementManager - Handles smooth object movement and positioning
  * Extracted from GameScene to follow "wide and shallow" principle
  */
+import { clampPositionToBounds, DEFAULT_EDGE_MARGIN } from '../../positioning/BoundsClamp.js';
+
 export class MovementManager {
     constructor(scene) {
         this.scene = scene;
@@ -22,6 +24,17 @@ export class MovementManager {
      */
     lerp(start, end, progress) {
         return start + (end - start) * progress;
+    }
+
+    /**
+     * Clamp a desired anchor position so the whole composite object (glyph,
+     * labels, number-mode rows, counting rows) stays inside the visible area.
+     * @returns {{x:number,y:number}}
+     */
+    clampPosition(obj, x, y, margin = DEFAULT_EDGE_MARGIN) {
+        const scale = this.scene && this.scene.scale;
+        if (!scale) return { x, y };
+        return clampPositionToBounds(obj, x, y, { width: scale.width, height: scale.height }, margin);
     }
 
     /**
@@ -101,6 +114,9 @@ export class MovementManager {
     moveObjectTo(obj, targetX, targetY, useSmooth = true) {
         if (!obj || !obj.active) return;
 
+        // Keep the whole composite object on screen
+        ({ x: targetX, y: targetY } = this.clampPosition(obj, targetX, targetY));
+
         if (useSmooth) {
             // Store current position as start point for interpolation
             const startX = obj.x;
@@ -173,7 +189,6 @@ export class MovementManager {
     clearMovement(objId) {
         if (this.movingObjects.has(objId)) {
             this.movingObjects.delete(objId);
-            console.log('🛑 Cleared smooth movement for object:', objId);
         }
     }
 

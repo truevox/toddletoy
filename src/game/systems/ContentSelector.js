@@ -66,7 +66,6 @@ export class ContentSelector {
                     )
                 );
 
-                console.log(`🎯 Filtered emojis: ${availableEmojis.length} available from categories [${enabledCategories.join(', ')}]`);
             }
         }
 

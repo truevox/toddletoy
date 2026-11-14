@@ -12,3 +12,7 @@ ToddleToy under their own terms.
 | Workbox | npm dev dependency, bundled into `sw.js` | MIT — Copyright Google LLC. |
 
 Emoji are drawn by the device's own emoji font; no emoji artwork is bundled.
+
+| Data | Where | Licence |
+| --- | --- | --- |
+| Natural Earth 1:110m country outlines | bundled into the World Globe chunk via the `world-atlas` npm package | Public domain (Natural Earth); `world-atlas` and `topojson-client` packaging/code are ISC — Copyright Mike Bostock. |
