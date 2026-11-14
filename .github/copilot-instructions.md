@@ -5,33 +5,34 @@ ToddleToy is a Montessori-aligned, multi-sensory interactive learning PWA for to
 ## Technology Profile
 
 - **Language:** JavaScript (ES6+ modules) — no TypeScript
-- **Game Engine:** Phaser 3.70.0 (canvas-based rendering, scene lifecycle, input handling)
-- **Build Tool:** Vite 5.0.0 (dev server on port 4001, `dist/` output)
+- **Game Engine:** Phaser 3 (`^3.70.0` in package.json; 3.90 in the lockfile). Canvas-based rendering, scene lifecycle, input handling
+- **Build Tool:** Vite 5 (`^5.0.0`; dev server on port 4001, `dist/` output)
 - **Unit Testing:** Jest 29 with `jest-environment-jsdom` and Babel transpilation
-- **E2E Testing:** Playwright 1.53.1 (Chromium, Firefox, WebKit)
+- **E2E Testing:** Playwright (`@playwright/test`, five projects: Chromium, Firefox, WebKit, Pixel 5, iPhone 12)
 - **Linting:** ESLint 8
 - **Git Hooks:** Husky 9.1.7
-- **PWA:** Custom service worker (`sw.js`) with cache-first strategy, `manifest.json`
+- **PWA:** Service worker `sw.js`, built by `vite-plugin-pwa` (injectManifest) with precaching and runtime caching; web manifest at `public/manifest.json`
 
 ## Architectural Patterns
 
-- **Entry point:** `src/main.js` registers the service worker and bootstraps the Phaser game.
-- **Game logic:** `src/game.js` contains the main `GameScene` Phaser scene class.
+- **Entry point:** `src/main.js` registers the service worker (production builds only), wires the update flow, and creates `AppRoutes`.
+- **Screens and toys:** `src/routes/routes.js` shows the toy selector, config screen, sandbox, Solar System and Globe. The sandbox's Phaser game (`src/game.js`, `GameScene`) and the two canvas toys are loaded lazily.
+- **Game logic:** `src/game.js` is the `GameScene` Phaser scene class, now mostly a coordinator; the logic lives in `src/game/`. See `docs/README.md` for the module map.
 - **Manager/System pattern:** Each concern lives in its own class under `src/game/systems/` (e.g., `AudioManager.js`, `InputManager.js`, `SpeechManager.js`, `ParticleManager.js`). Keep managers single-responsibility and under 300 lines.
-- **Object lifecycle:** `src/game/objects/ObjectManager.js` handles spawning and cleanup.
-- **Configuration:** `src/config/ConfigManager.js` persists user settings to `localStorage`. Config UI sections live in `src/config/ui/`.
+- **Object lifecycle:** `src/game/objects/ObjectLifecycle.js` handles spawning, announcing and removal; `src/game/objects/ObjectManager.js` tracks object state.
+- **Configuration:** `src/config/ConfigManager.js` persists user settings through `src/utils/safeStorage.js` (localStorage with an in-memory fallback). Config UI sections live in `src/config/ui/`.
 - **Routing:** `src/routes/Router.js` and `src/routes/routes.js` handle navigation.
 - **Positioning/collision:** `src/positioning/PositioningSystem.js`.
 - **Utilities:** `src/utils/` for language helpers, platform detection, and error reporting.
-- **Static assets:** `public/` holds `emojis.json`, `things.json`, and icons. Custom fonts live in `fonts/`.
-- **Service worker:** `sw.js` at project root; Vite copies it to `dist/` on build via a custom plugin in `vite.config.js`.
-- **Tests:** `tests/` directory with unit tests at root level and E2E tests in `tests/browser/`. Test setup mocks Web Audio, Speech Synthesis, and Canvas APIs in `tests/setup.js`.
+- **Static assets:** `public/` holds `emojis.json`, `things.json`, `manifest.json` and `icons/`. The Kaktovik font lives in `fonts/`.
+- **Service worker:** `sw.js` at project root is the source; `vite-plugin-pwa` (configured in `vite.config.js`) builds it into `dist/sw.js`.
+- **Tests:** `tests/` directory with unit tests at root level (and `tests/unit/`) and E2E tests in `tests/browser/`. `tests/setup.js` mocks `AudioContext`, `speechSynthesis`, `SpeechSynthesisUtterance` and `HTMLCanvasElement.getContext`.
 
 ## Coding Standards
 
-- Use **2-space indentation**.
+- Match the indentation of the file you are editing (the codebase mixes 2- and 4-space indentation).
 - Use **camelCase** for variables, functions, and methods.
-- Use **PascalCase** for class names and manager/component file names (e.g., `AudioManager.js`).
+- Use **PascalCase** for class names and manager/component file names (e.g., `AudioManager.js`). The toy modules are the exception: `src/toys/globe-*.js` and `orrery-*.js` use lowercase kebab-case.
 - Use **ES6 module syntax** (`import`/`export`); never use CommonJS `require()` in source files.
 - Prefer `const` over `let`; avoid `var`.
 - Use `async`/`await` over raw Promise chains.
@@ -48,7 +49,7 @@ ToddleToy is a Montessori-aligned, multi-sensory interactive learning PWA for to
 - **Run unit tests:** `npm test`
 - **Run E2E tests:** `npm run test:e2e`
 - **Run all tests:** `npm run test:all`
-- **Mock setup:** `tests/setup.js` provides global mocks for `AudioContext`, `speechSynthesis`, `HTMLCanvasElement.getContext`, and other browser APIs not available in jsdom.
+- **Mock setup:** `tests/setup.js` provides global mocks for `AudioContext`, `speechSynthesis`, `SpeechSynthesisUtterance` and `HTMLCanvasElement.getContext`.
 - **TDD workflow:** Write a failing test first, implement just enough code to pass it, then refactor. Never modify a test solely to make it pass.
 - Test template:
   ```javascript
@@ -70,7 +71,7 @@ ToddleToy is a Montessori-aligned, multi-sensory interactive learning PWA for to
 - **No `console.log` in production code.** Use `console.error` or `console.warn` only for genuine error/warning conditions.
 - **No TypeScript** — the project uses plain JavaScript. Do not introduce `.ts` or `.tsx` files.
 - **No class components or framework-specific UI libraries** — all rendering goes through Phaser's scene graph.
-- **Never bypass the version bump rule.** Update the version in `package.json` (and keep `sw.js` cache name in sync) before any commit that ships behavioral changes.
+- **Never bypass the version bump rule.** Update the version in `package.json` before any commit that ships behavioral changes. The `sw.js` cache name is derived from that version at build time, so it needs no separate edit.
 - **Do not delete content during refactors.** Follow the zero-loss principle: reorganize without removing substance.
 - **Avoid files over 300 lines.** Split into focused modules instead.
 - **Do not commit build output (`dist/`), `node_modules/`, or temporary files.** Verify `.gitignore` before every commit.
