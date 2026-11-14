@@ -21,7 +21,8 @@ export function detectPlatform() {
  * @returns {boolean}
  */
 export function detectPWAInstalled() {
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches ||
+    const isStandalone = (typeof window.matchMedia === 'function' &&
+                         window.matchMedia('(display-mode: standalone)').matches) ||
                        window.navigator.standalone === true;
     return isStandalone;
 }

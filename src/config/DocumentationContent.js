@@ -470,7 +470,7 @@ export const documentationSections = [
       <p><strong>Yes!</strong> Once installed as a PWA, ToddleToy works completely offline. However, speech synthesis for new languages may require initial internet connection.</p>
 
       <h3>How do I update settings later?</h3>
-      <p>Visit <code>/admin</code> in your browser URL, or if skip-config is disabled, you'll see settings automatically.</p>
+      <p>Visit <code>/admin</code> in your browser URL, or if skip-config is disabled, you'll see settings automatically. While playing, press and hold the small corner button in the top-right for 2 seconds to leave the toy and return to the toy selector.</p>
 
       <h3>Can multiple children share one device?</h3>
       <p>Yes, but settings are global. You may want to adjust settings for each play session, or use different browser profiles for different configurations.</p>

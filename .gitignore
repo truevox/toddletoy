@@ -78,3 +78,6 @@ tests/browser/screenshots/
 # Debugging and profiling
 *.cpuprofile
 *.heapsnapshot
+# Agent worktrees (and symlinked deps inside them)
+.claude/worktrees/
+node_modules
