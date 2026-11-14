@@ -56,7 +56,7 @@ export function drawOrbitScene(ctx, S, dt) {
   const sx = S.px[0], sy = S.py[0], sr = S.pr[0];
   if (sp.ok) drawSun(ctx, sp, sx, sy, sr, S.wall);
   else { ctx.fillStyle = '#ffd54f'; ctx.beginPath(); ctx.arc(sx, sy, sr * 1.4, 0, TAU); ctx.fill(); }
-  if (S.sel === 0) pulseRing(ctx, sx, sy, sr * 2.2, S.wall, S.reduced, 'rgba(255,236,160,');
+  if (S.sel === 0 || S.pulse === 0) pulseRing(ctx, sx, sy, sr * 2.2, S.wall, S.reduced, 'rgba(255,236,160,');
 
   for (let i = 1; i <= PLANET_COUNT; i++) {
     const x = S.px[i], y = S.py[i], r = S.pr[i];

@@ -29,12 +29,13 @@ export const ORRERY_CSS = `
 #orrery-toy .orr-line{font-size:1rem;line-height:1.25;color:#dfe6ff;margin-top:2px}
 #orrery-toy .orr-more{min-height:48px;min-width:48px;border-radius:24px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35);
   padding:0 12px;font-size:.95rem;white-space:nowrap}
-#orrery-toy .orr-facts{grid-column:1/-1;margin:8px 0 2px;padding:8px 0 0;border-top:1px solid rgba(255,255,255,.2);
-  display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:.95rem;line-height:1.3;max-height:34vh;overflow:auto}
-#orrery-toy .orr-facts[hidden]{display:none}
+#orrery-toy .orr-expand{grid-column:1/-1;margin:8px 0 2px;padding:8px 0 0;border-top:1px solid rgba(255,255,255,.2);
+  max-height:clamp(96px,30vh,260px);overflow:auto}
+#orrery-toy .orr-expand[hidden]{display:none}
+#orrery-toy .orr-facts{margin:0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:.95rem;line-height:1.3}
 #orrery-toy .orr-facts dt{color:#ffd54f;white-space:nowrap}
 #orrery-toy .orr-facts dd{margin:0}
-#orrery-toy .orr-scale{grid-column:1/-1;font-size:.82rem;color:#aab4e6;margin-top:6px}
+#orrery-toy .orr-scale{font-size:.82rem;color:#aab4e6;margin-top:6px}
 #orrery-toy .orr-game .orr-name{font-size:1.25rem}
 #orrery-toy .orr-stars{font-size:1rem;letter-spacing:2px;min-height:1.2em}
 #orrery-toy .orr-game.orr-cheer{background:rgba(70,50,10,.92);border-color:#ffd54f}
@@ -55,11 +56,13 @@ export const ORRERY_CSS = `
 #orrery-toy[data-mode="landscape"] .orr-dock{display:contents}
 #orrery-toy[data-mode="landscape"] .orr-side{display:flex;flex-direction:column;gap:8px;position:absolute;top:calc(64px + var(--sat));right:max(8px,var(--sar));
   bottom:calc(8px + var(--sab));width:calc(var(--side) - 16px);z-index:10;align-items:stretch}
+#orrery-toy[data-mode="landscape"] .orr-expand{max-height:none;overflow:visible}
 #orrery-toy[data-mode="landscape"] .orr-actions{order:0}
 #orrery-toy[data-mode="landscape"] .orr-card,#orrery-toy[data-mode="landscape"] .orr-game{order:1;max-width:none;overflow:auto;max-height:100%}
 #orrery-toy[data-mode="landscape"] .orr-strip{position:absolute;left:0;bottom:calc(6px + var(--sab));width:calc(100% - var(--side));z-index:10;padding:0 8px;box-sizing:border-box}
 #orrery-toy[data-mode="landscape"] .orr-note{right:max(12px,var(--sar))}
 @media (max-width:540px),(max-height:520px){#orrery-toy .orr-title{display:none}}
+@media (orientation:portrait) and (max-height:700px){#orrery-toy .orr-expand{max-height:max(90px,19vh)}}
 @media (max-width:360px){#orrery-toy .orr-name{font-size:1.25rem}#orrery-toy .orr-line{font-size:.92rem}}
 @media (prefers-reduced-motion:reduce){#orrery-toy *{transition:none!important}}
 `;

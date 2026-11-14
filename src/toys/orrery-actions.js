@@ -2,7 +2,7 @@
  * Behaviour of the orrery toy: selection, camera follow, speed controls,
  * compare view, Find-it game, hints and keyboard. Functions take the toy `t`.
  */
-import { BODIES, FRIENDLY, SCALE_NOTE, COMPARE_NOTE, EARTH_INDEX, spokenName, FIND_PROMPT, FOUND_PROMPT, THATS_PROMPT, factsFor } from './orrery-data.js';
+import { BODIES, FRIENDLY, SCALE_NOTE, COMPARE_NOTE, EARTH_INDEX, sentenceName, spokenName, FIND_PROMPT, FOUND_PROMPT, THATS_PROMPT, factsFor } from './orrery-data.js';
 import { followZoom, goHome, zoomAbout, scaleOf, MAX_ZOOM } from './orrery-camera.js';
 import { fillCard, setExpanded, setSelected, setSpeedUi, announce, drawPortraitInto } from './orrery-ui.js';
 import { speakLocal, pickLanguage } from './orrery-audio.js';
@@ -151,12 +151,12 @@ function toggleCompare(t) {
 function ask(t) {
   const g = t.game, lang = pickLanguage(t.configManager);
   const n = spokenName(g.target, lang);
-  t.ui.gameName.textContent = `Find ${BODIES[g.target].name}!`;
+  t.ui.gameName.textContent = `Find ${sentenceName(g.target)}!`;
   t.ui.game.classList.remove('orr-cheer');
   drawPortraitInto(t.ui.gamePortrait, g.target, 56);
   t.ui.gameStars.textContent = '⭐'.repeat(Math.min(g.found, 9));
   say(t, FIND_PROMPT[lang](n), lang);
-  announce(t.ui, `Find ${BODIES[g.target].name}`);
+  announce(t.ui, `Find ${sentenceName(g.target)}`);
 }
 
 function toggleFind(t) {
@@ -191,10 +191,10 @@ export function gameTap(t, body) {
     t._computePositions();
     if (!t.reduced) burst(t.S.particles, t.S.px[body], t.S.py[body], 30);
     t.ui.game.classList.add('orr-cheer');
-    t.ui.gameName.textContent = `You found ${BODIES[body].name}!`;
+    t.ui.gameName.textContent = `You found ${sentenceName(body)}!`;
     t.ui.gameStars.textContent = '⭐'.repeat(Math.min(g.found, 9));
     say(t, FOUND_PROMPT[lang](spokenName(body, lang)), lang);
-    announce(t.ui, `You found ${BODIES[body].name}!`);
+    announce(t.ui, `You found ${sentenceName(body)}!`);
     later(t, 2600, () => { if (g.active) { nextRound(g, now()); ask(t); } });
   }
 }
@@ -206,7 +206,7 @@ export function hintsFrame(t) {
   if (g.active) {
     const lvl = hintLevel(g, now());
     S.hintOrbit = lvl >= 1 ? g.target : -1;
-    S.pulse = lvl >= 2 ? g.target : -1;
+    S.pulse = lvl >= (g.target === 0 ? 1 : 2) ? g.target : -1;
     return;
   }
   S.hintOrbit = -1;

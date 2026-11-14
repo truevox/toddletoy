@@ -17,9 +17,11 @@ export function compareLayout(e, cy = 0) {
   let x = SUN_MARGIN + 50;
   for (let i = 1; i <= 8; i++) {
     const r = (BODIES[i].trueDiameter / 2) * e;
+    const ext = i === 6 ? r * 2.3 : r; // Saturn's rings reach well beyond the disc
     if (i > 1) {
       const prev = items[items.length - 1];
-      x = Math.max(prev.cx + prev.r + r + 24, prev.cx + MIN_CENTER_GAP);
+      const pext = prev.i === 6 ? prev.r * 2.3 : prev.r;
+      x = Math.max(prev.cx + pext + ext + 14, prev.cx + MIN_CENTER_GAP);
     } else x += r;
     items.push({
       i, cx: x, cy, r,

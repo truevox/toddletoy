@@ -112,3 +112,8 @@ export const THATS_PROMPT = {
 export function spokenName(i, lang = 'en') {
   return (NAMES[lang] || NAMES.en)[i];
 }
+
+/** Name for sentences in the UI ("the Sun", "Saturn"). */
+export function sentenceName(i) {
+  return i === 0 ? 'the Sun' : BODIES[i].name;
+}

@@ -90,10 +90,11 @@ export function buildUI(h) {
   const more = btn('orr-more', 'More facts', 'ⓘ More', h.onMore);
   more.setAttribute('aria-expanded', 'false');
   const facts = el('dl', 'orr-facts');
-  facts.hidden = true;
   const scale = el('div', 'orr-scale', SCALE_NOTE);
-  scale.hidden = true;
-  card.append(cardPortrait, cardText, more, facts, scale);
+  const expand = el('div', 'orr-expand');
+  expand.hidden = true;
+  expand.append(facts, scale);
+  card.append(cardPortrait, cardText, more, expand);
   card.addEventListener('click', e => { if (e.target === card || e.target === cardText || e.target === name || e.target === line) h.onMore(); });
 
   // Find-it panel (shares the card slot)
@@ -153,7 +154,7 @@ export function buildUI(h) {
   live.setAttribute('role', 'status');
   root.appendChild(live);
 
-  return { root, canvas, back, title, home, info, note, dock, side, card, cardPortrait, name, line, more, facts, scale,
+  return { root, canvas, back, title, home, info, note, dock, side, card, cardPortrait, name, line, more, facts, scale, expand,
     game, gamePortrait, gameName, gameStars, repeat, actions, slow, play, ico, bars, fast, find, compare, strip, stripBtns, live };
 }
 
@@ -173,8 +174,7 @@ export function fillCard(ui, i, expanded) {
 }
 
 export function setExpanded(ui, expanded) {
-  ui.facts.hidden = !expanded;
-  ui.scale.hidden = !expanded;
+  ui.expand.hidden = !expanded;
   ui.more.setAttribute('aria-expanded', String(expanded));
   ui.more.textContent = expanded ? 'Less' : 'ⓘ More';
   ui.more.setAttribute('aria-label', expanded ? 'Fewer facts' : 'More facts');

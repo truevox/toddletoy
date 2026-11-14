@@ -29,8 +29,9 @@ export function drawCompareScene(ctx, S, C) {
 
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = '600 14px "Trebuchet MS",Arial,sans-serif';
-  ctx.fillStyle = 'rgba(60,30,0,.85)';
-  ctx.fillText('☀️ Sun', ox + SUN_LABEL_X(sun), oy - free.h * 0.32);
+  ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(90,40,0,.9)'; ctx.lineWidth = 4; ctx.lineJoin = 'round';
+  ctx.strokeText('Sun', ox + SUN_LABEL_X(sun), oy - free.h * 0.36);
+  ctx.fillText('Sun', ox + SUN_LABEL_X(sun), oy - free.h * 0.36);
 
   for (const it of items) {
     const x = ox + it.cx;
@@ -53,4 +54,4 @@ export function drawCompareScene(ctx, S, C) {
   }
 }
 
-function SUN_LABEL_X(sun) { return sun.cx + sun.r - 32; }
+function SUN_LABEL_X(sun) { return sun.cx + sun.r - 30; }
