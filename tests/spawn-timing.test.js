@@ -210,6 +210,13 @@ describe('Spawn Timing After Movement', () => {
         expect(game.canMoveAfterSpawn()).toBe(true);
     });
 
+    test('movement is allowed when no spawn has happened this session (objects restored after reload)', () => {
+        // The real scene never initialises lastSpawnTime; only a spawn assigns it
+        game.lastSpawnTime = undefined;
+        game.awaitingSpawnInputRelease = false;
+        expect(game.canMoveAfterSpawn()).toBe(true);
+    });
+
     test('should block movement immediately after a spawn', () => {
         game.spawnObjectAt(100, 100);
         expect(game.canMoveAfterSpawn()).toBe(false);

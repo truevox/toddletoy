@@ -114,49 +114,27 @@ Cuadro Azul
 
 ### Display Order (for numbers):
 
-* Top: Cistercian numeral (font-based rendering)
+* Top: Cistercian numeral (drawn by ToddleToy, no font)
 * Next: Kaktovik numeral (Unicode font)
 * Next: Binary (❤️ for 1, 🤍 for 0)
 * Main: Colored number
 * Below: \[Color] \[Number] in English
 * Bottom: \[Color] \[Number] in Spanish
 
-#### Cistercian Numeral Font Implementation
+#### Cistercian Numeral Implementation
 
-The Cistercian numeral system uses the "Cistercian QWERTY" font to create compound glyphs representing numbers 0-9999. This implementation differs significantly from standard base-10 numbering systems:
+Cistercian numerals are drawn by ToddleToy itself, with no font (`src/game/systems/CistercianGlyph.js` is the pure model, `CistercianNumeral.js` the Phaser drawing layer). One glyph holds any integer 0-9999:
 
-**Key Principles:**
-- **Base-1000 System**: Unlike decimal digits, Cistercian numerals combine multiple position-specific characters into single compound glyphs
-- **Character Sequence Order**: Always start with the units digit and append higher positions (units→tens→hundreds→thousands)
-- **Zero Handling**: Only include '0' for the units position; omit zeros in tens, hundreds, and thousands positions
-- **No Spaces**: Character sequences are concatenated directly without spaces or separators
+- A vertical stave; the four corners carry the four decimal places: units upper-right, tens upper-left (mirror), hundreds lower-right (vertical flip), thousands lower-left (both).
+- Units shapes: 1 top stroke, 2 bottom stroke, 3 diagonal down to the outer corner, 4 diagonal up to the outer corner, 5 = 1+4, 6 outer vertical, 7 = 1+6, 8 = 2+6, 9 = 1+2+6.
+- Numbers of 10000 and above are drawn as one glyph per group of four decimal digits, most significant on the left, with a gap between.
+- Strokes are vector shapes with round caps, so they stay sharp at any size.
 
-**QWERTY Keyboard Mapping:**
-```
-Thousands: Z X C V B N M , . /  (for digits 1-9, 0)
-Hundreds:  A S D F G H J K L ;  (for digits 1-9, 0)  
-Tens:      Q W E R T Y U I O P  (for digits 1-9, 0)
-Units:     1 2 3 4 5 6 7 8 9 0  (for digits 1-9, 0)
-```
-
-**Character Generation Examples:**
-- `5` → '5' (units only)
-- `23` → '3w' (units '3' + tens 'w' for 2)
-- `105` → '5a' (units '5' + hundreds 'a' for 1, tens omitted)
-- `1234` → '4esz' (units '4' + tens 'e' + hundreds 's' + thousands 'z')
-- `8814` → '4qk,' (units '4' + tens 'q' + hundreds 'k' + thousands ',')
+**Worked example:** `1993` is one glyph: 1000 lower-left, 900 lower-right, 90 upper-left, 3 upper-right. `12345` is two glyphs, `1` then `2345`.
 
 **Implementation Notes:**
-- The font renders these character sequences as single compound glyphs
-- Positioning is adjusted 20 pixels higher than base object position for optimal visual alignment
-- Each number produces exactly one glyph regardless of character sequence length
-- Character order is critical: incorrect ordering produces separate glyphs instead of compounds
-
-**For Future Maintainers:**
-- Never insert spaces in character sequences - this breaks glyph formation
-- Always include the units digit even if it's zero
-- Character mappings are fixed and correspond to physical QWERTY keyboard layout
-- Test with the examples above to verify correct implementation
+- `layoutNumber()` returns line segments in cell units; the drawing layer fills a capsule per segment.
+- The returned object exposes width/height/getBounds so the numeral stack layout and bounds clamping measure it like any other row.
 
 ### Display Order (general):
 
@@ -229,7 +207,7 @@ Units:     1 2 3 4 5 6 7 8 9 0  (for digits 1-9, 0)
 
 * **Canvas or WebGL** via Phaser 3.
 * Particle systems: use Phaser's built-in or integrate `particles.js`.
-* Cistercian: font-based rendering using Cistercian QWERTY font with compound glyph formation.
+* Cistercian: procedural vector rendering (one glyph per four decimal digits), no font.
 * Kaktovik: Use Unicode font or custom fallback.
 * Binary: Render above object with ❤️ and 🤍.
 

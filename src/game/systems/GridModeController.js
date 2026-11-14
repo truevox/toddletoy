@@ -1,4 +1,5 @@
 import GridManager from './GridManager.js'
+import { fitObjectToCell } from './GridFit.js'
 
 /**
  * GridModeController - Grid mode lifecycle, overlay and per-cell spawning.
@@ -22,6 +23,51 @@ export class GridModeController {
         }
     }
 
+    /** Real canvas size (the scale manager, not the initial game config). */
+    getViewSize() {
+        const scale = this.scene.scale;
+        return {
+            width: (scale && scale.width) || this.scene.sys.game.config.width,
+            height: (scale && scale.height) || this.scene.sys.game.config.height
+        };
+    }
+
+    /**
+     * Viewport changed: refit the grid to the real canvas, redraw the lines and
+     * rebuild each cell's object (re-created from its data so layout and scale
+     * are recomputed for the new size) inside its own cell.
+     */
+    async handleResize() {
+        const gm = this.scene.gridMode;
+        if (!gm.enabled || !gm.gridManager) return;
+        const { width, height } = this.getViewSize();
+        gm.gridManager.updateDimensions(width, height);
+        if (gm.gridOverlay) this.scene.createGridOverlay();
+
+        const entries = [...gm.occupiedCells.entries()];
+        for (const [key, obj] of entries) {
+            const [row, col] = key.split(',').map(Number);
+            const data = { id: obj.id, type: obj.type, itemData: obj.itemData, x: obj.x, y: obj.y, lastTouchedTime: obj.lastTouchedTime };
+            gm.occupiedCells.delete(key);
+            obj.gridCell = null;                // removeObject must not respawn or clear the new entry
+            this.scene.removeObject(obj);
+            const fresh = await this.scene.restoreObject(data);
+            if (fresh) this.placeInCell(fresh, row, col);
+        }
+    }
+
+    /** Register an object in a cell, centre it there and scale it to fit. */
+    placeInCell(obj, row, col) {
+        const gm = this.scene.gridMode;
+        const gridManager = gm.gridManager;
+        const center = gridManager.getCellPosition(row, col);
+        obj.gridCell = { row, col };
+        if (obj.input) obj.input.draggable = false;
+        obj.lastTouchedTime = Date.now();
+        gm.occupiedCells.set(`${row},${col}`, obj);
+        fitObjectToCell(this.scene, obj, center, { width: gridManager.cellWidth, height: gridManager.cellHeight });
+    }
+
     /**
      * Enable Grid Mode - switch from free-form to structured grid layout
      */
@@ -40,8 +86,8 @@ export class GridModeController {
         this.scene.gridMode.gridManager = new GridManager(
             gridConfig.rows,
             gridConfig.cols,
-            this.scene.sys.game.config.width,
-            this.scene.sys.game.config.height,
+            this.getViewSize().width,
+            this.getViewSize().height,
             gridConfig.cellPadding
         );
 
@@ -212,7 +258,6 @@ export class GridModeController {
         const existingObject = this.scene.gridMode.occupiedCells.get(cellKey);
         if (existingObject) {
             // Remove existing object first (with particle effects, but no auto-respawn since we're about to spawn)
-            console.log(`📐 Replacing object in cell ${cellKey}`);
             await this.scene.removeObjectFromGridCell(row, col, false); // false = don't auto-respawn
         }
 
@@ -220,21 +265,10 @@ export class GridModeController {
         const obj = await this.scene.spawnObjectAt(position.x, position.y, type);
 
         if (obj) {
-            // Mark object with grid cell info
-            obj.gridCell = { row, col };
+            // Cell info, no dragging, fresh touch time (prevents immediate auto-cleanup),
+            // occupied-cell tracking, then scale-to-fit and centre in the cell
+            this.placeInCell(obj, row, col);
 
-            // Disable dragging for grid objects
-            if (obj.input) {
-                obj.input.draggable = false;
-            }
-
-            // CRITICAL: Set lastTouchedTime to prevent immediate auto-cleanup
-            obj.lastTouchedTime = Date.now();
-
-            // Track in occupied cells map
-            this.scene.gridMode.occupiedCells.set(cellKey, obj);
-
-            console.log(`📐 Spawned object in grid cell ${cellKey}:`, obj.data?.itemData);
         }
 
         return obj;
@@ -248,7 +282,6 @@ export class GridModeController {
         const obj = this.scene.gridMode.occupiedCells.get(cellKey);
 
         if (obj) {
-            console.log(`📐 Removing object from grid cell ${cellKey}`);
 
             // Add fun particle effects before removal
             if (obj.x !== undefined && obj.y !== undefined) {
@@ -265,7 +298,6 @@ export class GridModeController {
 
             // Auto-respawn a new object in this cell if in grid mode
             if (autoRespawn && this.scene.gridMode.enabled && this.scene.gridMode.gridManager) {
-                console.log(`📐 Auto-respawning in empty cell ${cellKey}`);
                 // Small delay for visual effect
                 await new Promise(resolve => setTimeout(resolve, 300));
                 await this.scene.spawnObjectInGridCell(row, col, 'random');

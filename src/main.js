@@ -52,8 +52,13 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
             });
     });
 
-    // Auto-reload when new service worker takes control
+    // Auto-reload when an UPDATED service worker takes control. On a first
+    // visit there is no controller yet and the new worker claims the page
+    // (clients.claim), which also fires controllerchange - reloading then
+    // would yank the page out from under a first-time visitor.
+    const hadControllerAtLoad = Boolean(navigator.serviceWorker.controller);
     navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadControllerAtLoad) return;
         if (refreshing) return;
         refreshing = true;
         console.log('New service worker activated, reloading...');

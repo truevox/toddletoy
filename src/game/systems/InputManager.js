@@ -7,7 +7,10 @@ export class InputManager {
         this.scene = scene;
         this.gamepadDeadzone = 0.1;
         this.gamepadButtonStates = new Map();
-        this.currentGamepadPosition = { x: 400, y: 300 };
+        this.currentGamepadPosition = {
+            x: (scene.scale?.width || 800) / 2,
+            y: (scene.scale?.height || 600) / 2
+        };
         this.holdTimer = null;
         this.holdDuration = 500; // 500ms hold to start auto-drag
         this.isHolding = false;
@@ -15,6 +18,7 @@ export class InputManager {
         
         // Advanced keyboard state
         this.keyPositions = {};
+        this.randomKeyPositions = new Map(); // held id -> random position for non-grid keys
         this.keysHeld = new Set();
         this.interpolatedPosition = { x: 0, y: 0 };
         this.averageKeyPosition = { x: 0, y: 0 };
@@ -23,44 +27,19 @@ export class InputManager {
     }
 
     initializeInputHandlers() {
-        console.log('🎮 InputManager.initializeInputHandlers called');
-        console.log('🎮 Scene input object:', this.scene.input);
-        console.log('🎮 Scene input enabled:', this.scene.input?.enabled);
-        
         // Pointer/touch input
         this.scene.input.on('pointerdown', this.onPointerDown, this);
         this.scene.input.on('pointermove', this.onPointerMove, this);
         this.scene.input.on('pointerup', this.onPointerUp, this);
-        
-        console.log('🎮 Input event listeners attached');
-        
-        // Test if we can manually trigger input detection
-        console.log('🎮 Scene canvas:', this.scene.game.canvas);
-        
-        // Add a test listener to see if Phaser receives ANY events
-        this.scene.input.on('pointerover', () => console.log('🎮 PHASER RECEIVED: pointerover'));
-        this.scene.input.on('pointermove', () => console.log('🎮 PHASER RECEIVED: pointermove'));
-        this.scene.input.on('pointerdown', () => console.log('🎮 PHASER RECEIVED: pointerdown (raw)'));
-        
-        // Also test if the canvas itself receives DOM events
-        if (this.scene.game.canvas) {
-            this.scene.game.canvas.addEventListener('click', (e) => {
-                console.log('🎮 DOM CANVAS CLICK:', e.clientX, e.clientY);
-            });
-            this.scene.game.canvas.addEventListener('pointerdown', (e) => {
-                console.log('🎮 DOM CANVAS POINTERDOWN:', e.clientX, e.clientY);
-            });
-        }
-        
+
         // Keyboard input
         this.initKeyboardInput();
-        
+
         // Gamepad input
         this.initGamepadInput();
     }
 
     onPointerDown(pointer) {
-        console.log('🎮 InputManager.onPointerDown called with pointer:', pointer.x, pointer.y);
         this.pointerIsDown = true;
         this.isHolding = false;
 
@@ -72,7 +51,6 @@ export class InputManager {
             }
         });
 
-        console.log('🎮 InputManager emitting input:pointerDown');
         this.emit('pointerDown', { x: pointer.x, y: pointer.y });
     }
 
@@ -95,8 +73,10 @@ export class InputManager {
         this.emit('pointerUp', { x: pointer.x, y: pointer.y });
     }
 
-    initKeyboardInput() {
-        // Define 3x3 grid layout (QWEASDZXC)
+    /**
+     * (Re)compute the 3x3 grid (QWEASDZXC) positions from the current size.
+     */
+    computeKeyPositions() {
         const gridKeys = [
             { key: 'Q', gridX: 0, gridY: 0 },
             { key: 'W', gridX: 1, gridY: 0 },
@@ -109,7 +89,6 @@ export class InputManager {
             { key: 'C', gridX: 2, gridY: 2 }
         ];
 
-        // Calculate positions for 3x3 grid
         const screenWidth = this.scene.scale.width;
         const screenHeight = this.scene.scale.height;
         const gridWidth = screenWidth * 0.8;
@@ -122,48 +101,129 @@ export class InputManager {
             const y = startY + (gridY * gridHeight / 2);
             this.keyPositions[key] = { x, y };
         });
+    }
+
+    initKeyboardInput() {
+        this.computeKeyPositions();
 
         // Set up keyboard event listeners
         this.scene.input.keyboard.on('keydown', this.onKeyDown, this);
         this.scene.input.keyboard.on('keyup', this.onKeyUp, this);
     }
 
+    /**
+     * Viewport changed (resize / rotation): recompute positions that were
+     * derived from the old size.
+     * @param {{width:number,height:number}} [previous] - size before the resize
+     */
+    handleResize(previous) {
+        const width = this.scene.scale.width;
+        const height = this.scene.scale.height;
+
+        this.computeKeyPositions();
+
+        if (previous && previous.width > 0 && previous.height > 0) {
+            const sx = width / previous.width;
+            const sy = height / previous.height;
+            this.currentGamepadPosition.x *= sx;
+            this.currentGamepadPosition.y *= sy;
+            this.randomKeyPositions.forEach(pos => { pos.x *= sx; pos.y *= sy; });
+        } else {
+            this.currentGamepadPosition.x = width / 2;
+            this.currentGamepadPosition.y = height / 2;
+        }
+        this.updateAverageKeyPosition();
+    }
+
+    /** Random on-screen position (away from the extreme edges) for ungridded keys. */
+    getRandomKeyPosition() {
+        const width = this.scene.scale.width;
+        const height = this.scene.scale.height;
+        return {
+            x: width * (0.1 + Math.random() * 0.8),
+            y: height * (0.1 + Math.random() * 0.8)
+        };
+    }
+
+    /**
+     * Decide whether a keyboard event drives the toy and under which "held id".
+     * Grid keys (QWEASDZXC) keep their fixed positions; every other printable
+     * key, Space and Enter spawns at a random position. Modifier combos,
+     * function keys, Tab, Escape and typing targets are never handled.
+     * @returns {{id:string,isGrid:boolean}|null}
+     */
+    resolveKey(event) {
+        if (!event || typeof event.key !== 'string') return null;
+        if (event.ctrlKey || event.metaKey || event.altKey) return null;
+
+        const target = event.target;
+        const tag = target && target.tagName ? String(target.tagName).toUpperCase() : '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (target && target.isContentEditable)) return null;
+
+        const upper = event.key.toUpperCase();
+        if (this.keyPositions[upper]) return { id: upper, isGrid: true };
+
+        const isPrintable = event.key.length === 1; // includes ' ' (Space)
+        const isEnter = event.key === 'Enter';
+        if (!isPrintable && !isEnter) return null;
+        // Space/Enter on a focused control belongs to that control
+        if ((tag === 'BUTTON' || tag === 'A') && (event.key === ' ' || isEnter)) return null;
+
+        return { id: `code:${event.code || upper}`, isGrid: false };
+    }
+
+    /** Identify a keyup by the same id scheme (code for ungridded keys survives Shift changes). */
+    resolveHeldId(event) {
+        if (!event || typeof event.key !== 'string') return null;
+        const upper = event.key.toUpperCase();
+        if (this.keyPositions[upper] && this.keysHeld.has(upper)) return upper;
+        const codeId = `code:${event.code || upper}`;
+        if (this.keysHeld.has(codeId)) return codeId;
+        return null;
+    }
+
+    getHeldPosition(id) {
+        return this.keyPositions[id] || this.randomKeyPositions.get(id);
+    }
+
     onKeyDown(event) {
-        const key = event.key.toUpperCase();
-        
-        if (this.keyPositions[key]) {
-            event.preventDefault();
-            
-            if (!this.keysHeld.has(key)) {
-                this.keysHeld.add(key);
-                this.updateAverageKeyPosition();
-                
-                if (this.keysHeld.size === 1) {
-                    // First key pressed - spawn object
-                    const position = this.keyPositions[key];
-                    this.emit('keyPress', { key, position });
-                } else {
-                    // Multiple keys - update interpolated position
-                    this.emit('keyInterpolate', { position: this.averageKeyPosition });
-                }
-            }
+        const resolved = this.resolveKey(event);
+        if (!resolved) return;
+
+        event.preventDefault();
+        const { id, isGrid } = resolved;
+
+        if (this.keysHeld.has(id)) return; // auto-repeat
+
+        if (!isGrid) {
+            this.randomKeyPositions.set(id, this.getRandomKeyPosition());
+        }
+        this.keysHeld.add(id);
+        this.updateAverageKeyPosition();
+
+        if (this.keysHeld.size === 1) {
+            // First key pressed - spawn object
+            this.emit('keyPress', { key: isGrid ? id : event.key.toUpperCase(), position: this.getHeldPosition(id) });
+        } else {
+            // Multiple keys - update interpolated position
+            this.emit('keyInterpolate', { position: this.averageKeyPosition });
         }
     }
 
     onKeyUp(event) {
-        const key = event.key.toUpperCase();
-        
-        if (this.keyPositions[key] && this.keysHeld.has(key)) {
-            event.preventDefault();
-            this.keysHeld.delete(key);
-            this.updateAverageKeyPosition();
-            
-            if (this.keysHeld.size === 0) {
-                this.emit('keyRelease', { key });
-            } else {
-                // Still have keys held - update interpolated position
-                this.emit('keyInterpolate', { position: this.averageKeyPosition });
-            }
+        const id = this.resolveHeldId(event);
+        if (!id) return;
+
+        event.preventDefault();
+        this.keysHeld.delete(id);
+        this.randomKeyPositions.delete(id);
+        this.updateAverageKeyPosition();
+
+        if (this.keysHeld.size === 0) {
+            this.emit('keyRelease', { key: event.key.toUpperCase() });
+        } else {
+            // Still have keys held - update interpolated position
+            this.emit('keyInterpolate', { position: this.averageKeyPosition });
         }
     }
 
@@ -176,8 +236,9 @@ export class InputManager {
         let totalX = 0;
         let totalY = 0;
         
-        this.keysHeld.forEach(key => {
-            const pos = this.keyPositions[key];
+        this.keysHeld.forEach(id => {
+            const pos = this.getHeldPosition(id);
+            if (!pos) return;
             totalX += pos.x;
             totalY += pos.y;
         });

@@ -9,7 +9,6 @@ export class SceneInputHandler {
 
     // Input event handlers
     async onInputPointerDown(data) {
-        console.log('🎯 onInputPointerDown called with data:', data);
         const { x, y } = data;
 
         // Warn if system not fully initialized (race condition debugging)
@@ -19,23 +18,18 @@ export class SceneInputHandler {
 
         // Grid Mode: Map click to grid cell and spawn there
         if (this.scene.gridMode.enabled && this.scene.gridMode.gridManager) {
-            console.log('📐 Grid Mode active, mapping pointer to grid cell');
             const gridCell = this.scene.gridMode.gridManager.getGridCell(x, y);
 
             if (gridCell) {
                 const { row, col } = gridCell;
-                console.log(`📐 Clicked grid cell: ${row},${col}`);
 
                 if (!this.scene.canSpawnAfterMovement()) {
-                    console.log('🛑 Grid spawn blocked: too soon after movement');
                     return;
                 }
 
                 // Spawn object in grid cell (replaces existing if present)
                 const obj = await this.scene.spawnObjectInGridCell(row, col, 'random');
                 this.scene.announceObject(obj, x, y);
-            } else {
-                console.log('📐 Click outside grid boundaries');
             }
             return; // Skip free-form mode handling
         }
@@ -43,15 +37,11 @@ export class SceneInputHandler {
         // Free-form Mode: Check spawn eligibility FIRST, then move/drag
         const hitObject = this.scene.getObjectUnderPointer(x, y);
         const isSpeaking = this.scene.speechManager.getIsSpeaking();
-        console.log('🎯 hitObject:', hitObject, 'isSpeaking:', isSpeaking);
 
         // 1. SPAWN CHECK (first priority) — empty space, not speaking
         if (!hitObject && !isSpeaking) {
             if (this.scene.canSpawnAfterMovement()) {
                 await this.scene.spawnAndAnnounce(x, y, 'random');
-            } else {
-                console.log('🛑 Spawn blocked: too soon after movement (%dms)',
-                    Date.now() - this.scene.lastMoveTime);
             }
             return;
         }
@@ -59,7 +49,6 @@ export class SceneInputHandler {
         // 2. DRAG/MOVE checks (only reached when spawn doesn't apply)
         // Block all movement if post-spawn lock is active
         if (!this.scene.canMoveAfterSpawn()) {
-            console.log('🛑 Movement blocked: post-spawn lock active');
             return;
         }
 
@@ -131,7 +120,6 @@ export class SceneInputHandler {
         // Start particle trail
         this.scene.particleManager.startDragTrail(obj);
 
-        console.log('👆 Started dragging object:', obj.id);
     }
 
     /**
@@ -158,7 +146,9 @@ export class SceneInputHandler {
         this.scene.isDragging = false;
         this.scene.draggedObject = null;
 
-        console.log('✋ Stopped dragging object:', obj.id);
+        // Remember where the object was left so a reload restores it there
+        if (this.scene.saveGameState) this.scene.saveGameState();
+
     }
 
     async onInputKeyPress(data) {
@@ -166,7 +156,6 @@ export class SceneInputHandler {
 
         if (!this.scene.speechManager.getIsSpeaking()) {
             if (!this.scene.canSpawnAfterMovement()) {
-                console.log('🛑 Key spawn blocked: too soon after movement');
                 return;
             }
             await this.scene.spawnAndAnnounce(position.x, position.y, 'random');
@@ -192,7 +181,6 @@ export class SceneInputHandler {
 
         if (!this.scene.speechManager.getIsSpeaking()) {
             if (!this.scene.canSpawnAfterMovement()) {
-                console.log('🛑 Gamepad spawn blocked: too soon after movement');
                 return;
             }
             await this.scene.spawnAndAnnounce(position.x, position.y, 'random');

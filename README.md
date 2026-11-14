@@ -196,7 +196,7 @@ MIT — see [LICENSE](./LICENSE). Bundled third-party components are listed in [
 
 ## 🙏 Acknowledgments
 
-- Cistercian QWERTY font for medieval numeral rendering
+- Cistercian numerals are drawn by ToddleToy itself (original procedural renderer, no font)
 - Kaktovik Unicode font for Inuit numerals
 - Phaser 3 game framework
 - All the toddlers who inspire better learning tools!

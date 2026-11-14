@@ -1,4 +1,5 @@
 import { FontManager } from './FontManager.js';
+import { createCistercianNumeral, CELL_SIZE } from './CistercianNumeral.js';
 import { TextLayoutManager } from './TextLayoutManager.js';
 import { buildColorizedLabel } from '../utils/localization.js';
 
@@ -23,7 +24,6 @@ export class RenderManager {
 
     getDisplayText(item, type) {
         if (type === 'emoji') {
-            console.log('Displaying emoji:', item.emoji, 'Unicode:', item.emoji.charCodeAt(0));
             return item.emoji;
         } else if (type === 'number') {
             return String(item.value);
@@ -142,65 +142,21 @@ export class RenderManager {
         return this.textLayoutManager.highlightWord(textObject, wordIndex, totalWords);
     }
 
+    /**
+     * Cistercian numeral drawn procedurally by ToddleToy (vector strokes, no font).
+     * Sized with the same responsive factor as the other numeral rows.
+     */
     renderCistercianNumeral(number, x, y) {
-        // Font-based Cistercian numeral rendering using Cistercian QWERTY font
-        // Cistercian numerals are base-1000 with compound glyph formation
-        if (number === 0) {
-            // For zero, just show the central vertical line character
-            return this.scene.add.text(x, y, '0', {
-                fontSize: '32px',
-                fontFamily: 'Cistercian, monospace',
-                fill: '#ffffff',
-                align: 'center'
-            }).setOrigin(0.5, 0.5);
-        }
-        
-        // Parse the number into components (supporting up to 9999)
-        const units = number % 10;
-        const tens = Math.floor((number % 100) / 10);
-        const hundreds = Math.floor((number % 1000) / 100);
-        const thousands = Math.floor(number / 1000);
-        
-        // Build the Cistercian compound glyph using position-aware character mapping
-        // CRITICAL: Order must be units→tens→hundreds→thousands (least to most significant)
-        // CRITICAL: Always start with units (from number row), omit zeros except for units
-        let cistercianChars = '';
-        
-        // Always include units digit (from number row 0-9)
-        cistercianChars += this.getCistercianKeyMapping(units, 'units');
-        
-        // Add tens, hundreds, thousands only if non-zero (omit zero positions)
-        if (tens > 0) cistercianChars += this.getCistercianKeyMapping(tens, 'tens');
-        if (hundreds > 0) cistercianChars += this.getCistercianKeyMapping(hundreds, 'hundreds');
-        if (thousands > 0) cistercianChars += this.getCistercianKeyMapping(thousands, 'thousands');
-        
-        return this.scene.add.text(x, y, cistercianChars, {
-            fontSize: '32px',
-            fontFamily: 'Cistercian, monospace',
-            fill: '#ffffff',
-            align: 'center'
-        }).setOrigin(0.5, 0.5);
-    }
+        if (!Number.isFinite(number) || number < 0) return null;
 
-    getCistercianKeyMapping(digit, position) {
-        // Cistercian font uses different key sections for different positions
-        // Position: 'units' (1-9,0), 'tens' (q-p), 'hundreds' (a-;), 'thousands' (z-/)
-        // Based on keyboard layout in the font documentation
-        
-        if (position === 'units') {
-            const mapping = { 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9', 0: '0' };
-            return mapping[digit] || '0';
-        } else if (position === 'tens') {
-            const mapping = { 1: 'q', 2: 'w', 3: 'e', 4: 'r', 5: 't', 6: 'y', 7: 'u', 8: 'i', 9: 'o', 0: 'p' };
-            return mapping[digit] || 'p';
-        } else if (position === 'hundreds') {
-            const mapping = { 1: 'a', 2: 's', 3: 'd', 4: 'f', 5: 'g', 6: 'h', 7: 'j', 8: 'k', 9: 'l', 0: ';' };
-            return mapping[digit] || ';';
-        } else if (position === 'thousands') {
-            const mapping = { 1: 'z', 2: 'x', 3: 'c', 4: 'v', 5: 'b', 6: 'n', 7: 'm', 8: ',', 9: '.', 0: '/' };
-            return mapping[digit] || '/';
-        }
-        return '0';
+        const screenWidth = this.scene.scale.width || window.innerWidth || 800;
+        const screenHeight = this.scene.scale.height || window.innerHeight || 600;
+        const minDimension = Math.min(screenWidth, screenHeight);
+        const scaleFactor = Math.max(0.5, Math.min(1.2, minDimension / 600));
+
+        return createCistercianNumeral(this.scene, x, y, Math.floor(number), {
+            cell: Math.max(8, Math.round(CELL_SIZE * scaleFactor))
+        });
     }
 
     renderKaktovikNumeral(number, x, y) {

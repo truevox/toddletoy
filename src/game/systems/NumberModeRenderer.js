@@ -1,4 +1,5 @@
 import { ResourceBar } from '../../ui/ResourceBar.js'
+import { computeAboveStackOffsets, KAKTOVIK_LIFT, CISTERCIAN_LIFT } from './NumberModeLayout.js'
 
 /**
  * NumberModeRenderer - Renders the alternate numeral systems (binary, Kaktovik, Cistercian, object counting)
@@ -51,39 +52,37 @@ export class NumberModeRenderer {
 
             objectCountingYOffset = totalLabelArea + buffer;
 
-            const modeName = numberModes.objectCounting ? 'place values' : 'only apples';
-            console.log(`📐 Responsive layout (scale=${styleInfo.scaleFactor.toFixed(2)}): ${numberValue}, ${languageCount} langs, labelOffset=${actualLabelOffset}px, lineSpacing=${actualLineSpacing}px, ${modeName} at Y+${objectCountingYOffset}px`);
         }
 
-        // Render Cistercian numerals (furthest from center, above labels)
-        if (numberModes.cistercian) {
-            const cistercianYOffset = -107;
-            const cistercianObj = this.scene.renderManager.renderCistercianNumeral(numberValue, centerX, centerY + cistercianYOffset);
-            if (cistercianObj) {
-                components.push({ type: 'cistercian', object: cistercianObj, offsetX: 0, offsetY: cistercianYOffset });
-            }
-        }
-
-        // Render Kaktovik numerals (middle distance, above labels)
-        if (numberModes.kaktovik) {
-            const baseOffset = numberModes.cistercian ? -60 : -80;
-            const kaktovikYOffset = baseOffset - 4;
-            const kaktovikObj = this.scene.renderManager.renderKaktovikNumeral(numberValue, centerX, centerY + kaktovikYOffset);
-            if (kaktovikObj) {
-                components.push({ type: 'kaktovik', object: kaktovikObj, offsetX: 0, offsetY: kaktovikYOffset });
-            }
-        }
-
-        // Render binary hearts (above labels)
+        // Rows above the numeral (binary hearts nearest, then Kaktovik, then Cistercian).
+        // Create them first, then position by MEASURED height so rows never overlap
+        // the numeral or each other (see NumberModeLayout).
+        const rm = this.scene.renderManager;
+        const aboveRows = [];
         if (numberModes.binary) {
-            let yOffset = -40;
-            if (numberModes.cistercian) yOffset = -20;
-            if (numberModes.kaktovik) yOffset = -20;
+            const binaryObj = rm.renderBinaryHearts(numberValue, centerX, centerY);
+            if (binaryObj) aboveRows.push({ type: 'binary', object: binaryObj, lift: 0 });
+        }
+        if (numberModes.kaktovik) {
+            const kaktovikObj = rm.renderKaktovikNumeral(numberValue, centerX, centerY);
+            if (kaktovikObj) aboveRows.push({ type: 'kaktovik', object: kaktovikObj, lift: KAKTOVIK_LIFT });
+        }
+        if (numberModes.cistercian) {
+            const cistercianObj = rm.renderCistercianNumeral(numberValue, centerX, centerY);
+            if (cistercianObj) aboveRows.push({ type: 'cistercian', object: cistercianObj, lift: CISTERCIAN_LIFT });
+        }
 
-            const binaryObj = this.scene.renderManager.renderBinaryHearts(numberValue, centerX, centerY + yOffset);
-            if (binaryObj) {
-                components.push({ type: 'binary', object: binaryObj, offsetX: 0, offsetY: yOffset });
-            }
+        if (aboveRows.length > 0) {
+            const mainHalfHeight = (obj.displayHeight || obj.height || 32) / 2;
+            const offsets = computeAboveStackOffsets(
+                aboveRows.map(row => ({ type: row.type, lift: row.lift, height: row.object.displayHeight || row.object.height || 0 })),
+                mainHalfHeight
+            );
+            aboveRows.forEach(row => {
+                const offsetY = offsets[row.type];
+                if (row.object.setPosition) row.object.setPosition(centerX, centerY + offsetY);
+                components.push({ type: row.type, object: row.object, offsetX: 0, offsetY });
+            });
         }
 
         // Render object counting modes BELOW labels
@@ -120,7 +119,6 @@ export class NumberModeRenderer {
                 offsetY: objectCountingYOffset
             });
 
-            console.log(`🔢 Rendered place values for ${numberValue} using ResourceBar`);
         } else if (numberModes.onlyApples) {
             // Only apples mode: 🍎🍎🍎 (simple counting with educational layouts)
             const appleComponents = this.scene.objectCountingRenderer.renderStackedApples(
@@ -139,7 +137,6 @@ export class NumberModeRenderer {
                 });
             });
 
-            console.log(`🍎 Rendered only apples for ${numberValue}: ${appleComponents.length} apples`);
         }
 
         // Store component layout (no label offset needed - labels stay in normal position)

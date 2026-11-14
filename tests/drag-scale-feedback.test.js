@@ -55,3 +55,19 @@ describe('Drag scale feedback', () => {
         expect(scene.draggedObject).toBeNull();
     });
 });
+
+describe('drag end persists the new position', () => {
+    test('stopDragging saves game state', () => {
+        const { SceneInputHandler } = require('../src/game/systems/SceneInputHandler.js');
+        const scene = {
+            draggedObject: { id: 1, active: true },
+            isDragging: true,
+            tweens: { add: jest.fn() },
+            particleManager: { stopDragTrail: jest.fn() },
+            saveGameState: jest.fn()
+        };
+        new SceneInputHandler(scene).stopDragging();
+        expect(scene.saveGameState).toHaveBeenCalledTimes(1);
+        expect(scene.isDragging).toBe(false);
+    });
+});

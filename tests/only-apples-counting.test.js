@@ -488,34 +488,20 @@ describe('Only Apples Counting Mode', () => {
             expect(overflow.setOrigin).toHaveBeenCalledWith(0.5, 0);
         });
 
-        test('logs capped count for numbers > 100', () => {
-            const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+        // (Per-spawn "Rendered N apples" logging was removed; assert the behaviour instead.)
+        test('caps rendered apples at 100 and adds an overflow label for numbers > 100', () => {
+            const components = renderer.renderStackedApples(250, 400, 200);
 
-            renderer.renderStackedApples(250, 400, 200);
-
-            expect(consoleSpy).toHaveBeenCalledWith(
-                expect.stringContaining('🍎 Rendered 100/250 apples (capped at 100)')
-            );
-            expect(consoleSpy).toHaveBeenCalledWith(
-                expect.stringContaining('grid')
-            );
-
-            consoleSpy.mockRestore();
+            const overflow = components.find(c => c.text === '(250 total)');
+            expect(overflow).toBeDefined();
+            expect(components.length - 1).toBe(100);
         });
 
-        test('logs normal count for numbers <= 100', () => {
-            const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+        test('renders exactly N apples with no overflow label for numbers <= 100', () => {
+            const components = renderer.renderStackedApples(50, 400, 200);
 
-            renderer.renderStackedApples(50, 400, 200);
-
-            expect(consoleSpy).toHaveBeenCalledWith(
-                expect.stringContaining('🍎 Rendered 50 apples')
-            );
-            expect(consoleSpy).not.toHaveBeenCalledWith(
-                expect.stringContaining('capped')
-            );
-
-            consoleSpy.mockRestore();
+            expect(components.length).toBe(50);
+            expect(components.find(c => typeof c.text === 'string' && c.text.includes('total'))).toBeUndefined();
         });
     });
 
@@ -569,33 +555,26 @@ describe('Only Apples Counting Mode', () => {
         });
     });
 
-    describe('Console Logging and Debugging', () => {
-        test('logs apple count and grid dimensions for debugging', () => {
+    describe('Console noise', () => {
+        // Per-spawn debug logging was removed (it fired on every tap); layout results are still returned.
+        test('rendering apples does not console.log per spawn', () => {
             const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
-            renderer.renderStackedApples(8, 400, 200);
+            const components = renderer.renderStackedApples(8, 400, 200);
 
-            expect(consoleSpy).toHaveBeenCalledWith(
-                expect.stringContaining('🍎 Rendered 8 apples')
-            );
-            expect(consoleSpy).toHaveBeenCalledWith(
-                expect.stringContaining('grid')
-            );
+            expect(components.length).toBeGreaterThan(0);
+            expect(consoleSpy).not.toHaveBeenCalled();
 
             consoleSpy.mockRestore();
         });
 
-        test('calculateOptimalStackingLayout logs educational strategy', () => {
+        test('calculateOptimalStackingLayout returns its layout without logging', () => {
             const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
 
-            renderer.calculateOptimalStackingLayout(25);
+            const layout = renderer.calculateOptimalStackingLayout(25);
 
-            expect(consoleSpy).toHaveBeenCalledWith(
-                expect.stringContaining('📐 Optimal layout')
-            );
-            expect(consoleSpy).toHaveBeenCalledWith(
-                expect.stringContaining('sqrt-based algorithm')
-            );
+            expect(layout.rows * layout.columns).toBeGreaterThanOrEqual(25);
+            expect(consoleSpy).not.toHaveBeenCalled();
 
             consoleSpy.mockRestore();
         });
