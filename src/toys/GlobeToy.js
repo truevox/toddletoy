@@ -1,55 +1,62 @@
 /**
  * GlobeToy - a real spinning globe for toddlers.
- * Drag to spin (with momentum) and tilt; tap a country to see its flag, read
- * its name and hear it spoken. Country outlines: Natural Earth 1:110m
- * (public domain) via the `world-atlas` package.
+ * Drag to spin (momentum), pinch / wheel / double-tap / buttons to zoom, tap a
+ * country to fly to it, see its flag + name and hear it in each enabled
+ * language. Play: Surprise me, Find it!, and a passport of visited countries.
+ * Country outlines: Natural Earth 1:110m (public domain) via `world-atlas`.
  */
 import { getGlobeData } from './globe-data.js';
 import { GlobeRenderer } from './globe-render.js';
 import { pickCountry } from './globe-pick.js';
-import { makeView, clampTilt, wrapLon, DEG } from './globe-math.js';
+import { makeView, clampTilt, wrapLon, unproject, angularDistance } from './globe-math.js';
+import { createFly, sampleFly, clampZoom, zoomFromWheel, stepZoom, dragToDegrees, ZOOM_MIN, ZOOM_MAX } from './globe-anim.js';
 import { speakText, cancelSpeech } from './toy-speech.js';
+import { GlobeUI } from './globe-ui.js';
+import { GestureTracker } from './globe-input.js';
+import { GlobeAudio } from './globe-audio.js';
+import { Particles } from './globe-fx.js';
+import { layoutLabels, computeAnchors } from './globe-labels.js';
+import { speakableLanguages, localisedNames } from './globe-intl.js';
+import { metaFor } from './globe-meta.js';
+import { GlobePlay } from './globe-play.js';
 
-const TAP_SLOP_PX = 8;
 const IDLE_BEFORE_SPIN_MS = 3500;
 const SPIN_DEG_PER_MS = 6 / 1000;
-const MOMENTUM_DECAY = 0.93;          // per 16.7ms frame
-const MIN_VELOCITY = 0.002;           // deg/ms below which momentum stops
-const INFO_MS = 5000;
-const FADE_MS = 400;
+const MOMENTUM_DECAY = 0.93;
+const MIN_VELOCITY = 0.002;
+const SELECT_HOLD_MS = 12000;
+const HOME_IDLE_MS = 45000;
+const TAP_TOL_PX = 28;
 
 export class GlobeToy {
   constructor(router, configManager = null) {
     this.router = router;
     this.configManager = configManager;
-    this.container = null;
-    this.renderer = null;
+    this.container = null; this.renderer = null; this.ui = null; this.canvas = null; this.infoPanel = null;
     this.autoSpin = true;
-
-    this.lon = -30;
-    this.lat = 20;
-    this._vLon = 0; this._vLat = 0;     // momentum, deg/ms
-    this._ptr = null;                    // active pointer drag state
-    this._raf = 0;
-    this._last = 0;
-    this._dirty = false;
-    this._visible = false;
+    this.lon = -30; this.lat = 20; this.zoom = 1;
+    this._vLon = 0; this._vLat = 0;
+    this._raf = 0; this._last = 0; this._dirty = false; this._visible = false;
     this._lastInteract = 0;
-    this._sel = null;                    // { country, born, dying }
-    this._infoTimer = null;
+    this._fly = null; this._flyEnd = 0;
+    this._sel = null;               // { country, born, popAt }
+    this._pulse = null;             // { country, until }
+    this._timers = new Set();
+    this._idle = { sel: 0, home: 0, spin: 0 };
+    this._tmp = { lon: 0, lat: 0, zoom: 1 };
     this._countries = null;
-
-    this._frame = (now) => this._onFrame(now);
+    this._dragged = false; this._tapped = false;
+    this.particles = new Particles();
+    this.audio = new GlobeAudio(configManager);
+    this.play = null;
+    this._frame = now => this._onFrame(now);
     this._onResize = () => { this._resize(); this._requestFrame(); };
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
   show() {
-    if (!this._countries) this._countries = getGlobeData().countries;
-    if (!this.container) {
-      this.container = this._build();
-      document.body.appendChild(this.container);
-    }
+    if (!this._countries) { this._countries = getGlobeData().countries; computeAnchors(this._countries); }
+    if (!this.container) this._build();
     this.container.style.display = 'block';
     if (!this._visible) {
       this._visible = true;
@@ -60,225 +67,247 @@ export class GlobeToy {
     this._last = 0;
     this._lastInteract = performance.now() - IDLE_BEFORE_SPIN_MS + 1200;
     this._dirty = true;
+    this.play.onShow();
     this._requestFrame();
   }
 
   hide() {
     this._visible = false;
     this._stopLoop();
-    clearTimeout(this._infoTimer);
-    this._infoTimer = null;
-    this._ptr = null;
+    this._clearTimers();
+    this._fly = null; this._sel = null; this._pulse = null;
     this._vLon = this._vLat = 0;
-    this._sel = null;
-    if (this.infoPanel) this.infoPanel.style.opacity = '0';
+    this.particles.clear();
+    if (this.tracker) this.tracker.reset();
+    if (this.play) this.play.onHide();
+    if (this.ui) { this.ui.hideCard(); this.ui.dispose(); }
     window.removeEventListener('resize', this._onResize);
     window.removeEventListener('orientationchange', this._onResize);
     cancelSpeech();
+    this.audio.close();
     if (this.container) this.container.style.display = 'none';
   }
 
   destroy() {
     this.hide();
-    if (this.container && this.container.parentNode) {
-      this.container.parentNode.removeChild(this.container);
-    }
-    this.container = null;
-    this.renderer = null;
-    this.canvas = null;
-    this.infoPanel = null;
+    this.audio.dispose();
+    if (this.container && this.container.parentNode) this.container.parentNode.removeChild(this.container);
+    this.container = null; this.renderer = null; this.canvas = null; this.infoPanel = null; this.ui = null; this.play = null;
   }
 
-  /** Set the view centre (degrees). Latitude is clamped to the tilt limit. */
   setView(lon, lat) {
-    this.lon = wrapLon(lon);
-    this.lat = clampTilt(lat);
-    this._dirty = true;
-    this._requestFrame();
+    this.lon = wrapLon(lon); this.lat = clampTilt(lat);
+    this._dirty = true; this._requestFrame();
   }
+  getView() { return { lon: this.lon, lat: this.lat, zoom: this.zoom }; }
 
-  getView() { return { lon: this.lon, lat: this.lat }; }
-
-  // ── DOM ────────────────────────────────────────────────────────────────────
+  // ── DOM + input wiring ─────────────────────────────────────────────────────
   _build() {
-    const wrap = document.createElement('div');
-    wrap.id = 'globe-toy';
-    wrap.style.cssText = 'position:fixed;inset:0;background:#030612;z-index:500;overflow:hidden;font-family:Arial,sans-serif;';
+    this.play = new GlobePlay(this);
+    this.ui = new GlobeUI(this.play.callbacks(() => this.router.navigate('/')));
+    this.container = this.ui.root;
+    this.canvas = this.ui.canvas;
+    this.infoPanel = this.ui.infoPanel;
+    document.body.appendChild(this.container);
+    this.renderer = new GlobeRenderer(this.ui.bg, this.canvas);
 
-    const bg = document.createElement('canvas');
-    bg.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;pointer-events:none;';
-    wrap.appendChild(bg);
-
-    this.canvas = document.createElement('canvas');
-    this.canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;cursor:grab;touch-action:none;';
-    wrap.appendChild(this.canvas);
-    this.renderer = new GlobeRenderer(bg, this.canvas);
-
-    this.infoPanel = document.createElement('div');
-    this.infoPanel.setAttribute('aria-live', 'polite');
-    this.infoPanel.style.cssText = `
-      position:absolute;bottom:64px;left:50%;transform:translateX(-50%);
-      background:rgba(0,10,30,0.88);border:1px solid rgba(255,255,255,0.22);
-      border-radius:18px;padding:12px 28px;color:#fff;
-      font-size:clamp(1.1rem,5vw,1.7rem);text-align:center;
-      pointer-events:none;opacity:0;transition:opacity 0.3s;
-      max-width:88vw;box-sizing:border-box;
-    `;
-    wrap.appendChild(this.infoPanel);
-
-    const back = document.createElement('button');
-    back.textContent = '← Back';
-    back.style.cssText = `
-      position:absolute;top:12px;left:16px;min-height:44px;min-width:44px;
-      background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);
-      color:#fff;padding:0 20px;border-radius:30px;
-      cursor:pointer;font-size:0.95rem;z-index:10;font-family:Arial,sans-serif;
-    `;
-    back.addEventListener('click', () => this.router.navigate('/'));
-    wrap.appendChild(back);
-
-    const title = document.createElement('div');
-    title.textContent = '🌍 World Globe';
-    title.style.cssText = `
-      position:absolute;top:22px;left:50%;transform:translateX(-50%);
-      color:rgba(255,255,255,0.75);font-size:1.1rem;pointer-events:none;white-space:nowrap;
-    `;
-    wrap.appendChild(title);
-
-    const hint = document.createElement('div');
-    hint.textContent = 'Drag to spin the Earth  •  Tap a country!';
-    hint.style.cssText = `
-      position:absolute;bottom:20px;left:50%;transform:translateX(-50%);
-      color:rgba(255,255,255,0.4);font-size:0.8rem;pointer-events:none;white-space:nowrap;
-    `;
-    wrap.appendChild(hint);
-
+    this.tracker = new GestureTracker({
+      onStart: () => { this._clearIdleTimers(); this._lastInteract = performance.now(); this._vLon = this._vLat = 0; this._fly = null; this.play.onUserInput(); },
+      onDrag: (dx, dy, dt) => this._drag(dx, dy, dt),
+      onPinch: p => { this._dragged = true; this._setZoom(this.zoom * p.ratio); this._drag(p.dx, p.dy, 16, true); },
+      onTap: (x, y) => { this._tapped = true; this._handleTap(x, y); },
+      onDoubleTap: (x, y) => this._doubleTap(x, y),
+      onEnd: ({ fling }) => { if (!fling) this._vLon = this._vLat = 0; this._poke(); this._requestFrame(); },
+    });
     const c = this.canvas;
-    c.addEventListener('pointerdown', e => this._onDown(e));
-    c.addEventListener('pointermove', e => this._onMove(e));
-    c.addEventListener('pointerup', e => this._onUp(e, false));
-    c.addEventListener('pointercancel', e => this._onUp(e, true));
-    return wrap;
+    c.addEventListener('pointerdown', e => { try { c.setPointerCapture(e.pointerId); } catch (_) { /* synthetic */ } this.tracker.down(e); });
+    c.addEventListener('pointermove', e => this.tracker.move(e));
+    c.addEventListener('pointerup', e => this.tracker.up(e, false));
+    c.addEventListener('pointercancel', e => this.tracker.up(e, true));
+    c.addEventListener('wheel', e => {
+      e.preventDefault();
+      this._setZoom(zoomFromWheel(this.zoom, e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY, e.ctrlKey));
+      this._poke(); this._requestFrame();
+    }, { passive: false });
+    this.container.addEventListener('keydown', e => this.play.onKey(e));
   }
 
   _resize() {
     if (!this.renderer) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    this.renderer.resize(window.innerWidth, window.innerHeight, dpr);
+    const w = window.innerWidth, h = window.innerHeight;
+    const l = this.ui.applyLayout(w, h);
+    this.layout = l;
+    this.renderer.resize(w, h, dpr, l.cx, l.cy, l.R);
+    this.renderer.setZoom(this.zoom);
     this._dirty = true;
   }
 
-  // ── Input ──────────────────────────────────────────────────────────────────
-  _onDown(e) {
-    if (this._ptr) return; // single pointer only
-    try { this.canvas.setPointerCapture(e.pointerId); } catch (_) { /* synthetic events */ }
-    this._ptr = { id: e.pointerId, sx: e.clientX, sy: e.clientY, x: e.clientX, y: e.clientY,
-                  t: performance.now(), moved: false };
+  reducedMotion() {
+    try { return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (_) { return false; }
+  }
+
+  // ── Timers ─────────────────────────────────────────────────────────────────
+  after(ms, fn) {
+    const id = setTimeout(() => { this._timers.delete(id); if (this._visible) fn(); }, ms);
+    this._timers.add(id);
+    return id;
+  }
+  cancel(id) { if (id) { clearTimeout(id); this._timers.delete(id); } }
+  _clearTimers() { for (const t of this._timers) clearTimeout(t); this._timers.clear(); this._idle = { sel: 0, home: 0, spin: 0 }; if (this.play) this.play.clearTimers(); }
+  _clearIdleTimers() { for (const k of ['sel', 'home', 'spin']) { this.cancel(this._idle[k]); this._idle[k] = 0; } }
+
+  /** Re-arm the idle timers after an interaction has finished. */
+  _poke() {
+    this._lastInteract = performance.now();
+    this._clearIdleTimers();
+    if (this._sel && !this.play.game.active) this._idle.sel = this.after(SELECT_HOLD_MS, () => this.clearSelection());
+    if (this.zoom > ZOOM_MIN + 0.05 && !this.play.game.active) this._idle.home = this.after(HOME_IDLE_MS, () => this.goHome());
+    this.play.armHint();
+  }
+
+  clearSelection() {
+    this._sel = null; this._dirty = true;
+    if (!this.play.game.active) this.ui.hideCard();
+    this._lastInteract = performance.now() - IDLE_BEFORE_SPIN_MS + 1000;
+    this._requestFrame();
+  }
+
+  // ── View control ───────────────────────────────────────────────────────────
+  _setZoom(z) {
+    this.zoom = clampZoom(z);
+    if (this.renderer) this.renderer.setZoom(this.zoom);
+    if (this.ui) this.ui.setZoomState(this.zoom, ZOOM_MIN, ZOOM_MAX);
+    this._dirty = true;
+  }
+
+  flyTo(lon, lat, zoom = this.zoom, { dur = 600, spin = 0, onDone = null } = {}) {
     this._vLon = this._vLat = 0;
     this._lastInteract = performance.now();
+    if (this.reducedMotion()) {
+      this.lon = wrapLon(lon); this.lat = clampTilt(lat); this._setZoom(zoom);
+      this._fly = null; this._flyEnd = performance.now();
+      if (onDone) onDone();
+    } else {
+      this._fly = createFly({ lon: this.lon, lat: this.lat, zoom: this.zoom }, { lon, lat, zoom }, performance.now(), dur, spin);
+      this._fly.onDone = onDone;
+    }
+    this._dirty = true; this._requestFrame();
+    this._syncDebug();
   }
 
-  _onMove(e) {
-    const p = this._ptr;
-    if (!p || p.id !== e.pointerId) return;
-    if (!p.moved && Math.hypot(e.clientX - p.sx, e.clientY - p.sy) > TAP_SLOP_PX) p.moved = true;
-    if (!p.moved) return;
-    const now = performance.now();
-    const dt = Math.max(1, now - p.t);
-    const R = this.renderer.R;
-    const dx = e.clientX - p.x, dy = e.clientY - p.y;
-    const cosLat = Math.max(0.5, Math.cos(this.lat / DEG));
-    const dLon = -(dx / R) * DEG / cosLat;
-    const dLat = (dy / R) * DEG;
+  goHome() { this.flyTo(this.lon, this.lat, 1, { dur: 700 }); this._lastInteract = performance.now() - IDLE_BEFORE_SPIN_MS + 700; }
+  zoomStep(dir) { this.flyTo(this.lon, this.lat, stepZoom(this.zoom, dir), { dur: 260 }); }
+
+  _drag(dx, dy, dt, noMomentum = false) {
+    this._dragged = true;
+    const { dLon, dLat } = dragToDegrees(dx, dy, this.renderer.R, this.zoom, this.lat);
     this.lon = wrapLon(this.lon + dLon);
     this.lat = clampTilt(this.lat + dLat);
-    // smoothed velocity for momentum on release
-    this._vLon = this._vLon * 0.5 + (dLon / dt) * 0.5;
-    this._vLat = this._vLat * 0.5 + (dLat / dt) * 0.5;
-    p.x = e.clientX; p.y = e.clientY; p.t = now; p.lastMove = now;
-    this._lastInteract = now;
-    this._dirty = true;
-    this._requestFrame();
-  }
-
-  _onUp(e, cancelled) {
-    const p = this._ptr;
-    if (!p || p.id !== e.pointerId) return;
-    this._ptr = null;
-    const now = performance.now();
-    this._lastInteract = now;
-    if (cancelled) { this._vLon = this._vLat = 0; return; }
-    if (!p.moved) {
-      this._vLon = this._vLat = 0;
-      this._handleTap(e.clientX, e.clientY);
-    } else {
-      // finger rested before lifting: no fling
-      if (now - (p.lastMove || now) > 90) this._vLon = this._vLat = 0;
-      this._requestFrame();
+    if (!noMomentum) {
+      this._vLon = this._vLon * 0.5 + (dLon / dt) * 0.5;
+      this._vLat = this._vLat * 0.5 + (dLat / dt) * 0.5;
     }
+    this._lastInteract = performance.now();
+    this._dirty = true; this._requestFrame();
   }
 
-  // ── Tap ────────────────────────────────────────────────────────────────────
+  _doubleTap(x, y) {
+    const ll = this._unprojectClient(x, y);
+    if (this.zoom < 2) this.flyTo(ll ? ll.lon : this.lon, ll ? ll.lat : this.lat, 2.8, { dur: 450 });
+    else this.goHome();
+  }
+
+  _unprojectClient(clientX, clientY) {
+    const rect = this.canvas.getBoundingClientRect();
+    const { cx, cy, S } = this.renderer;
+    return unproject((clientX - rect.left - cx) / S, (cy - (clientY - rect.top)) / S, makeView(this.lon, this.lat));
+  }
+
+  // ── Tap + selection ────────────────────────────────────────────────────────
+  _hit(clientX, clientY) {
+    const rect = this.canvas.getBoundingClientRect();
+    const { cx, cy, S } = this.renderer;
+    const nx = (clientX - rect.left - cx) / S, ny = (cy - (clientY - rect.top)) / S;
+    if (nx * nx + ny * ny > 1) return { space: true };
+    const hit = pickCountry(this._countries, makeView(this.lon, this.lat), nx, ny, S, TAP_TOL_PX);
+    return hit ? { country: hit.country } : { ocean: true };
+  }
+
   _handleTap(clientX, clientY) {
     if (!this.renderer || !this._countries) return;
-    const rect = this.canvas.getBoundingClientRect();
-    const { cx, cy, R } = this.renderer;
-    const nx = (clientX - rect.left - cx) / R;
-    const ny = (cy - (clientY - rect.top)) / R;
-    if (nx * nx + ny * ny > 1) return; // tapped space
-    const hit = pickCountry(this._countries, makeView(this.lon, this.lat), nx, ny, R, 28);
-    if (hit) {
-      this._select(hit.country);
-      this._showInfo(`${hit.country.flag} ${hit.country.name}`);
-      speakText(this.configManager, hit.country.name, 1.1);
-    } else {
-      this._select(null);
-      this._showInfo('🌊 Ocean');
-      speakText(this.configManager, 'Ocean', 1.1);
-    }
+    const h = this._hit(clientX, clientY);
+    if (h.space) { this.play.onSpaceTap(); return; }
+    if (this.play.game.active) { this.play.gameTap(h.country || null); return; }
+    this._pulse = null; this.play.onFirstTap();
+    if (h.country) this.selectCountry(h.country, { fly: true });
+    else this.selectOcean();
   }
 
-  _select(country) {
+  /** Select a country: fly to it, pop, card, passport, sound and speech. */
+  selectCountry(country, { fly = true, silent = false } = {}) {
     const now = performance.now();
-    if (this._sel && this._sel.country && country !== this._sel.country) {
-      this._sel = null;
+    const again = this._sel && this._sel.country === country;
+    const a = country.anchor;
+    let popAt = now;
+    if (fly && a) {
+      this.flyTo(a.lon, a.lat, this.zoom, { dur: 600 });
+      popAt = this._fly ? now + 560 : now;
     }
-    if (country) this._sel = { country, born: now, dying: null };
-    this._dirty = true;
+    this._sel = { country, born: now, popAt };
+    const novelty = this.play.visit(country);
+    const names = localisedNames(country, speakableLanguages(this.configManager));
+    const meta = metaFor(country);
+    const more = [];
+    if (meta && meta.capital) more.push(['🏛 CAPITAL', meta.capital]);
+    for (const n of names.slice(1)) more.push([n.code.toUpperCase(), n.name]);
+    this.ui.showCard({ flag: country.flag, name: names[0].name, sub: meta ? meta.continent : '', isNew: novelty.isNew && !again, more });
+    this.ui.announce(`${names[0].name}${meta ? ', ' + meta.continent : ''}`);
+    if (!silent) {
+      if (novelty.isNew && !again) this.audio.popNew(); else this.audio.pop();
+      this.speakNames(names);
+    }
+    this.sparkle(novelty.isNew && !again);
+    this._dirty = true; this._requestFrame();
+    this._syncDebug();
+  }
+
+  selectOcean() {
+    this._sel = null;
+    this.ui.showCard({ flag: '🌊', name: 'Ocean', sub: '', more: [] });
+    this.ui.announce('Ocean');
+    this.audio.pop();
+    speakText(this.configManager, 'Ocean', 1.1, 'en-US');
+    this._dirty = true; this._requestFrame();
+  }
+
+  speakNames(names) {
+    names.forEach((n, i) => speakText(this.configManager, n.name, 1.1, n.lang, i > 0));
+  }
+
+  sparkle(big) {
+    const { cx, cy } = this.renderer;
+    const reduced = this.reducedMotion();
+    this.particles.burst(cx, cy, reduced ? 6 : big ? 36 : 14, big ? 1 : 0, big ? 0.22 : 0.14);
     this._requestFrame();
   }
 
-  _showInfo(text) {
-    clearTimeout(this._infoTimer);
-    this.infoPanel.textContent = text;
-    this.infoPanel.style.opacity = '1';
-    this._infoTimer = setTimeout(() => {
-      this.infoPanel.style.opacity = '0';
-      if (this._sel) this._sel.dying = performance.now();
-      this._requestFrame();
-    }, INFO_MS);
-  }
-
-  _selectionAmount(now) {
-    const s = this._sel;
-    if (!s) return 0;
-    if (s.dying !== null) {
-      const f = 1 - (now - s.dying) / FADE_MS;
-      if (f <= 0) { this._sel = null; this._dirty = true; return 0; }
-      return f;
-    }
-    const age = now - s.born;
-    return Math.min(1, age / 150) * (0.85 + 0.15 * Math.sin(age / 220));
-  }
+  toggleMore() { this.ui.setExpanded(!this.ui.expanded); this._poke(); }
 
   // ── Frame loop (runs only while something is moving) ──────────────────────
   _requestFrame() {
     if (this._raf || !this._visible) return;
     this._raf = requestAnimationFrame(this._frame);
   }
+  _stopLoop() { if (this._raf) { cancelAnimationFrame(this._raf); this._raf = 0; } }
 
-  _stopLoop() {
-    if (this._raf) { cancelAnimationFrame(this._raf); this._raf = 0; }
+  _selState(now) {
+    const s = this._sel;
+    if (!s) return null;
+    const t = now - s.popAt;
+    const amount = Math.min(1, (now - s.born) / 160);
+    const scale = t > 0 && t < 450 ? 1 + 0.09 * Math.sin((Math.PI * t) / 450) : 1;
+    return { country: s.country, amount, scale, active: now - s.born < 200 || t < 480 };
   }
 
   _onFrame(now) {
@@ -288,8 +317,15 @@ export class GlobeToy {
     this._last = now;
     let moving = false;
 
-    if (this._ptr) {
-      moving = false; // drag redraws are event-driven via _dirty
+    if (this._fly) {
+      const f = this._fly;
+      const done = sampleFly(f, now, this._tmp);
+      this.lon = this._tmp.lon; this.lat = this._tmp.lat;
+      if (Math.abs(this._tmp.zoom - this.zoom) > 1e-4) this._setZoom(this._tmp.zoom);
+      this._dirty = true; moving = true;
+      if (done) { this._fly = null; this._flyEnd = now; if (f.onDone) f.onDone(); }
+    } else if (this.tracker.pointerCount > 0) {
+      moving = false;
     } else if (Math.abs(this._vLon) > MIN_VELOCITY || Math.abs(this._vLat) > MIN_VELOCITY) {
       this.lon = wrapLon(this.lon + this._vLon * dt);
       this.lat = clampTilt(this.lat + this._vLat * dt);
@@ -299,27 +335,63 @@ export class GlobeToy {
       this._dirty = true; moving = true;
     } else {
       this._vLon = this._vLat = 0;
-      if (this.autoSpin) {
-        if (now - this._lastInteract > IDLE_BEFORE_SPIN_MS) {
-          this.lon = wrapLon(this.lon + SPIN_DEG_PER_MS * dt);
-          this._dirty = true;
+      if (this.autoSpin && !this.reducedMotion() && this.play.canSpin()) {
+        const idle = now - this._lastInteract;
+        if (idle > IDLE_BEFORE_SPIN_MS) {
+          this.lon = wrapLon(this.lon + SPIN_DEG_PER_MS * dt * (this.zoom > 1 ? 1 / this.zoom : 1));
+          this._dirty = true; moving = true;
+        } else {
+          this.cancel(this._idle.spin);
+          this._idle.spin = this.after(IDLE_BEFORE_SPIN_MS - idle + 20, () => this._requestFrame());
         }
-        moving = true; // keep ticking (cheap) until the idle delay elapses
       }
     }
 
-    const amount = this._selectionAmount(now);
-    if (this._sel) { this._dirty = true; moving = true; }
+    const sel = this._selState(now);
+    if (sel && sel.active) { moving = true; this._dirty = true; }
+    if (this.particles.active) { this.particles.update(dt); moving = true; this._dirty = true; }
+    let pulse = null;
+    if (this._pulse && now < this._pulse.until) {
+      pulse = { country: this._pulse.country, amount: 0.5 + 0.5 * Math.sin(now / 280) };
+      moving = true; this._dirty = true;
+    } else if (this._pulse) { this._pulse = null; this._dirty = true; }
+
+    const interacting = this.tracker.pointerCount > 0 || !!this._fly || Math.abs(this._vLon) > MIN_VELOCITY || Math.abs(this._vLat) > MIN_VELOCITY;
+    if (this.renderer.setQuality(interacting)) this._dirty = true;
 
     if (this._dirty) {
       this._dirty = false;
-      this.renderer.draw(makeView(this.lon, this.lat), this._countries,
-        { country: this._sel ? this._sel.country : null, amount });
+      const view = makeView(this.lon, this.lat);
+      const r = this.renderer;
+      const labels = layoutLabels({ view, S: r.S, cx: r.cx, cy: r.cy, w: r.w, h: r.h, zoom: this.zoom,
+        scale: this.layout ? this.layout.labelScale : 1, countries: this._countries });
+      r.draw(view, this._countries, sel, { pulse, labels, particles: this.particles });
     }
-    if (moving || this._dirty) {
+    if (moving) {
       this._raf = requestAnimationFrame(this._frame);
     } else {
       this._last = 0;
+      this._syncDebug();
     }
+  }
+
+  /** Cheap state mirror for tests/devtools (written only when the view is at rest). */
+  _syncDebug() {
+    const d = this.container && this.container.dataset;
+    if (!d) return;
+    d.lon = this.lon.toFixed(2); d.lat = this.lat.toFixed(2); d.zoom = this.zoom.toFixed(2);
+    d.selected = this._sel ? this._sel.country.name : '';
+    d.selLon = this._sel && this._sel.country.anchor ? this._sel.country.anchor.lon.toFixed(2) : '';
+    d.selLat = this._sel && this._sel.country.anchor ? this._sel.country.anchor.lat.toFixed(2) : '';
+    d.game = this.play.game.active ? (this.play.game.target ? this.play.game.target.name : '') : '';
+    const gt = this.play.game.active && this.play.game.target;
+    d.gameLon = gt ? gt.anchor.lon.toFixed(2) : ''; d.gameLat = gt ? gt.anchor.lat.toFixed(2) : '';
+    d.pulse = this._pulse ? this._pulse.country.name : '';
+    d.flying = this._fly ? '1' : '0';
+  }
+
+  distanceTo(country) {
+    const a = country.anchor;
+    return a ? angularDistance(this.lon, this.lat, a.lon, a.lat) : Math.PI;
   }
 }
