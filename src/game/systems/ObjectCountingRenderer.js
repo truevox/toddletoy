@@ -155,7 +155,6 @@ export class ObjectCountingRenderer {
 
         // Calculate grid dimensions
         const gridWidth = gridLayout.columns * this.emojiSize;
-        const gridHeight = gridLayout.rows * this.spacing.vertical;
         const startX = centerX - (gridWidth / 2) + (this.emojiSize / 2);
         const startY = centerY;
 
@@ -349,7 +348,7 @@ export class ObjectCountingRenderer {
         });
     }
     
-    playCountingSound(currentNumber, totalCount) {
+    playCountingSound(currentNumber) {
         // Create a pleasant counting tone that gets higher with each number
         if (this.scene.audioManager && this.scene.audioManager.audioContext) {
             try {

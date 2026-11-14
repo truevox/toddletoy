@@ -7,7 +7,7 @@
 /**
  * Get default configuration for new users
  */
-export function getDefaults(manager) {
+export function getDefaults() {
     return {
         content: {
             shapes: { enabled: true, weight: 25 },

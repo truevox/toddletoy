@@ -150,8 +150,6 @@ export class LanguageSection {
         let hasMoved = false;
         let dragOffset = { x: 0, y: 0 };
         let dragElement = null;
-        let originalParent = null;
-        let originalNextSibling = null;
         let startX = 0;
         let startY = 0;
 
@@ -161,8 +159,6 @@ export class LanguageSection {
 
             isDragging = true;
             hasMoved = false;
-            originalParent = item.parentNode;
-            originalNextSibling = item.nextElementSibling;
 
             const rect = item.getBoundingClientRect();
             const clientX = e.clientX || (e.touches && e.touches[0].clientX);

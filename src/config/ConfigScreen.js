@@ -3,10 +3,7 @@
  * Provides intuitive controls for content selection, weights, and settings
  */
 import { HelpSystem } from './HelpSystem.js';
-import { PLATFORMS } from './constants.js';
 import { safeStorage } from '../utils/safeStorage.js';
-import { detectPlatform, detectPWAInstalled } from '../utils/platformUtils.js';
-import { getLanguageFlag, getDifficultyLevel, getDifficultyText, getDefaultRank, getDefaultHours } from '../utils/languageUtils.js';
 import { PlayingTips } from './ui/PlayingTips.js';
 import { ContentTypes } from './ui/ContentTypes.js';
 import { EmojiCategories } from './ui/EmojiCategories.js';

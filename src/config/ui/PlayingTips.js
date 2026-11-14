@@ -36,18 +36,16 @@ export class PlayingTips {
     /**
      * Attach event listeners for this section
      * Note: Start playing button is handled by the ConfigScreen orchestrator
-     * @param {Function} onStartPlaying - Callback for start button click
      */
-    attachEventListeners(onStartPlaying) {
+    attachEventListeners() {
         // The start button listener is attached by ConfigScreen
         // This section has no internal configuration state
     }
 
     /**
      * Load configuration (no-op for this section)
-     * @param {Object} config - Configuration object (unused)
      */
-    loadConfig(config) {
+    loadConfig() {
         // This section has no configuration state
     }
 

@@ -85,7 +85,7 @@ export class SceneInputHandler {
         }
     }
 
-    onInputPointerUp(data) {
+    onInputPointerUp() {
         this.scene.awaitingSpawnInputRelease = false;
         if (this.scene.isDragging && this.scene.draggedObject) {
             this.scene.stopDragging();
@@ -95,10 +95,8 @@ export class SceneInputHandler {
     /**
      * Start dragging an object with visual feedback
      * @param {Object} obj - The object to start dragging
-     * @param {number} x - Current pointer X position
-     * @param {number} y - Current pointer Y position
      */
-    startDragging(obj, x, y) {
+    startDragging(obj) {
         if (!obj || !obj.active) return;
 
         // Don't cancel smooth movements - let finger movement naturally take over
@@ -152,7 +150,7 @@ export class SceneInputHandler {
     }
 
     async onInputKeyPress(data) {
-        const { key, position } = data;
+        const { position } = data;
 
         if (!this.scene.speechManager.getIsSpeaking()) {
             if (!this.scene.canSpawnAfterMovement()) {
@@ -172,7 +170,7 @@ export class SceneInputHandler {
         }
     }
 
-    onInputKeyRelease(data) {
+    onInputKeyRelease() {
         this.scene.awaitingSpawnInputRelease = false;
     }
 
@@ -191,15 +189,15 @@ export class SceneInputHandler {
         }
     }
 
-    onInputGamepadButtonUp(data) {
+    onInputGamepadButtonUp() {
         this.scene.awaitingSpawnInputRelease = false;
     }
 
-    onInputGamepadMove(data) {
+    onInputGamepadMove() {
         // Handle gamepad movement if needed
     }
 
-    onInputHoldStart(data) {
+    onInputHoldStart() {
         // Handle hold start if needed
     }
 
