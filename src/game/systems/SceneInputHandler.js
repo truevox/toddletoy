@@ -120,7 +120,7 @@ export class SceneInputHandler {
         this.scene.draggedObject = obj;
 
         // Visual feedback: scale up slightly for modern feel
-        this.scene.scene.tweens.add({
+        this.scene.tweens.add({
             targets: obj,
             scaleX: 1.15,
             scaleY: 1.15,
@@ -143,7 +143,7 @@ export class SceneInputHandler {
         const obj = this.scene.draggedObject;
 
         // Visual feedback: scale back to normal
-        this.scene.scene.tweens.add({
+        this.scene.tweens.add({
             targets: obj,
             scaleX: 1.0,
             scaleY: 1.0,

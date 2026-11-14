@@ -61,43 +61,23 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - Cistercian numerals appear 5-10 pixels higher than current position  
 - Cistercian numerals properly combine glyphs for compound numbers (e.g., "1qdb 2grm" creates two combined glyphs with space between)
 
-### Phase 18: Code Refactoring (High Priority)
+### Phase 18: Code Refactoring (Mostly complete — v1.0.79)
 
-**Goal**: Refactor large files to follow the "wide and shallow" principle (files kept under 300 lines) for better maintainability and separation of concerns.
+**Goal**: Refactor large files to follow the "wide and shallow" principle (files kept under ~300 lines).
 
-**Files Requiring Refactoring:**
-- `/src/game.js` - 2,640 lines (needs major refactoring)
-- `/src/config/ConfigScreen.js` - 1,864 lines (needs refactoring)
-- `/src/config/ConfigManager.js` - 397 lines (over limit)
+**Done (v1.0.79, behaviour-preserving, all unit tests unchanged and green):**
+- [x] `src/game.js` 1,705 → 391 lines. Extracted to `src/game/`: `systems/GridModeController.js`, `systems/ContentSelector.js`, `systems/GameStateStore.js`, `systems/SceneInputHandler.js`, `systems/NumberModeRenderer.js`, `objects/ObjectFactory.js`, `objects/ObjectLifecycle.js`, `ResponsiveGameManager.js`. `GameScene` keeps one-line delegators so existing tests/spies still work.
+- [x] `src/config/ConfigScreen.js` 893 → 349 lines (`ui/ConfigForm.js`, `ui/ConfigEvents.js`, `ui/PWAInstall.js`)
+- [x] `src/config/HelpSystem.js` 666 → 153 lines (`help/HelpTopics.js`, `help/HelpModals.js`, `help/DocViewer.js`, `help/HelpIcons.js`)
+- [x] `src/config/ConfigManager.js` 524 → 275 lines (`manager/ConfigDefaults.js`, `ConfigMigration.js`, `ConfigValidation.js`, `ConfigWeights.js`)
+- [x] ESLint config added (`.eslintrc.cjs`); `npm run lint` passes with 0 errors
+- [x] Fixed drag bug found during browser verification (v1.0.81): drag start/stop used `scene.scene.tweens` and threw on every drag
 
-#### Phase 18.1: Game.js Refactoring (High Priority)
-- [ ] Write tests for all game.js methods to enable safe refactoring
-- [ ] Extract audio system to `src/audio/AudioManager.js`
-- [ ] Extract input handling to `src/input/InputManager.js`
-- [ ] Extract rendering system to `src/rendering/RenderManager.js`
-- [ ] Extract object management to `src/objects/ObjectManager.js`
-- [ ] Extract speech system to `src/speech/SpeechManager.js`
-- [ ] Create proper module imports/exports for all extracted systems
-- [ ] Update tests to work with new modular structure
-- [ ] Ensure all 165 unit tests continue passing after refactoring
-
-#### Phase 18.2: ConfigScreen.js Refactoring (Medium Priority)
-- [ ] Extract form section builders to separate methods
-- [ ] Create UI component classes for reusable elements
-- [ ] Split large rendering methods into smaller focused methods
-- [ ] Extract styling to separate CSS module
-- [ ] Ensure configuration functionality remains intact
-
-#### Phase 18.3: ConfigManager.js Optimization (Low Priority)
-- [ ] Review and optimize validation logic
-- [ ] Extract migration logic to separate module if needed
-- [ ] Ensure clean separation between data management and business logic
-
-**Expected Outcome**: 
-- All source files under 300 lines following "wide and shallow" principle
-- Better separation of concerns and modularity
-- Easier maintenance and testing
-- Preserved functionality with all tests passing
+**Remaining:**
+- [ ] Files still over ~300 lines: `DocumentationContent.js` (614, mostly content), `ui/AdvancedSection.js` (520), `ui/LanguageSection.js` (499), `systems/ObjectCountingRenderer.js` (469), `toys/GlobeToy.js` (360), `objects/ObjectManager.js` (355), `positioning/PositioningSystem.js` (343), `toys/OrreryToy.js` (336), `systems/SpeechManager.js` (328), `ui/ConfigForm.js` (313), `ConfigScreen.js` (349), `game.js` (391)
+- [ ] Clean up the ~43 `no-unused-vars` lint warnings
+- [ ] Null-guard element lookups in `ui/ConfigEvents.js` / `ui/ConfigForm.js` (pre-existing: throw if an expected element is missing)
+- [ ] `game.js create()` calls `restoreGameState()` before data preload finishes and relies on setTimeout polling (pre-existing)
 
 ---
 
@@ -527,7 +507,7 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 
 - Following TDD: Write failing test first, implement minimal code to pass, commit, repeat
 - Each feature tested independently
-- Code files kept under 300 lines (VIOLATION: game.js=2640, ConfigScreen.js=1864, ConfigManager.js=397)
+- Code files kept under 300 lines (see Phase 18 "Remaining" for the files still over)
 - Need to develop an optional "Grid" mode that makes a grid (larger or smaller depending on screen size) with an array of things for the baby to poke and make voice. Things don't move in grid mode. Must discuss.
 - Frequent commits with clear messages
 - All tests passing ✅
@@ -535,4 +515,4 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 
 ---
 
-**🎯 Current Focus**: Code refactoring and numeral positioning fixes are the highest priority tasks to tackle next.
+**🎯 Current Focus**: Numeral positioning fixes (Phase 14) and the remaining Phase 18 cleanup are the highest priority tasks to tackle next.
