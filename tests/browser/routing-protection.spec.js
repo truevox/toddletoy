@@ -136,6 +136,7 @@ test.describe('Sandbox is locked while playing', () => {
         await enterSandbox(page);
         await page.goBack();
         await expect(page).toHaveURL(/\/toy$/);
+        await page.waitForTimeout(500); // let Phaser apply its queued scene pause
         await tapSpawn(page, 0.5, 0.5);
     });
 

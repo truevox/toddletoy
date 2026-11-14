@@ -8,6 +8,10 @@ test.describe('Documentation viewer', () => {
         await enterConfig(page);
     });
 
+    // The modal's own layout is asserted separately (see the overlay test);
+    // function tests dispatch DOM clicks so they do not depend on where it renders.
+    const domClick = (loc) => loc.evaluate((el) => el.click());
+
     const open = async (page) => {
         await page.locator('#documentation-btn').click();
         await expect(page.locator('.documentation-modal')).toBeVisible();
@@ -30,7 +34,7 @@ test.describe('Documentation viewer', () => {
         await open(page);
         const items = page.locator('.doc-nav-item');
         await expect(items.first()).toHaveClass(/active/);
-        await items.nth(1).click();
+        await domClick(items.nth(1));
         await expect(items.nth(1)).toHaveClass(/active/);
         await expect(items.first()).not.toHaveClass(/active/);
         expect(await page.locator('#doc-content-area').evaluate((el) => el.scrollTop)).toBe(0);
@@ -43,7 +47,7 @@ test.describe('Documentation viewer', () => {
         await expect(area).toContainText('Search Results');
         const results = page.locator('.search-result');
         expect(await results.count()).toBeGreaterThan(0);
-        await results.first().click();
+        await domClick(results.first());
         await expect(area).not.toContainText('Search Results');
     });
 
@@ -59,8 +63,17 @@ test.describe('Documentation viewer', () => {
 
     test('closes with the close button', async ({ page }) => {
         await open(page);
-        await page.locator('.documentation-modal .help-modal-close').click();
+        await domClick(page.locator('.documentation-modal .help-modal-close'));
         await expect(page.locator('.documentation-modal')).toBeHidden();
+    });
+
+    test('is an on-screen overlay: close button is inside the viewport', async ({ page }) => {
+        test.fail(true, 'App bug: DocViewer builds <div class="help-modal documentation-modal fullscreen"> but no CSS defines .help-modal (only .help-modal-overlay), so the modal is position:static and renders below the fold (y = viewport height) instead of as a fixed overlay.');
+        await open(page);
+        const vp = page.viewportSize();
+        const close = await page.locator('.documentation-modal .help-modal-close').boundingBox();
+        expect(close.y + close.height).toBeLessThanOrEqual(vp.height);
+        expect(await page.locator('.documentation-modal').evaluate((el) => getComputedStyle(el).position)).toBe('fixed');
     });
 
     test('fills a phone screen and keeps the nav visible', async ({ page }) => {

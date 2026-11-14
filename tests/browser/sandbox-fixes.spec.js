@@ -55,11 +55,12 @@ test.describe('Sandbox regressions', () => {
             await enterSandbox(page);
             expect(await page.evaluate(() => typeof window.speechSynthesis)).toBe('undefined');
             for (let i = 0; i < 3; i++) {
+                // The app's fallback speech lock lasts a few seconds without the API;
+                // wait for it to release, as a child's next tap would.
+                await waitForSpawnReady(page, 15000);
                 const before = await objectCount(page);
                 await clickCanvas(page, 0.2 + i * 0.3, 0.5);
                 await waitForObjectCount(page, before + 1);
-                // taps in a real session are seconds apart
-                await page.waitForTimeout(2500);
             }
             expect(await objectCount(page)).toBe(3);
             expect(c.pageErrors).toEqual([]);
