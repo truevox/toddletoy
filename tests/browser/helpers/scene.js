@@ -89,6 +89,15 @@ export async function tapFreeSpot(page) {
     const before = await objectCount(page);
     const o = await canvasPoint(page, 0, 0);
     await page.mouse.click(o.x + spot.x, o.y + spot.y);
-    await waitForObjectCount(page, before + 1);
+    try {
+        await waitForObjectCount(page, before + 1, 6000);
+    } catch (e) {
+        const st = await page.evaluate(() => {
+            const s = window.appRoutes.getGameScene();
+            return { n: s.objects.length, speaking: s.speechManager.getIsSpeaking(), dragging: s.isDragging,
+                paused: s.scene.isPaused(), W: s.scale.width, H: s.scale.height };
+        });
+        throw new Error(`free-spot tap at ${JSON.stringify(spot)} did not spawn (had ${before}): ${JSON.stringify(st)}`);
+    }
     return lastObject(page);
 }

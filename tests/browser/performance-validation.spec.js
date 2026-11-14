@@ -12,6 +12,8 @@ import { tapFreeSpot } from './helpers/scene.js';
 test.describe('Performance budgets', () => {
     test.beforeEach(async ({ context }) => {
         await skipOnboarding(context);
+        // default idle auto-cleanup (10s) would reap objects mid-test
+        await seedConfig(context, { advanced: { autoCleanup: { enabled: false } } });
     });
 
     test('time to interactive: selector < 5s, START -> live scene < 6s', async ({ page }) => {
@@ -83,6 +85,8 @@ test.describe('Performance budgets', () => {
 test.describe('Resource management', () => {
     test.beforeEach(async ({ context }) => {
         await skipOnboarding(context);
+        // default idle auto-cleanup (10s) would reap objects mid-test
+        await seedConfig(context, { advanced: { autoCleanup: { enabled: false } } });
     });
 
     const census = (page) => page.evaluate(() => {

@@ -59,8 +59,10 @@ export async function seedConfig(context, partialConfig, { onboarding = false, r
     await context.addInitScript(
         ({ partialConfig, onboarding, raw, CONFIG_KEY, ONBOARDING_KEY }) => {
             try {
-                if (sessionStorage.getItem('__seeded')) return;
-                sessionStorage.setItem('__seeded', '1');
+                // one application per distinct seed (later seeds override earlier ones)
+                const guard = '__seeded:' + JSON.stringify([partialConfig, onboarding, raw]);
+                if (sessionStorage.getItem(guard)) return;
+                sessionStorage.setItem(guard, '1');
                 if (!onboarding) localStorage.setItem(ONBOARDING_KEY, 'true');
                 if (raw !== null) localStorage.setItem(CONFIG_KEY, raw);
                 else if (partialConfig) localStorage.setItem(CONFIG_KEY, JSON.stringify(partialConfig));
@@ -154,16 +156,27 @@ export async function waitForObjectCount(page, n, timeout = 10000) {
  * post-movement/post-spawn input locks released.
  */
 export async function waitForSpawnReady(page, timeout = 10000) {
-    await page.waitForFunction(
-        () => {
+    try {
+        await page.waitForFunction(
+            () => {
+                const s = window.appRoutes?.getGameScene?.();
+                if (!s || s.speechManager.getIsSpeaking()) return false;
+                if (s.awaitingSpawnInputRelease) return false;
+                return s.canSpawnAfterMovement ? s.canSpawnAfterMovement() : true;
+            },
+            null,
+            { timeout }
+        );
+    } catch (e) {
+        const state = await page.evaluate(() => {
             const s = window.appRoutes?.getGameScene?.();
-            if (!s || s.speechManager.getIsSpeaking()) return false;
-            if (s.awaitingSpawnInputRelease) return false;
-            return s.canSpawnAfterMovement ? s.canSpawnAfterMovement() : true;
-        },
-        null,
-        { timeout }
-    );
+            return s && {
+                speaking: s.speechManager.getIsSpeaking(), awaitingRelease: s.awaitingSpawnInputRelease,
+                canSpawn: s.canSpawnAfterMovement(), n: s.objects.length, dragging: s.isDragging,
+            };
+        }).catch(() => null);
+        throw new Error(`scene never became ready for a spawn within ${timeout}ms: ${JSON.stringify(state)}`);
+    }
 }
 
 const SUMMARISE = `(o) => ({

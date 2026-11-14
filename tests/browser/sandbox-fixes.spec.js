@@ -10,6 +10,8 @@ import {
 test.describe('Sandbox regressions', () => {
     test.beforeEach(async ({ context }) => {
         await skipOnboarding(context);
+        // default idle auto-cleanup (10s) would reap objects mid-test
+        await seedConfig(context, { advanced: { autoCleanup: { enabled: false } } });
     });
 
     test('a heart shape spawns without an "Error spawning object"', async ({ page }) => {
