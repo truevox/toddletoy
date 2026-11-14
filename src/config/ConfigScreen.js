@@ -79,6 +79,13 @@ export class ConfigScreen {
                         <span class="title-letter t">T</span><span class="title-letter o1">o</span><span class="title-letter d1">d</span><span class="title-letter d2">d</span><span class="title-letter l">l</span><span class="title-letter e">e</span><span class="title-letter t2">T</span><span class="title-letter o2">o</span><span class="title-letter y">y</span>
                     </h1>
                     <p class="config-subtitle">Configure your child's learning experience</p>
+                    <div class="quick-start">
+                        <button class="start-button" id="start-playing-btn-header">
+                            ▶️ START PLAYING
+                        </button>
+                        <p class="quick-start-note">The settings below are ready to go. Scroll down any time to change them.</p>
+                        <button class="back-to-toys-button" id="back-to-toys-btn" type="button">← All toys</button>
+                    </div>
                 </header>
 
                 <main class="config-main">

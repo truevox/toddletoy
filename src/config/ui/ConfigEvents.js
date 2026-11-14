@@ -20,14 +20,16 @@ export function addEventListeners(screen) {
     }
 
     // Start playing buttons (top and bottom)
-    const startBtnTop = screen.container.querySelector('#start-playing-btn-top');
-    const startBtnBottom = screen.container.querySelector('#start-playing-btn-bottom');
+    screen.container.querySelectorAll('.start-button').forEach((btn) => {
+        btn.addEventListener('click', () => screen.startPlaying());
+    });
 
-    if (startBtnTop) {
-        startBtnTop.addEventListener('click', () => screen.startPlaying());
-    }
-    if (startBtnBottom) {
-        startBtnBottom.addEventListener('click', () => screen.startPlaying());
+    // Back to the toy selector
+    const backToToysBtn = screen.container.querySelector('#back-to-toys-btn');
+    if (backToToysBtn) {
+        backToToysBtn.addEventListener('click', () => {
+            if (screen.router) screen.router.navigate('/');
+        });
     }
 
     // Reset/Undo button
