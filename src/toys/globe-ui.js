@@ -101,6 +101,7 @@ export class GlobeUI {
   applyLayout(w, h) {
     const l = this.layout = computeLayout(w, h, this.readInsets());
     const px = n => Math.round(n) + 'px';
+    this.root.classList.toggle('gt-land', l.landscape);
     this.back.style.left = px(l.back.left); this.back.style.top = px(l.back.top);
     const z = this.zoomBox.style;
     z.right = px(l.zoom.right); z.top = px(l.zoom.top); z.flexDirection = l.zoom.horizontal ? 'row' : 'column';

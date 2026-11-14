@@ -335,7 +335,7 @@ export class GlobeToy {
       this._dirty = true; moving = true;
     } else {
       this._vLon = this._vLat = 0;
-      if (this.autoSpin && this.play.canSpin()) {
+      if (this.autoSpin && !this.reducedMotion() && this.play.canSpin()) {
         const idle = now - this._lastInteract;
         if (idle > IDLE_BEFORE_SPIN_MS) {
           this.lon = wrapLon(this.lon + SPIN_DEG_PER_MS * dt * (this.zoom > 1 ? 1 / this.zoom : 1));
@@ -355,6 +355,9 @@ export class GlobeToy {
       pulse = { country: this._pulse.country, amount: 0.5 + 0.5 * Math.sin(now / 280) };
       moving = true; this._dirty = true;
     } else if (this._pulse) { this._pulse = null; this._dirty = true; }
+
+    const interacting = this.tracker.pointerCount > 0 || !!this._fly || Math.abs(this._vLon) > MIN_VELOCITY || Math.abs(this._vLat) > MIN_VELOCITY;
+    if (this.renderer.setQuality(interacting)) this._dirty = true;
 
     if (this._dirty) {
       this._dirty = false;

@@ -6,9 +6,9 @@ export const GLOBE_CSS = `
 #globe-toy .gt-main:focus-visible{outline:3px solid #ffe36e;outline-offset:-3px}
 #globe-toy button{font-family:inherit;cursor:pointer;color:#fff;-webkit-appearance:none;appearance:none}
 #globe-toy button:focus-visible{outline:3px solid #ffe36e;outline-offset:3px}
-#globe-toy .gt-back{position:absolute;min-height:48px;min-width:48px;padding:0 20px;border-radius:30px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.32);font-size:1rem;z-index:10;backdrop-filter:blur(4px)}
+#globe-toy .gt-back{position:absolute;min-height:48px;min-width:48px;padding:0 20px;border-radius:30px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.32);font-size:1rem;z-index:10}
 #globe-toy .gt-zoom{position:absolute;display:flex;gap:8px;z-index:10}
-#globe-toy .gt-z{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.34);font-size:1.7rem;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+#globe-toy .gt-z{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.34);font-size:1.7rem;line-height:1;padding:0;display:flex;align-items:center;justify-content:center}
 #globe-toy .gt-z:disabled{opacity:.35;cursor:default}
 #globe-toy .gt-play{position:absolute;display:flex;gap:22px;justify-content:center;align-items:center;z-index:10}
 #globe-toy .gt-btn{position:relative;width:60px;height:60px;border-radius:50%;border:3px solid rgba(255,255,255,.85);font-size:1.9rem;line-height:1;padding:0;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.45);transition:transform .12s}
@@ -18,12 +18,14 @@ export const GLOBE_CSS = `
 #globe-toy .gt-pass-btn{background:linear-gradient(145deg,#2fc8b6,#2b8fd6)}
 #globe-toy .gt-find.gt-on{box-shadow:0 0 0 5px rgba(255,227,110,.75),0 4px 14px rgba(0,0,0,.45)}
 #globe-toy .gt-badge{position:absolute;right:-6px;top:-8px;min-width:26px;height:26px;padding:0 6px;border-radius:13px;background:#fff;color:#16335c;font-size:.85rem;font-weight:800;display:flex;align-items:center;justify-content:center;box-sizing:border-box;box-shadow:0 2px 6px rgba(0,0,0,.4)}
-#globe-toy .gt-card{position:absolute;box-sizing:border-box;background:rgba(8,18,46,.86);border:1px solid rgba(255,255,255,.26);border-radius:22px;padding:10px 14px;z-index:9;overflow-y:auto;overscroll-behavior:contain;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(8px);transition:opacity .25s,transform .25s,visibility 0s .25s;backdrop-filter:blur(6px)}
+#globe-toy .gt-card{position:absolute;box-sizing:border-box;background:rgba(8,18,46,.86);border:1px solid rgba(255,255,255,.26);border-radius:22px;padding:10px 14px;z-index:9;overflow-y:auto;overscroll-behavior:contain;opacity:0;visibility:hidden;pointer-events:none;transform:translateY(8px);transition:opacity .25s,transform .25s,visibility 0s .25s}
 #globe-toy .gt-card.gt-show{opacity:1;visibility:visible;pointer-events:auto;transform:none;transition:opacity .25s,transform .25s}
 #globe-toy .gt-card-main{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;padding:0;text-align:left;font-size:inherit;min-height:56px}
 #globe-toy .gt-flag{font-size:clamp(2.6rem,12vw,3.6rem);line-height:1;flex:none;font-family:"Noto Color Emoji","Apple Color Emoji","Segoe UI Emoji",sans-serif}
 #globe-toy .gt-text{min-width:0;flex:1}
-#globe-toy .gt-name{font-size:clamp(1.3rem,5.4vw,2rem);font-weight:800;line-height:1.12;overflow-wrap:anywhere;hyphens:auto}
+#globe-toy .gt-name{font-size:clamp(1.3rem,5.4vw,2rem);font-weight:800;line-height:1.12;overflow-wrap:break-word;hyphens:auto}
+#globe-toy.gt-land .gt-flag{font-size:2.5rem}
+#globe-toy.gt-land .gt-name{font-size:clamp(1.15rem,2.2vw,1.6rem)}
 #globe-toy .gt-sub{font-size:clamp(.85rem,3.4vw,1.05rem);color:rgba(255,255,255,.72);margin-top:3px;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center}
 #globe-toy .gt-chip{display:inline-block;border:1px solid rgba(255,255,255,.5);border-radius:14px;padding:2px 10px;font-size:.8rem;color:#fff}
 #globe-toy .gt-new{display:inline-block;background:#ffe36e;color:#4a3300;border-radius:12px;padding:1px 9px;font-weight:800;font-size:.8rem}

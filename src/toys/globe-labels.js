@@ -80,15 +80,15 @@ export function layoutLabels(st) {
   const contA = 1 - smoothstep(1.15, 1.9, zoom);
   const ctryA = smoothstep(1.35, 2.0, zoom);
   let n = 0;
-  const margin = 16;
+  const margin = 14;
 
   const place = (text, ux, uy, uz, alpha, size, kind, minZ) => {
     const a = ux * cl + uy * sl;
     const z = sp * uz + cp * a;
     if (z < minZ) return false;
     const x = cx + S * (uy * cl - ux * sl), y = cy - S * (cp * uz - sp * a);
-    if (x < margin || x > w - margin || y < margin || y > h - margin) return false;
     const tw = textWidth(text, size);
+    if (x - tw / 2 < 6 || x + tw / 2 > w - 6 || y < margin || y > h - margin) return false;
     if (overlaps(pool, n, x, y, tw, size)) return false;
     const o = pool[n++];
     o.text = text; o.x = x; o.y = y; o.size = size; o.kind = kind; o.w = tw;

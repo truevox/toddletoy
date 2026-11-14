@@ -6,6 +6,7 @@
 import { RAD } from './globe-math.js';
 
 const TWO_PI = Math.PI * 2;
+const LOW_DPR = 1;            // backing-store scale while the user moves the globe (fill-rate saver; full DPR at rest)
 const ARC_STEP = 4 * RAD;            // limb arc resolution
 const OUTLINE = 'rgba(14, 34, 66, 0.72)';
 
@@ -14,7 +15,7 @@ export class GlobeRenderer {
     this.bg = bgCanvas;
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
-    this.w = 0; this.h = 0; this.dpr = 1;
+    this.w = 0; this.h = 0; this.dpr = 1; this.dprFull = 1; this.low = false;
     this.cx = 0; this.cy = 0; this.R = 0; this.zoom = 1; this.S = 0; this.visAng = Math.PI / 2;
     this._X = new Float32Array(1024);
     this._Y = new Float32Array(1024);
@@ -24,11 +25,10 @@ export class GlobeRenderer {
 
   /** Size both canvases (CSS px + dpr) and repaint the static background. */
   resize(w, h, dpr, cx = w / 2, cy = h / 2, R = Math.max(40, 0.43 * Math.min(w, h))) {
-    this.w = w; this.h = h; this.dpr = dpr;
-    for (const c of [this.bg, this.canvas]) {
-      c.width = Math.max(1, Math.round(w * dpr));
-      c.height = Math.max(1, Math.round(h * dpr));
-    }
+    this.w = w; this.h = h; this.dprFull = dpr; this.dpr = this.low ? Math.min(dpr, LOW_DPR) : dpr;
+    this.bg.width = Math.max(1, Math.round(w * dpr)); this.bg.height = Math.max(1, Math.round(h * dpr));
+    this.canvas.width = Math.max(1, Math.round(w * this.dpr)); this.canvas.height = Math.max(1, Math.round(h * this.dpr));
+    this._bgDpr = dpr;
     this.cx = cx; this.cy = cy; this.R = R;
     this.setZoom(this.zoom);
     this._paintBackground();
@@ -43,10 +43,23 @@ export class GlobeRenderer {
     this.visAng = far >= this.S ? Math.PI / 2 : Math.min(Math.PI / 2, Math.asin(far / this.S) + 0.02);
   }
 
+  /** Drop the main canvas to a lower resolution while the user is moving the globe. Returns true if it changed. */
+  setQuality(low) {
+    if (low === this.low) return false;
+    this.low = low;
+    const d = low ? Math.min(this.dprFull, LOW_DPR) : this.dprFull;
+    if (d === this.dpr) return false;
+    this.dpr = d;
+    this.canvas.width = Math.max(1, Math.round(this.w * d));
+    this.canvas.height = Math.max(1, Math.round(this.h * d));
+    return true;
+  }
+
   _paintBackground() {
     const ctx = this.bg.getContext('2d');
     if (!ctx) return;
-    const { w, h, cx, cy, R, dpr } = this;
+    const { w, h, cx, cy, R } = this;
+    const dpr = this._bgDpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const g = ctx.createRadialGradient(cx, cy, R * 0.5, cx, cy, Math.hypot(w, h) / 2);
     g.addColorStop(0, '#0d1f45');
@@ -188,12 +201,18 @@ export class GlobeRenderer {
       ctx.strokeStyle = OUTLINE;
       ctx.lineWidth = 1;
     } else {
-      ctx.shadowColor = 'rgba(255,230,90,0.95)'; ctx.shadowBlur = 14;
-      ctx.strokeStyle = `rgba(255,240,130,${Math.min(1, highlight).toFixed(3)})`;
-      ctx.lineWidth = 2.6;
+      // cheap glow: a wide translucent stroke under the crisp one (shadowBlur is very slow in software canvas)
+      const a = Math.min(1, highlight);
+      ctx.strokeStyle = `rgba(255,230,90,${(0.3 * a).toFixed(3)})`;
+      ctx.lineWidth = 9;
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(255,236,110,${(0.45 * a).toFixed(3)})`;
+      ctx.lineWidth = 5;
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(255,248,170,${a.toFixed(3)})`;
+      ctx.lineWidth = 2.2;
     }
     ctx.stroke();
-    if (!colour) { ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; }
     if (popped) ctx.restore();
   }
 
