@@ -18,7 +18,7 @@ export class Router {
         this.isRefreshFromToy = this.detectRefreshFromToy();
 
         // Listen for browser back/forward navigation
-        window.addEventListener('popstate', (event) => {
+        window.addEventListener('popstate', () => {
             this.isPopstateNavigation = true;
             this.handleRouteChange(window.location.pathname);
             this.isPopstateNavigation = false;

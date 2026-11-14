@@ -56,7 +56,7 @@ export class ContentSelector {
         // Filter by enabled emoji categories (animals, food, vehicles, etc.)
         if (config && config.emojiCategories) {
             const enabledCategories = Object.entries(config.emojiCategories)
-                .filter(([key, val]) => val.enabled)
+                .filter(([, val]) => val.enabled)
                 .map(([key]) => key);
 
             if (enabledCategories.length > 0) {
@@ -126,8 +126,8 @@ export class ContentSelector {
 
         // Get enabled category names
         const enabledCategories = Object.entries(colorCategories)
-            .filter(([key, value]) => value.enabled)
-            .map(([key, value]) => key);
+            .filter(([, value]) => value.enabled)
+            .map(([key]) => key);
 
         // Filter colors by enabled categories
         const colors = this.scene.thingsData.colors || [];

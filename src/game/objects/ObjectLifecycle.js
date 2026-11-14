@@ -132,8 +132,6 @@ export class ObjectLifecycle {
     removeObject(obj) {
         if (!obj) return;
 
-        // Check if this is a grid object that should be respawned
-        const shouldRespawnInGrid = this.scene.gridMode.enabled && obj.gridCell;
         const gridCell = obj.gridCell; // Store before removal
 
         try {

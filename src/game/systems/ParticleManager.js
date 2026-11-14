@@ -216,7 +216,7 @@ export class ParticleManager {
     cleanupWordSparkles(obj) {
         if (!obj || !obj.sparkleEmitters) return;
         
-        obj.sparkleEmitters.forEach((emitter, wordIndex) => {
+        obj.sparkleEmitters.forEach((emitter) => {
             if (emitter && emitter.destroy) {
                 emitter.destroy();
             }

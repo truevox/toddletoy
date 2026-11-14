@@ -270,7 +270,6 @@ export class PositioningSystem {
         const box2 = this.getBoundingBox(mainComponent);
         
         // Calculate how much to move up
-        const requiredSpacing = (box1.height + box2.height) / 2 + this.minimumSpacing;
         const currentSpacing = box2.top - box1.bottom;
         
         if (currentSpacing < this.minimumSpacing) {
@@ -283,7 +282,7 @@ export class PositioningSystem {
      * Move a component upward to avoid overlap
      */
     moveComponentUp(component, otherComponent) {
-        const box1 = this.getBoundingBox(component);
+        this.getBoundingBox(component);
         const box2 = this.getBoundingBox(otherComponent);
         
         // Move component up so its bottom edge clears the other component's top edge

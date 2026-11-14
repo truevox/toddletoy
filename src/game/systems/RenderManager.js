@@ -106,7 +106,7 @@ export class RenderManager {
         // Store all language words relative positions FROM WORD CENTER, not left edge
         obj.componentLayout.allLanguageWords = allLanguageWords.map(langGroup => ({
             languageCode: langGroup.languageCode,
-            words: langGroup.words.map((wordObj, index) => {
+            words: langGroup.words.map((wordObj) => {
                 // Calculate offset from word center to object center
                 const wordCenterX = wordObj.x + (wordObj.width / 2);
                 const offsetX = wordCenterX - x;
@@ -116,14 +116,14 @@ export class RenderManager {
         }));
         
         // Keep backward compatibility with old structure
-        obj.componentLayout.englishWords = englishWords.map((wordObj, index) => {
+        obj.componentLayout.englishWords = englishWords.map((wordObj) => {
             const wordCenterX = wordObj.x + (wordObj.width / 2);
             const offsetX = wordCenterX - x;
             const offsetY = wordObj.y - y;
             return { offsetX, offsetY };
         });
         
-        obj.componentLayout.spanishWords = spanishWords.map((wordObj, index) => {
+        obj.componentLayout.spanishWords = spanishWords.map((wordObj) => {
             const wordCenterX = wordObj.x + (wordObj.width / 2);
             const offsetX = wordCenterX - x;
             const offsetY = wordObj.y - y;

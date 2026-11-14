@@ -70,7 +70,7 @@ export class TextLayoutManager {
         };
     }
 
-    highlightWord(textObject, wordIndex, totalWords) {
+    highlightWord(textObject, wordIndex) {
         if (!textObject || wordIndex < 0) return;
         
         // Create sparkle effects during highlighting

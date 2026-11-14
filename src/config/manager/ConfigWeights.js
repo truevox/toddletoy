@@ -19,7 +19,7 @@ export function getContentWeights(manager) {
     };
 
     const enabled = Object.entries(manager.config.content)
-        .filter(([key, value]) => value.enabled)
+        .filter(([, value]) => value.enabled)
         .map(([key, value]) => ({ 
             type: typeMapping[key] || key, 
             configKey: key,
@@ -61,7 +61,7 @@ export function getContentWeights(manager) {
  */
 export function getEmojiCategoryWeights(manager) {
     const enabled = Object.entries(manager.config.emojiCategories)
-        .filter(([key, value]) => value.enabled)
+        .filter(([, value]) => value.enabled)
         .map(([key, value]) => ({ category: key, weight: value.weight }));
 
     const totalWeight = enabled.reduce((sum, item) => sum + item.weight, 0);
@@ -77,7 +77,7 @@ export function getEmojiCategoryWeights(manager) {
  */
 export function getColorCategoryWeights(manager) {
     const enabled = Object.entries(manager.config.colorCategories)
-        .filter(([key, value]) => value.enabled)
+        .filter(([, value]) => value.enabled)
         .map(([key, value]) => ({ category: key, weight: value.weight }));
 
     const totalWeight = enabled.reduce((sum, item) => sum + item.weight, 0);

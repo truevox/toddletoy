@@ -106,9 +106,8 @@ export class EmojiCategories {
     /**
      * Attach event listeners for this section
      * @param {Function} onConfigChange - Callback when configuration changes
-     * @param {Function} onMasterToggle - Callback when master emoji checkbox changes
      */
-    attachEventListeners(onConfigChange, onMasterToggle) {
+    attachEventListeners(onConfigChange) {
         // Weight sliders: update display and trigger config save
         const categories = ['animals', 'food', 'vehicles', 'faces', 'nature', 'objects'];
         categories.forEach(category => {

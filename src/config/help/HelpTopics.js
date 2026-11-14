@@ -7,7 +7,7 @@
 /**
  * Initialize all help topics with detailed explanations
  */
-export function initializeHelpTopics(help) {
+export function initializeHelpTopics() {
     return {
         'install-app': {
             title: '📱 Installing ToddleToy',
