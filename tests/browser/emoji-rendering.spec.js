@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { seedConfig, skipOnboarding, enterSandbox, tapSpawn, spawnForced, allObjects, sceneSize, waitForSpawnReady, waitForObjectCount, objectCount } from './helpers/app.js';
-import { regionHasContent, attachmentOffsets, dragScene } from './helpers/scene.js';
+import { regionHasContent, attachmentOffsets, dragScene, tapFreeSpot } from './helpers/scene.js';
 
 /**
  * Emoji rendering checks without pixel baselines: scene state says what was
@@ -32,7 +32,7 @@ test.describe('Emoji rendering', () => {
     test('different taps give a variety of emojis, each with a label', async ({ page }) => {
         await enterSandbox(page);
         for (let i = 0; i < 8; i++) {
-            await tapSpawn(page, 0.1 + (i % 4) * 0.25, 0.2 + Math.floor(i / 4) * 0.5);
+            await tapFreeSpot(page);
         }
         const objs = await allObjects(page);
         expect(objs).toHaveLength(8);
