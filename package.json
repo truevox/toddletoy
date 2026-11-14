@@ -1,6 +1,6 @@
 {
   "name": "toddler-toy-pwa",
-  "version": "1.0.84",
+  "version": "1.0.85",
   "description": "Montessori-aligned interactive toddler toy PWA",
   "main": "index.html",
   "scripts": {
@@ -23,7 +23,9 @@
     "typecheck": "echo 'No TypeScript yet'"
   },
   "dependencies": {
-    "phaser": "^3.70.0"
+    "phaser": "^3.70.0",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
   },
   "devDependencies": {
     "@babel/core": "^7.28.0",

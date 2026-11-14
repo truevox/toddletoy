@@ -1,4 +1,3 @@
-import Phaser from 'phaser'
 import { AppRoutes } from './routes/routes.js'
 
 // Get app version from build-time environment variable
