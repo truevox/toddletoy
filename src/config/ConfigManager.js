@@ -1,3 +1,8 @@
+import { getDefaults } from './manager/ConfigDefaults.js';
+import { migrateLanguageStructure, mergeWithDefaults } from './manager/ConfigMigration.js';
+import { validateConfig } from './manager/ConfigValidation.js';
+import { getContentWeights, getEmojiCategoryWeights, getColorCategoryWeights } from './manager/ConfigWeights.js';
+
 /**
  * ConfigManager - Handles configuration storage, validation, and defaults
  * Manages user preferences for the toddler toy application
@@ -12,86 +17,7 @@ export class ConfigManager {
      * Get default configuration for new users
      */
     getDefaults() {
-        return {
-            content: {
-                shapes: { enabled: true, weight: 25 },
-                smallNumbers: { enabled: true, min: 0, max: 20, weight: 30 },
-                largeNumbers: { enabled: true, min: 21, max: 9999, weight: 10 },
-                uppercaseLetters: { enabled: true, weight: 25 },
-                lowercaseLetters: { enabled: false, weight: 15 },
-                emojis: { enabled: true, weight: 20 }
-            },
-            emojiCategories: {
-                animals: { enabled: true, weight: 40 },
-                food: { enabled: true, weight: 30 },
-                vehicles: { enabled: true, weight: 15 },
-                faces: { enabled: true, weight: 10 },
-                nature: { enabled: false, weight: 3 },
-                objects: { enabled: false, weight: 2 }
-            },
-            colorCategories: {
-                primary: { enabled: true, weight: 50 },    // Red, Blue, Yellow
-                secondary: { enabled: true, weight: 35 },  // Green, Orange, Purple  
-                neutral: { enabled: false, weight: 15 }    // Black, White, Brown, Gray
-            },
-            languages: {
-                enabled: [
-                    { code: 'en', name: 'English', nativeName: 'English', difficultyRank: 6, learningHours: '700-900h', colors: ['#B22234', '#FFFFFF', '#3C3B6E'] }, // American Red, White, Blue 🇺🇸
-                    { code: 'es', name: 'Spanish', nativeName: 'Español', difficultyRank: 3, learningHours: '600-750h', colors: ['#AA151B', '#F1BF00'] } // Spanish Red & Yellow 🇪🇸
-                ],
-                available: [
-                    { code: 'eo', name: 'Esperanto', nativeName: 'Esperanto', difficultyRank: 1, learningHours: '150-200h', colors: ['#009900', '#FFFFFF'] }, // Esperanto Green & White ⭐
-                    { code: 'id', name: 'Indonesian', nativeName: 'Bahasa Indonesia', difficultyRank: 2, learningHours: '900h', colors: ['#FF0000', '#FFFFFF'] }, // Indonesian Red & White 🇮🇩
-                    { code: 'pt', name: 'Portuguese', nativeName: 'Português', difficultyRank: 4, learningHours: '600-750h', colors: ['#006600', '#FF0000'] }, // Portuguese Green & Red 🇵🇹
-                    { code: 'fr', name: 'French', nativeName: 'Français', difficultyRank: 5, learningHours: '600-750h', colors: ['#0055A4', '#FFFFFF', '#EF4135'] }, // French Blue, White, Red 🇫🇷
-                    { code: 'jbo', name: 'Lojban', nativeName: 'la .lojban.', difficultyRank: 7, learningHours: '1000h±', colors: ['#00FF00', '#0000FF'] }, // Lojban Logical Green & Blue 🤖
-                    { code: 'ru', name: 'Russian', nativeName: 'Русский', difficultyRank: 8, learningHours: '1100h', colors: ['#FFFFFF', '#0039A6', '#D52B1E'] }, // Russian White, Blue, Red 🇷🇺
-                    { code: 'bn', name: 'Bengali', nativeName: 'বাংলা', difficultyRank: 9, learningHours: '1100h', colors: ['#006A4E', '#F42A41'] }, // Bangladesh Green & Red 🇧🇩
-                    { code: 'hi', name: 'Hindi', nativeName: 'हिन্দী', difficultyRank: 10, learningHours: '1100h', colors: ['#FF9933', '#FFFFFF', '#138808'] }, // Indian Saffron, White, Green 🇮🇳
-                    { code: 'tlh', name: 'Klingon', nativeName: 'tlhIngan Hol', difficultyRank: 11, learningHours: '1400h±', colors: ['#8B0000', '#000000', '#FFD700'] }, // Klingon Dark Red, Black, Gold ⚔️
-                    { code: 'ar', name: 'Modern Standard Arabic', nativeName: 'العربية', difficultyRank: 12, learningHours: '2200h', colors: ['#000000', '#FFFFFF', '#007A3D'] }, // Pan-Arab Black, White, Green
-                    { code: 'zh', name: 'Mandarin Chinese', nativeName: '中文', difficultyRank: 13, learningHours: '2200h+', colors: ['#DE2910', '#FFDE00'] } // Chinese Red & Yellow 🇨🇳
-                ]
-            },
-            audio: {
-                volume: 10,      // 0-100, matches current 0.1 gain (10%)
-                mute: false,
-                toneDuration: -1 // -1 = play until destroyed, 100-20000 = milliseconds
-            },
-            speech: {
-                volume: 70,      // 0-100, matches current 0.7 volume
-                mute: false,
-                rate: 1.0        // 0.25-2.0, changing from hardcoded 0.8 to standard 1.0
-            },
-            advanced: {
-                skipConfig: false,
-                numberModes: {
-                    cistercian: true,
-                    kaktovik: true,
-                    binary: true,
-                    objectCounting: true,
-                    onlyApples: true
-                },
-                autoCleanup: {
-                    enabled: true,
-                    timeoutSeconds: 10
-                }
-            },
-            // Grid Mode: Optional structured layout mode (EXTRA FEATURE)
-            // When disabled (default), ToddleToy works in free-form mode where objects can be placed anywhere
-            // When enabled, objects are constrained to a fixed grid for more structured learning
-            gridMode: {
-                enabled: false,          // Toggle: false = free-form mode (default), true = grid mode
-                rows: 4,                 // Grid rows (3-6)
-                cols: 4,                 // Grid columns (3-6)
-                showGrid: true,          // Show grid overlay lines
-                autoPopulate: false,     // Pre-fill grid with random objects on load
-                cellPadding: 10,         // Padding between cells in pixels
-                wrapNavigation: false,   // Wrap navigation at grid boundaries
-                highlightStyle: 'default', // Cell highlight style
-                theme: 'default'         // Grid theme
-            }
-        };
+        return getDefaults(this);
     }
 
     /**
@@ -146,48 +72,7 @@ export class ConfigManager {
      * Migrate old language structure to new difficulty ranking system
      */
     migrateLanguageStructure(config) {
-        if (!config.languages) return config;
-        
-        // Language difficulty mapping
-        const difficultyData = {
-            'eo': { difficultyRank: 1, learningHours: '150-200h' },
-            'id': { difficultyRank: 2, learningHours: '900h' },
-            'es': { difficultyRank: 3, learningHours: '600-750h' },
-            'pt': { difficultyRank: 4, learningHours: '600-750h' },
-            'fr': { difficultyRank: 5, learningHours: '600-750h' },
-            'en': { difficultyRank: 6, learningHours: '700-900h' },
-            'jbo': { difficultyRank: 7, learningHours: '1000h±' },
-            'ru': { difficultyRank: 8, learningHours: '1100h' },
-            'bn': { difficultyRank: 9, learningHours: '1100h' },
-            'hi': { difficultyRank: 10, learningHours: '1100h' },
-            'tlh': { difficultyRank: 11, learningHours: '1400h±' },
-            'ar': { difficultyRank: 12, learningHours: '2200h' },
-            'zh': { difficultyRank: 13, learningHours: '2200h+' }
-        };
-        
-        // Update enabled languages
-        if (config.languages.enabled) {
-            config.languages.enabled = config.languages.enabled.map(lang => {
-                const data = difficultyData[lang.code];
-                if (data && !lang.difficultyRank) {
-                    return { ...lang, ...data };
-                }
-                return lang;
-            });
-        }
-        
-        // Update available languages  
-        if (config.languages.available) {
-            config.languages.available = config.languages.available.map(lang => {
-                const data = difficultyData[lang.code];
-                if (data && !lang.difficultyRank) {
-                    return { ...lang, ...data };
-                }
-                return lang;
-            });
-        }
-        
-        return config;
+        return migrateLanguageStructure(this, config);
     }
 
     /**
@@ -208,85 +93,14 @@ export class ConfigManager {
      * Merge stored config with defaults to handle version updates
      */
     mergeWithDefaults(stored) {
-        const defaults = this.getDefaults();
-        
-        // Deep merge function
-        const deepMerge = (target, source) => {
-            const result = { ...target };
-            for (const key in source) {
-                if (source[key] && typeof source[key] === 'object' && !Array.isArray(source[key])) {
-                    result[key] = deepMerge(target[key] || {}, source[key]);
-                } else {
-                    result[key] = source[key];
-                }
-            }
-            return result;
-        };
-
-        return deepMerge(defaults, stored);
+        return mergeWithDefaults(this, stored);
     }
 
     /**
      * Validate and fix configuration issues
      */
     validateConfig(config) {
-        const errors = [];
-        const warnings = [];
-
-        // Validate number ranges
-        if (config.content.smallNumbers.max >= config.content.largeNumbers.min) {
-            // Auto-fix: adjust ranges to prevent overlap
-            config.content.smallNumbers.max = config.content.largeNumbers.min - 1;
-            warnings.push(`Adjusted small number range to ${config.content.smallNumbers.min}-${config.content.smallNumbers.max} to prevent overlap with large numbers`);
-        }
-
-        // Ensure at least one content type is enabled
-        const enabledContent = Object.values(config.content).some(item => item.enabled);
-        if (!enabledContent) {
-            config.content.shapes.enabled = true;
-            warnings.push('Enabled shapes because at least one content type must be active');
-        }
-
-        // Validate weights (should be 1-100)
-        const validateWeights = (section) => {
-            Object.keys(section).forEach(key => {
-                if (section[key].weight !== undefined) {
-                    if (section[key].weight < 1) section[key].weight = 1;
-                    if (section[key].weight > 100) section[key].weight = 100;
-                }
-            });
-        };
-
-        validateWeights(config.content);
-        validateWeights(config.emojiCategories);
-        validateWeights(config.colorCategories);
-
-        // Validate audio settings
-        if (config.audio) {
-            if (config.audio.volume < 0) config.audio.volume = 0;
-            if (config.audio.volume > 100) config.audio.volume = 100;
-
-            // Validate toneDuration: -1 or 100-20000ms
-            if (config.audio.toneDuration !== -1) {
-                if (config.audio.toneDuration < 100) config.audio.toneDuration = 100;
-                if (config.audio.toneDuration > 20000) config.audio.toneDuration = 20000;
-            }
-        }
-
-        // Validate speech settings
-        if (config.speech) {
-            if (config.speech.volume < 0) config.speech.volume = 0;
-            if (config.speech.volume > 100) config.speech.volume = 100;
-            // Handle NaN or invalid rate values - default to 1.0 (normal speed)
-            if (isNaN(config.speech.rate) || config.speech.rate == null) {
-                config.speech.rate = 1.0;
-            } else {
-                if (config.speech.rate < 0.25) config.speech.rate = 0.25;
-                if (config.speech.rate > 2.0) config.speech.rate = 2.0;
-            }
-        }
-
-        return { config, errors, warnings };
+        return validateConfig(this, config);
     }
 
     /**
@@ -334,84 +148,21 @@ export class ConfigManager {
      * Get weighted selection probabilities for content types
      */
     getContentWeights() {
-        // Map config keys to game types
-        const typeMapping = {
-            'shapes': 'shape',
-            'smallNumbers': 'number',
-            'largeNumbers': 'number', 
-            'uppercaseLetters': 'letter',
-            'lowercaseLetters': 'letter',
-            'emojis': 'emoji'
-        };
-
-        const enabled = Object.entries(this.config.content)
-            .filter(([key, value]) => value.enabled)
-            .map(([key, value]) => ({ 
-                type: typeMapping[key] || key, 
-                configKey: key,
-                weight: value.weight 
-            }));
-
-        // Special handling for emojis: include if any emoji category is enabled
-        // even if the main emoji toggle is off
-        const hasEmojiToggle = enabled.some(item => item.configKey === 'emojis');
-        const hasAnyEmojiCategory = Object.values(this.config.emojiCategories).some(cat => cat.enabled);
-        
-        if (!hasEmojiToggle && hasAnyEmojiCategory) {
-            // Add emoji type with weight based on enabled categories
-            const emojiCategoryWeight = Object.values(this.config.emojiCategories)
-                .filter(cat => cat.enabled)
-                .reduce((sum, cat) => sum + cat.weight, 0);
-            
-            // Use the actual total category weight without scaling down
-            if (emojiCategoryWeight > 0) {
-                enabled.push({
-                    type: 'emoji',
-                    configKey: 'emojis',
-                    weight: emojiCategoryWeight // Use full category weight, no scaling
-                });
-            }
-        }
-
-        const totalWeight = enabled.reduce((sum, item) => sum + item.weight, 0);
-        
-        return enabled.map(item => ({
-            type: item.type,
-            configKey: item.configKey,
-            probability: totalWeight > 0 ? item.weight / totalWeight : 0
-        }));
+        return getContentWeights(this);
     }
 
     /**
      * Get weighted selection probabilities for emoji categories
      */
     getEmojiCategoryWeights() {
-        const enabled = Object.entries(this.config.emojiCategories)
-            .filter(([key, value]) => value.enabled)
-            .map(([key, value]) => ({ category: key, weight: value.weight }));
-
-        const totalWeight = enabled.reduce((sum, item) => sum + item.weight, 0);
-        
-        return enabled.map(item => ({
-            category: item.category,
-            probability: totalWeight > 0 ? item.weight / totalWeight : 0
-        }));
+        return getEmojiCategoryWeights(this);
     }
 
     /**
      * Get weighted selection probabilities for color categories
      */
     getColorCategoryWeights() {
-        const enabled = Object.entries(this.config.colorCategories)
-            .filter(([key, value]) => value.enabled)
-            .map(([key, value]) => ({ category: key, weight: value.weight }));
-
-        const totalWeight = enabled.reduce((sum, item) => sum + item.weight, 0);
-        
-        return enabled.map(item => ({
-            category: item.category,
-            probability: totalWeight > 0 ? item.weight / totalWeight : 0
-        }));
+        return getColorCategoryWeights(this);
     }
 
     /**
