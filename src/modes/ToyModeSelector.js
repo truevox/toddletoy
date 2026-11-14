@@ -79,10 +79,10 @@ export class ToyModeSelector {
               desc: 'Tap to create shapes, letters, numbers & emojis with sounds and colors!',
               borderColor: '#4CAF50', bgColor: '#1b4a22' },
             { mode: 'orrery',  emoji: '🌞', title: 'Solar System',
-              desc: 'Watch all eight planets orbit the Sun. Tap a planet to hear its name!',
+              desc: 'Spin time around the Sun, fly to each planet and find out what makes it special!',
               borderColor: '#FF9800', bgColor: '#4a2d00' },
             { mode: 'globe',   emoji: '🌍', title: 'World Globe',
-              desc: 'Swipe to spin the Earth. Tap any country to hear its name and see its flag!',
+              desc: 'Spin and zoom the Earth, tap any country to hear its name, and collect flags in your passport!',
               borderColor: '#2196F3', bgColor: '#0a2444' },
         ];
 
