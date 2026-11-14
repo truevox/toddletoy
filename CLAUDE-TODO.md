@@ -38,28 +38,10 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 **Possible solution**
 - Begin using an analytics service, like Google Analytics.
 
-### Phase 14: Numeral Positioning & Base System Fixes (High Priority) 
+### ✅ Phase 14: Numeral Positioning & Cistercian Numerals (COMPLETED v1.0.88)
 
-**Problem**: 
-- Kaktovik numerals need to be positioned a few pixels higher (3-5 pixels above current position)
-- Cistercian numerals need to be positioned even higher (5-10 pixels above current position) 
-- Cistercian font system is incorrectly treating it as base-10 when it should be base-1000 (glyphs combine to form compound numerals)
-
-**Tasks**:
-- [ ] Write failing test for improved Kaktovik numeral vertical positioning
-- [ ] Adjust Kaktovik numeral Y offset in renderKaktovikNumeral function
-- [ ] Write failing test for improved Cistercian numeral vertical positioning  
-- [ ] Adjust Cistercian numeral Y offset in renderCistercianNumeral function
-- [ ] Write failing test for proper Cistercian base-1000 glyph combination
-- [ ] Fix Cistercian numeral rendering to use proper base-1000 character combination logic
-- [ ] Update component layout system to handle new positioning offsets
-- [ ] Run tests to ensure positioning fixes work correctly
-- [ ] Test visual alignment with browser testing
-
-**Expected Outcome**: 
-- Kaktovik numerals appear 3-5 pixels higher than current position
-- Cistercian numerals appear 5-10 pixels higher than current position  
-- Cistercian numerals properly combine glyphs for compound numbers (e.g., "1qdb 2grm" creates two combined glyphs with space between)
+- [x] Numeral rows (Cistercian, Kaktovik, binary hearts) are measured and stacked with consistent gaps above the number (`src/game/systems/NumberModeLayout.js`), with the Kaktovik/Cistercian rows lifted slightly as requested.
+- [x] Cistercian numerals are drawn procedurally from the historical system (`CistercianGlyph.js` model + `CistercianNumeral.js` drawing layer): one glyph per four decimal digits (0–9999), further groups side by side. This replaces the CC BY-NC-ND font, which has been removed from the repo.
 
 ### Phase 18: Code Refactoring (Mostly complete — v1.0.79)
 
@@ -76,7 +58,7 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 **Remaining:**
 - [ ] Files still over ~300 lines: `DocumentationContent.js` (614, mostly content), `ui/AdvancedSection.js` (520), `ui/LanguageSection.js` (499), `systems/ObjectCountingRenderer.js` (469), `toys/GlobeToy.js` (360), `objects/ObjectManager.js` (355), `positioning/PositioningSystem.js` (343), `toys/OrreryToy.js` (336), `systems/SpeechManager.js` (328), `ui/ConfigForm.js` (313), `ConfigScreen.js` (349), `game.js` (391)
 - [ ] Clean up the ~43 `no-unused-vars` lint warnings
-- [ ] Null-guard element lookups in `ui/ConfigEvents.js` / `ui/ConfigForm.js` (pre-existing: throw if an expected element is missing)
+- [x] Null-guard element lookups in `ui/ConfigEvents.js` / `ui/ConfigForm.js` (v1.0.83, `ui/domHelpers.js`)
 - [ ] `game.js create()` calls `restoreGameState()` before data preload finishes and relies on setTimeout polling (pre-existing)
 
 ---
@@ -515,4 +497,4 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 
 ---
 
-**🎯 Current Focus**: Numeral positioning fixes (Phase 14) and the remaining Phase 18 cleanup are the highest priority tasks to tackle next.
+**🎯 Current Focus**: See PICK-UP-HERE.md for the state of the rehabilitation pass and what is in flight.

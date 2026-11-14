@@ -12,18 +12,57 @@ export class SpeechManager {
         this.currentSpeakingObject = null;
         this.currentLanguage = null;
         this.currentLanguageCodes = [];
-        
+        this.speechTimeoutId = null;
+        this.sequenceId = 0; // Guards against stale timers/callbacks of cancelled sequences
+
         this.initSpeech();
     }
 
     initSpeech() {
         // Check if speech synthesis is available
-        if (typeof speechSynthesis === 'undefined') {
-            console.warn('Speech synthesis not supported in this browser');
+        if (!this.isSpeechAvailable()) {
+            console.warn('Speech synthesis not supported in this browser - toy will run silently');
             return;
         }
-        
+
         console.log('Speech synthesis initialized');
+    }
+
+    /** True when both speechSynthesis and the utterance constructor exist. */
+    isSpeechAvailable() {
+        return typeof speechSynthesis !== 'undefined' && speechSynthesis !== null &&
+            typeof SpeechSynthesisUtterance === 'function';
+    }
+
+    safeCancelSynthesis() {
+        try {
+            if (typeof speechSynthesis !== 'undefined' && speechSynthesis && speechSynthesis.cancel) {
+                speechSynthesis.cancel();
+            }
+        } catch (error) {
+            console.warn('speechSynthesis.cancel failed:', error);
+        }
+    }
+
+    clearSpeechTimeout() {
+        if (this.speechTimeoutId) {
+            clearTimeout(this.speechTimeoutId);
+            this.speechTimeoutId = null;
+        }
+    }
+
+    releaseSpeechLock() {
+        if (this.currentSpeakingObject && this.scene.particleManager) {
+            try {
+                this.scene.particleManager.cleanupWordSparkles(this.currentSpeakingObject);
+            } catch (error) {
+                console.warn('Failed to clean up word sparkles:', error);
+            }
+        }
+        this.currentSpeech = null;
+        this.isSpeaking = false;
+        this.currentSpeakingObject = null;
+        this.clearSpeechTimeout();
     }
 
     speakText(obj, language = 'en') {
@@ -35,7 +74,6 @@ export class SpeechManager {
         // Check if speech is muted in config
         const speechConfig = this.scene.configManager ? this.scene.configManager.getSpeechConfig() : null;
         if (speechConfig && speechConfig.mute) {
-            console.log('🔇 Speech is muted');
             return;
         }
 
@@ -44,85 +82,125 @@ export class SpeechManager {
             this.scene.updateObjectTouchTime(obj);
         }
 
-        // Cancel any current speech
+        // Invalidate any in-flight sequence and cancel its speech
+        this.sequenceId++;
+        this.clearSpeechTimeout();
         if (this.currentSpeech) {
-            speechSynthesis.cancel();
+            this.safeCancelSynthesis();
         }
 
-        // Set speaking state
-        this.isSpeaking = true;
-        this.currentSpeakingObject = obj;
+        try {
+            const data = obj.itemData;
+            let textsToSpeak = [];
 
-        const data = obj.itemData;
-        let textsToSpeak = [];
+            // Get enabled languages from config
+            const config = this.scene.configManager ? this.scene.configManager.getConfig() : null;
+            const enabledLanguages = config?.languages?.enabled || [{ code: 'en' }];
 
-        // Get enabled languages from config
-        const config = this.scene.configManager ? this.scene.configManager.getConfig() : null;
-        const enabledLanguages = config?.languages?.enabled || [{ code: 'en' }];
+            // Determine what to speak based on language parameter
+            const fallbackValue = data.value !== undefined && data.value !== null
+                ? String(data.value)
+                : '';
 
-        console.log('🗣️ Speech debug - enabled languages:', enabledLanguages);
-        console.log('🗣️ Speech debug - language parameter:', language);
-        console.log('🗣️ Speech debug - object data:', data);
-
-        // Determine what to speak based on language parameter
-        const fallbackValue = data.value !== undefined && data.value !== null
-            ? String(data.value)
-            : '';
-
-        const getTextForLanguage = (code) => {
-            const composed = buildColorizedLabel(data, code) || buildColorizedLabel(data, 'en');
-            if (composed && composed.trim()) {
-                return composed;
-            }
-            return fallbackValue;
-        };
-
-        if (language === 'both' || language === 'all') {
-            // Use all enabled languages in order
-            textsToSpeak = [];
-            this.currentLanguageCodes = []; // Store corresponding language codes
-            enabledLanguages.forEach(lang => {
-                const text = getTextForLanguage(lang.code);
-                if (text) {
-                    textsToSpeak.push(text);
-                    this.currentLanguageCodes.push(lang.code);
+            const getTextForLanguage = (code) => {
+                const composed = buildColorizedLabel(data, code) || buildColorizedLabel(data, 'en');
+                if (composed && composed.trim()) {
+                    return composed;
                 }
-            });
-            console.log('🗣️ Speech debug - texts to speak:', textsToSpeak);
-            console.log('🗣️ Speech debug - language codes:', this.currentLanguageCodes);
-        } else {
-            // Use specific language
-            const text = getTextForLanguage(language);
-            textsToSpeak = [text];
-            this.currentLanguageCodes = [language];
+                return fallbackValue;
+            };
+
+            if (language === 'both' || language === 'all') {
+                // Use all enabled languages in order
+                this.currentLanguageCodes = []; // Store corresponding language codes
+                enabledLanguages.forEach(lang => {
+                    const text = getTextForLanguage(lang.code);
+                    if (text) {
+                        textsToSpeak.push(text);
+                        this.currentLanguageCodes.push(lang.code);
+                    }
+                });
+            } else {
+                // Use specific language
+                textsToSpeak = [getTextForLanguage(language)];
+                this.currentLanguageCodes = [language];
+            }
+
+            // Store current language for speech synthesis
+            this.currentLanguage = language === 'both' || language === 'all' ? 'multilingual' : language;
+
+            // Set speaking state only once we know the sequence can start
+            this.isSpeaking = true;
+            this.currentSpeakingObject = obj;
+
+            // Speak each text in sequence
+            this.speakTextSequence(textsToSpeak, 0, this.sequenceId);
+        } catch (error) {
+            // Never leave the toy locked because speech failed
+            console.error('Speech failed, continuing silently:', error);
+            this.releaseSpeechLock();
         }
-
-        // Store current language for speech synthesis
-        this.currentLanguage = language === 'both' || language === 'all' ? 'multilingual' : language;
-
-        // Speak each text in sequence
-        this.speakTextSequence(textsToSpeak, 0);
     }
 
-    speakTextSequence(texts, index) {
+    speakTextSequence(texts, index, sequenceId = this.sequenceId) {
+        if (sequenceId !== this.sequenceId) return; // Stale sequence (cancelled/replaced)
+
         if (index >= texts.length) {
             // Speech sequence complete - unlock the queue and cleanup sparkles
-            if (this.currentSpeakingObject && this.scene.particleManager) {
-                this.scene.particleManager.cleanupWordSparkles(this.currentSpeakingObject);
-            }
-            this.currentSpeech = null;
-            this.isSpeaking = false;
-            this.currentSpeakingObject = null;
-
-            // Clear any pending timeout
-            if (this.speechTimeoutId) {
-                clearTimeout(this.speechTimeoutId);
-                this.speechTimeoutId = null;
-            }
+            this.releaseSpeechLock();
             return;
         }
 
-        const utterance = new SpeechSynthesisUtterance(texts[index]);
+        const text = texts[index];
+
+        // Trigger word highlighting animation (runs even when speech is unavailable)
+        this.startWordHighlight(texts, index);
+
+        let speechCompleted = false;
+        const completeAndNext = () => {
+            if (speechCompleted || sequenceId !== this.sequenceId) return; // Prevent double-firing / stale
+            speechCompleted = true;
+            this.clearSpeechTimeout();
+            this.speakTextSequence(texts, index + 1, sequenceId);
+        };
+
+        let utterance = null;
+        try {
+            if (this.isSpeechAvailable()) {
+                utterance = this.buildUtterance(text, index);
+                utterance.onend = completeAndNext;
+                utterance.onerror = (error) => {
+                    console.warn('Speech error:', error && error.error ? error.error : error);
+                    completeAndNext(); // Continue even on error
+                };
+            }
+        } catch (error) {
+            console.warn('Could not create utterance, continuing silently:', error);
+            utterance = null;
+        }
+
+        // Timeout fallback: Android sometimes never fires onend, and with no
+        // speech API at all this paces the silent highlight animation.
+        const estimatedDuration = (text.length * 100) + (utterance ? 1000 : 500);
+        this.clearSpeechTimeout();
+        this.speechTimeoutId = setTimeout(completeAndNext, estimatedDuration);
+
+        if (!utterance) {
+            this.currentSpeech = null;
+            return;
+        }
+
+        this.currentSpeech = utterance;
+        try {
+            speechSynthesis.speak(utterance);
+        } catch (error) {
+            console.warn('speechSynthesis.speak failed, continuing silently:', error);
+            this.currentSpeech = null; // timeout above still releases the lock
+        }
+    }
+
+    buildUtterance(text, index) {
+        const utterance = new SpeechSynthesisUtterance(text);
 
         // Map language codes to Web Speech API language tags
         const languageMap = {
@@ -137,7 +215,7 @@ export class SpeechManager {
             'ru': 'ru-RU',
             'id': 'id-ID',
             'tlh': 'en-US', // Klingon falls back to English
-            'jbo': 'en-US', // Lojban falls back to English  
+            'jbo': 'en-US', // Lojban falls back to English
             'eo': 'eo'      // Esperanto
         };
 
@@ -151,8 +229,6 @@ export class SpeechManager {
         // Get speech config for volume and rate
         const speechConfig = this.scene.configManager ? this.scene.configManager.getSpeechConfig() : null;
 
-        console.log('🗣️ Raw speechConfig:', speechConfig);
-
         // Ensure rate is a valid finite number (Android fix)
         let rate = 1.0;
         if (speechConfig && speechConfig.rate !== undefined && speechConfig.rate !== null) {
@@ -160,7 +236,7 @@ export class SpeechManager {
             if (isFinite(configRate) && configRate > 0) {
                 rate = configRate;
             } else {
-                console.warn('🗣️ Invalid speech rate in config:', speechConfig.rate, '- using default 1.0');
+                console.warn('Invalid speech rate in config:', speechConfig.rate, '- using default 1.0');
             }
         }
         utterance.rate = rate;
@@ -172,83 +248,41 @@ export class SpeechManager {
             if (isFinite(configVolume) && configVolume >= 0 && configVolume <= 100) {
                 volume = configVolume / 100;
             } else {
-                console.warn('🗣️ Invalid speech volume in config:', speechConfig.volume, '- using default 70');
+                console.warn('Invalid speech volume in config:', speechConfig.volume, '- using default 70');
             }
         }
         utterance.volume = volume;
 
-        console.log('🗣️ Using speech rate:', rate, 'volume:', volume);
+        return utterance;
+    }
 
-        // Trigger word highlighting animation
-        if (this.currentSpeakingObject) {
-            const obj = this.currentSpeakingObject;
-            let wordObjects = null;
+    startWordHighlight(texts, index) {
+        const obj = this.currentSpeakingObject;
+        if (!obj) return;
 
-            // Get the appropriate word objects based on current language being spoken
-            if (obj.allLanguageWords && this.currentLanguageCodes && this.currentLanguageCodes[index]) {
-                // Find the language group that matches the current language being spoken
-                const currentLangCode = this.currentLanguageCodes[index];
-                const langGroup = obj.allLanguageWords.find(group => group.languageCode === currentLangCode);
-                if (langGroup && langGroup.words) {
-                    wordObjects = langGroup.words;
-                }
-            } else {
-                // Fallback to old structure for backward compatibility
-                if (index === 0 && obj.englishWords) {
-                    wordObjects = obj.englishWords;
-                } else if (index === 1 && obj.spanishWords) {
-                    wordObjects = obj.spanishWords;
-                }
+        let wordObjects = null;
+
+        // Get the appropriate word objects based on current language being spoken
+        if (obj.allLanguageWords && this.currentLanguageCodes && this.currentLanguageCodes[index]) {
+            const currentLangCode = this.currentLanguageCodes[index];
+            const langGroup = obj.allLanguageWords.find(group => group.languageCode === currentLangCode);
+            if (langGroup && langGroup.words) {
+                wordObjects = langGroup.words;
             }
-
-            // Estimate speech duration and animate words
-            if (wordObjects && wordObjects.length > 0) {
-                const estimatedDuration = (texts[index].length * 100) + 500; // Rough estimate
-                this.animateWordsSequentially(wordObjects, estimatedDuration);
+        } else {
+            // Fallback to old structure for backward compatibility
+            if (index === 0 && obj.englishWords) {
+                wordObjects = obj.englishWords;
+            } else if (index === 1 && obj.spanishWords) {
+                wordObjects = obj.spanishWords;
             }
         }
 
-        // Mobile fallback: estimate speech duration and set timeout
-        // This fixes Android bug where onend doesn't fire reliably
-        const text = texts[index];
-        const estimatedDuration = (text.length * 100) + 1000; // ~100ms per char + 1s buffer
-
-        let speechCompleted = false;
-
-        const completeAndNext = () => {
-            if (speechCompleted) return; // Prevent double-firing
-            speechCompleted = true;
-
-            // Clear timeout if it exists
-            if (this.speechTimeoutId) {
-                clearTimeout(this.speechTimeoutId);
-                this.speechTimeoutId = null;
-            }
-
-            console.log(`🗣️ Speech completed (${index + 1}/${texts.length})`);
-            this.speakTextSequence(texts, index + 1);
-        };
-
-        utterance.onend = () => {
-            console.log('🗣️ onend fired');
-            completeAndNext();
-        };
-
-        utterance.onerror = (error) => {
-            console.error('🗣️ Speech error:', error);
-            completeAndNext(); // Continue even on error
-        };
-
-        // MOBILE FALLBACK: Set timeout in case onend never fires (Android bug)
-        this.speechTimeoutId = setTimeout(() => {
-            console.warn('🗣️ Speech timeout - onend did not fire (mobile bug)');
-            completeAndNext();
-        }, estimatedDuration);
-
-        this.currentSpeech = utterance;
-
-        console.log(`🗣️ Speaking text ${index + 1}/${texts.length}: "${text}" (${utterance.lang})`);
-        speechSynthesis.speak(utterance);
+        // Estimate speech duration and animate words
+        if (wordObjects && wordObjects.length > 0) {
+            const estimatedDuration = (texts[index].length * 100) + 500; // Rough estimate
+            this.animateWordsSequentially(wordObjects, estimatedDuration);
+        }
     }
 
     animateWordsSequentially(wordObjects, totalDuration) {
@@ -298,18 +332,14 @@ export class SpeechManager {
 
     // Cancel current speech
     cancelSpeech() {
+        this.sequenceId++; // Invalidate pending callbacks
         if (this.currentSpeech) {
-            speechSynthesis.cancel();
-            this.isSpeaking = false;
-            this.currentSpeakingObject = null;
-            this.currentSpeech = null;
+            this.safeCancelSynthesis();
         }
-
-        // Clear any pending timeout
-        if (this.speechTimeoutId) {
-            clearTimeout(this.speechTimeoutId);
-            this.speechTimeoutId = null;
-        }
+        this.isSpeaking = false;
+        this.currentSpeakingObject = null;
+        this.currentSpeech = null;
+        this.clearSpeechTimeout();
     }
 
     // Check if an object is currently being spoken

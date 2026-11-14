@@ -20,6 +20,7 @@ import { SceneInputHandler } from './game/systems/SceneInputHandler.js'
 import { ResponsiveGameManager } from './game/ResponsiveGameManager.js'
 import { ObjectFactory } from './game/objects/ObjectFactory.js'
 import { ObjectLifecycle } from './game/objects/ObjectLifecycle.js'
+import { remapPosition, defaultKeepOutRects } from './positioning/BoundsClamp.js'
 import { ContentSelector } from './game/systems/ContentSelector.js'
 
 class GameScene extends Phaser.Scene {
@@ -77,6 +78,12 @@ class GameScene extends Phaser.Scene {
 
         // Set up input event handlers from InputManager
         this.setupInputHandlers();
+
+        // Keep objects reachable when the viewport changes (resize / rotation)
+        this.lastKnownSize = { width: this.scale.width, height: this.scale.height };
+        if (this.updateKeepOutRects) this.updateKeepOutRects();
+        this.scale.on('resize', this.handleScaleResize, this);
+        this.events.once('shutdown', () => this.scale.off('resize', this.handleScaleResize, this));
 
         // Create text style with emoji support  
         this.textStyle = {
@@ -197,7 +204,7 @@ class GameScene extends Phaser.Scene {
 
     checkFullInitialization() {
         // Check if fonts are also loaded
-        this.fontsLoaded = document.fonts.check('1em Kaktovik') && document.fonts.check('1em Cistercian');
+        this.fontsLoaded = document.fonts.check('1em Kaktovik');
 
         if (this.dataLoaded && this.fontsLoaded) {
             this.isFullyInitialized = true;
@@ -282,9 +289,65 @@ class GameScene extends Phaser.Scene {
             // Delegate to movement manager
             this.movementManager.moveObjectTo(obj, x, y);
         } else {
-            // Immediate positioning
-            this.movementManager.setObjectPosition(obj, x, y);
+            // Immediate positioning (still clamped to the visible area)
+            this.movementManager.moveObjectTo(obj, x, y, false);
         }
+    }
+
+    /**
+     * Pull an object (with all its labels and number-mode rows) fully inside the
+     * visible area. Used after spawn/restore and on resize.
+     * @returns {boolean} true if the object had to move
+     */
+    keepObjectInBounds(obj) {
+        if (!obj || !obj.active || !this.movementManager || !this.movementManager.clampPosition) return false;
+        const target = this.movementManager.clampPosition(obj, obj.x, obj.y);
+        if (Math.abs(target.x - obj.x) < 0.5 && Math.abs(target.y - obj.y) < 0.5) return false;
+        this.movementManager.setObjectPosition(obj, target.x, target.y);
+        return true;
+    }
+
+    /**
+     * Canvas-space rectangles objects must stay out of. Default: the square under
+     * the DOM parent exit button in the top-right corner (data only; no DOM query).
+     */
+    updateKeepOutRects() {
+        this.keepOutRects = defaultKeepOutRects({ width: this.scale.width, height: this.scale.height });
+    }
+
+    /**
+     * Scale resize / device rotation: bring every object back inside the new
+     * bounds (proportional remap, then clamp so components stay attached).
+     */
+    handleScaleResize() {
+        const width = this.scale?.width;
+        const height = this.scale?.height;
+        if (!width || !height) return;
+
+        const previous = this.lastKnownSize || { width, height };
+        this.lastKnownSize = { width, height };
+        if (this.updateKeepOutRects) this.updateKeepOutRects();
+
+        // Grid mode: refit the grid to the new size and rebuild each cell's object inside its cell
+        if (this.gridMode && this.gridMode.enabled) {
+            this.gridModeController.handleResize();
+            if (this.inputManager && this.inputManager.handleResize) this.inputManager.handleResize(previous);
+            return;
+        }
+
+        (this.objects || []).forEach(obj => {
+            if (!obj || !obj.active) return;
+            if (this.movementManager) this.movementManager.clearMovement(obj.id);
+            const target = remapPosition(obj.x, obj.y, previous, { width, height });
+            this.movementManager.setObjectPosition(obj, target.x, target.y);
+            this.keepObjectInBounds(obj);
+        });
+
+        if (this.inputManager && this.inputManager.handleResize) {
+            this.inputManager.handleResize(previous);
+        }
+        // Never persist an empty list from a resize: the initial resize fires before saved state is restored
+        if ((this.objects || []).length > 0) this.saveGameState();
     }
 
     /**
@@ -304,7 +367,8 @@ class GameScene extends Phaser.Scene {
      */
     canMoveAfterSpawn() {
         if (this.awaitingSpawnInputRelease) return false;
-        if (this.lastSpawnTime === 0) return true;
+        // No spawn yet this session (e.g. objects restored after a reload)
+        if (!this.lastSpawnTime) return true;
         return (Date.now() - this.lastSpawnTime) >= this.MOVE_AFTER_SPAWN_DELAY;
     }
 

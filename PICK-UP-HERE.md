@@ -1,13 +1,26 @@
 # PICK-UP-HERE.md
 **Context Recovery Document for Next Session**
 
-## 🟢 CURRENT STATUS (v1.0.81)
+## 🟢 CURRENT STATUS (v1.0.87, branch `claude/optimistic-brown-xmf2t5`)
 
-- **Refactor (v1.0.79)**: `game.js` 1705 → 391 lines; `ConfigScreen.js`, `HelpSystem.js`, `ConfigManager.js` split into `src/config/{ui,help,manager}/`. Behaviour-preserving; see CLAUDE-TODO.md Phase 18.
-- **Lint**: `.eslintrc.cjs` added; `npm run lint` passes (0 errors, ~43 unused-var warnings).
-- **Bug fix (v1.0.81)**: dragging threw on every drag start/stop (`scene.scene.tweens`); fixed with regression test `tests/drag-scale-feedback.test.js`.
-- **Tests**: `npm test` → 59 suites / 930 tests passing, 5 suites (225 tests) intentionally skipped (unimplemented optional grid enhancements).
-- **Next**: Phase 14 (numeral positioning, Cistercian base-1000), remaining Phase 18 cleanup.
+Rehabilitation pass in progress. Integrated, browser-verified and pushed:
+
+- **Sandbox**: heart shapes spawn; silent fallback when the Web Speech API is missing; objects stay on screen (spawn, drag, restore, resize); any printable key spawns; numeral rows no longer overlap; shapes sized like emojis; debug logging removed.
+- **Config / storage**: saved config is type-checked and merged over defaults; `src/utils/safeStorage.js` wraps all storage; config DOM wiring tolerates missing elements; phone layouts fixed; START PLAYING and "All toys" at the top of settings.
+- **Navigation**: hold-for-2-seconds parent exit from the sandbox (`src/ui/ParentExitButton.js`); the toy really pauses/resets when left; no self-reload on first visit.
+- **World Globe**: real orthographic globe from Natural Earth data (`src/toys/globe-*.js`).
+- **Loading**: Phaser bundle lazy-loaded when the sandbox opens (entry chunk ~135 kB).
+- **Repo**: MIT `LICENSE`, `THIRD-PARTY-NOTICES.md`, PNG PWA icons + `public/manifest.json`, `.github/workflows/ci.yml`.
+- **Tests**: `npm test` → 1103 passing, 225 skipped (optional grid enhancements). Lint 0 errors.
+
+In flight (separate worktrees under `.claude/worktrees/`, not yet merged):
+
+1. Procedural Cistercian numerals (replaces the CC BY-NC-ND font), grid-mode fit, exit-button keep-out, outlines for dark colours.
+2. World Globe UX overhaul (zoom, fly-to, info card, Find-it game, passport).
+3. Solar System UX overhaul (procedural planets, time scrub, planet strip, compare sizes, Find-it game).
+4. Playwright E2E rehabilitation (the old suite predates the toy selector; 1 of ~85 tests passed).
+
+Then: clear the lint warnings, rewrite README/contributor docs with real screenshots, final skeptical review.
 
 ## 🕰️ OLDER STATUS (v1.0.55)
 
