@@ -7,7 +7,7 @@ import { RAD } from './globe-math.js';
 
 const TWO_PI = Math.PI * 2;
 const ARC_STEP = 4 * RAD;            // limb arc resolution
-const OUTLINE = 'rgba(18, 40, 70, 0.55)';
+const OUTLINE = 'rgba(14, 34, 66, 0.72)';
 
 export class GlobeRenderer {
   constructor(bgCanvas, canvas) {
@@ -15,7 +15,7 @@ export class GlobeRenderer {
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.w = 0; this.h = 0; this.dpr = 1;
-    this.cx = 0; this.cy = 0; this.R = 0;
+    this.cx = 0; this.cy = 0; this.R = 0; this.zoom = 1; this.S = 0; this.visAng = Math.PI / 2;
     this._X = new Float32Array(1024);
     this._Y = new Float32Array(1024);
     this._Z = new Float32Array(1024);
@@ -23,16 +23,24 @@ export class GlobeRenderer {
   }
 
   /** Size both canvases (CSS px + dpr) and repaint the static background. */
-  resize(w, h, dpr) {
+  resize(w, h, dpr, cx = w / 2, cy = h / 2, R = Math.max(40, 0.43 * Math.min(w, h))) {
     this.w = w; this.h = h; this.dpr = dpr;
     for (const c of [this.bg, this.canvas]) {
       c.width = Math.max(1, Math.round(w * dpr));
       c.height = Math.max(1, Math.round(h * dpr));
     }
-    this.cx = w / 2;
-    this.cy = h / 2;
-    this.R = Math.max(40, 0.43 * Math.min(w, h));
+    this.cx = cx; this.cy = cy; this.R = R;
+    this.setZoom(this.zoom);
     this._paintBackground();
+  }
+
+  /** Effective on-screen globe radius and the angular radius of what the screen can see. */
+  setZoom(z) {
+    this.zoom = z;
+    this.S = this.R * z;
+    const far = Math.max(Math.hypot(this.cx, this.cy), Math.hypot(this.w - this.cx, this.cy),
+      Math.hypot(this.cx, this.h - this.cy), Math.hypot(this.w - this.cx, this.h - this.cy));
+    this.visAng = far >= this.S ? Math.PI / 2 : Math.min(Math.PI / 2, Math.asin(far / this.S) + 0.02);
   }
 
   _paintBackground() {
@@ -54,99 +62,139 @@ export class GlobeRenderer {
       ctx.fillStyle = `rgba(255,255,255,${a.toFixed(2)})`;
       ctx.beginPath(); ctx.arc(x, y, r, 0, TWO_PI); ctx.fill();
     }
-    // Atmosphere halo
-    const halo = ctx.createRadialGradient(cx, cy, R * 0.96, cx, cy, R * 1.16);
-    halo.addColorStop(0, 'rgba(110,185,255,0.55)');
-    halo.addColorStop(0.35, 'rgba(80,150,240,0.18)');
-    halo.addColorStop(1, 'rgba(60,120,220,0)');
-    ctx.fillStyle = halo;
-    ctx.beginPath(); ctx.arc(cx, cy, R * 1.16, 0, TWO_PI); ctx.fill();
   }
 
-  /** Draw one frame. `sel` = { country, amount } for the highlighted country. */
-  draw(view, countries, sel) {
+  /**
+   * Draw one frame.
+   * @param sel   { country, amount, scale, glow } highlighted country (or null)
+   * @param extra { pulse: {country, amount}, labels: {items, n}, particles }
+   */
+  draw(view, countries, sel, extra) {
     const ctx = this.ctx;
-    const { w, h, cx, cy, R, dpr } = this;
+    const { w, h, cx, cy, S, dpr } = this;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
-    // Ocean disc
-    const ocean = ctx.createRadialGradient(cx - R * 0.3, cy - R * 0.35, R * 0.1, cx, cy, R);
+    // Thin atmosphere glow
+    if (S < 4000) {
+      const halo = ctx.createRadialGradient(cx, cy, S * 0.97, cx, cy, S * 1.12);
+      halo.addColorStop(0, 'rgba(120,190,255,0.5)');
+      halo.addColorStop(0.4, 'rgba(90,155,240,0.16)');
+      halo.addColorStop(1, 'rgba(60,120,220,0)');
+      ctx.fillStyle = halo;
+      ctx.beginPath(); ctx.arc(cx, cy, S * 1.12, 0, TWO_PI); ctx.fill();
+    }
+
+    const ocean = ctx.createRadialGradient(cx - S * 0.3, cy - S * 0.35, S * 0.1, cx, cy, S);
     ocean.addColorStop(0, '#3a9ad8');
     ocean.addColorStop(0.6, '#1f6fb0');
     ocean.addColorStop(1, '#123f7a');
     ctx.fillStyle = ocean;
-    ctx.beginPath(); ctx.arc(cx, cy, R, 0, TWO_PI); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, S, 0, TWO_PI); ctx.fill();
 
     this._drawGraticule(view, 0.14);
 
-    // Countries
     ctx.lineJoin = 'round';
-    ctx.lineWidth = 0.8;
-    ctx.strokeStyle = OUTLINE;
     const dx = view.cp * view.cl, dy = view.cp * view.sl, dz = view.sp;
     for (const c of countries) {
       if (!this._countryMaybeVisible(c, dx, dy, dz)) continue;
-      this._paintCountry(c, view, dx, dy, dz, c.colour, 0);
+      this._paintCountry(c, view, dx, dy, dz, c.colour, 0, 1);
+    }
+    if (extra && extra.pulse && extra.pulse.country && extra.pulse.amount > 0.01) {
+      this._paintCountry(extra.pulse.country, view, dx, dy, dz, null, extra.pulse.amount * 0.55, 1 + 0.03 * extra.pulse.amount);
     }
     if (sel && sel.country && sel.amount > 0.01) {
-      this._paintCountry(sel.country, view, dx, dy, dz, null, sel.amount);
+      this._paintCountry(sel.country, view, dx, dy, dz, null, sel.amount, sel.scale || 1);
     }
 
-    // Limb darkening + soft specular for a spherical look
-    const limb = ctx.createRadialGradient(cx, cy, R * 0.55, cx, cy, R);
+    const limb = ctx.createRadialGradient(cx, cy, S * 0.55, cx, cy, S);
     limb.addColorStop(0, 'rgba(5,20,50,0)');
     limb.addColorStop(0.8, 'rgba(5,20,50,0.18)');
     limb.addColorStop(1, 'rgba(3,10,35,0.62)');
     ctx.fillStyle = limb;
-    ctx.beginPath(); ctx.arc(cx, cy, R, 0, TWO_PI); ctx.fill();
-    const spec = ctx.createRadialGradient(cx - R * 0.38, cy - R * 0.42, 0, cx - R * 0.38, cy - R * 0.42, R * 0.7);
+    ctx.beginPath(); ctx.arc(cx, cy, S, 0, TWO_PI); ctx.fill();
+    const spec = ctx.createRadialGradient(cx - S * 0.38, cy - S * 0.42, 0, cx - S * 0.38, cy - S * 0.42, S * 0.7);
     spec.addColorStop(0, 'rgba(255,255,255,0.16)');
     spec.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = spec;
-    ctx.beginPath(); ctx.arc(cx, cy, R, 0, TWO_PI); ctx.fill();
+    ctx.beginPath(); ctx.arc(cx, cy, S, 0, TWO_PI); ctx.fill();
+
+    if (extra) {
+      if (extra.labels) this._drawLabels(extra.labels);
+      if (extra.particles) extra.particles.draw(ctx);
+    }
+  }
+
+  _drawLabels({ items, n }) {
+    const ctx = this.ctx;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+    for (let i = 0; i < n; i++) {
+      const o = items[i];
+      ctx.globalAlpha = o.alpha;
+      ctx.font = `${o.kind === 'ocean' ? 'italic 600' : '700'} ${o.size.toFixed(1)}px system-ui,Arial,sans-serif`;
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = o.kind === 'ocean' ? 'rgba(10,40,90,0.7)' : 'rgba(10,25,55,0.75)';
+      ctx.strokeText(o.text, o.x, o.y);
+      ctx.fillStyle = o.kind === 'ocean' ? '#cfe8ff' : '#ffffff';
+      ctx.fillText(o.text, o.x, o.y);
+    }
+    ctx.globalAlpha = 1;
   }
 
   _countryMaybeVisible(c, dx, dy, dz) {
+    const lim = this.visAng;
     for (const r of c.rings) {
-      const k = r.cap;
-      if (k.radius >= Math.PI / 2 || k.x * dx + k.y * dy + k.z * dz > -k.sinR) return true;
+      const k = r.cap, a = k.radius + lim;
+      if (a >= Math.PI || k.x * dx + k.y * dy + k.z * dz > Math.cos(a)) return true;
     }
     return false;
   }
 
-  _paintCountry(c, view, dx, dy, dz, colour, highlight) {
+  _ringVisible(k, dx, dy, dz) {
+    const a = k.radius + this.visAng;
+    return a >= Math.PI || k.x * dx + k.y * dy + k.z * dz > Math.cos(a);
+  }
+
+  /** highlight>0 paints the glowing selected style; scale pops it about its own centre. */
+  _paintCountry(c, view, dx, dy, dz, colour, highlight, scale) {
     const ctx = this.ctx;
+    const popped = highlight > 0 && scale !== 1 && c.anchor;
+    if (popped) {
+      const { cl, sl, cp, sp } = view, a = c.anchor;
+      const t = a.x * cl + a.y * sl;
+      const px = this.cx + this.S * (a.y * cl - a.x * sl), py = this.cy - this.S * (cp * a.z - sp * t);
+      ctx.save(); ctx.translate(px, py); ctx.scale(scale, scale); ctx.translate(-px, -py);
+    }
     ctx.beginPath();
     let any = false;
     for (const r of c.rings) {
-      const k = r.cap;
-      if (k.radius < Math.PI / 2 && k.x * dx + k.y * dy + k.z * dz <= -k.sinR) continue;
+      if (!this._ringVisible(r.cap, dx, dy, dz)) continue;
       if (this._traceRing(r, view, false)) any = true;
     }
-    if (!any) return;
+    if (!any) { if (popped) ctx.restore(); return; }
     if (colour) {
       ctx.fillStyle = colour;
       ctx.fill('evenodd');
     } else {
-      ctx.fillStyle = `rgba(255,255,255,${(0.62 * highlight).toFixed(3)})`;
+      ctx.fillStyle = `rgba(255,255,255,${(0.6 * Math.min(1, highlight)).toFixed(3)})`;
       ctx.fill('evenodd');
     }
-    // Outline: only real edges (no limb chords); redo the trace in stroke mode
     ctx.beginPath();
     for (const r of c.rings) {
-      const k = r.cap;
-      if (k.radius < Math.PI / 2 && k.x * dx + k.y * dy + k.z * dz <= -k.sinR) continue;
+      if (!this._ringVisible(r.cap, dx, dy, dz)) continue;
       this._traceRing(r, view, true);
     }
     if (colour) {
       ctx.strokeStyle = OUTLINE;
-      ctx.lineWidth = 0.8;
+      ctx.lineWidth = 1;
     } else {
-      ctx.strokeStyle = `rgba(255,236,120,${highlight.toFixed(3)})`;
-      ctx.lineWidth = 2.4;
+      ctx.shadowColor = 'rgba(255,230,90,0.95)'; ctx.shadowBlur = 14;
+      ctx.strokeStyle = `rgba(255,240,130,${Math.min(1, highlight).toFixed(3)})`;
+      ctx.lineWidth = 2.6;
     }
     ctx.stroke();
+    if (!colour) { ctx.shadowBlur = 0; ctx.shadowColor = 'transparent'; }
+    if (popped) ctx.restore();
   }
 
   _ensure(n) {
@@ -179,7 +227,7 @@ export class GlobeRenderer {
       if (first < 0 && z >= 0) first = i;
     }
     if (first < 0) return false;
-    const ctx = this.ctx, cx = this.cx, cy = this.cy, R = this.R;
+    const ctx = this.ctx, cx = this.cx, cy = this.cy, R = this.S;
 
     if (minZ >= 0) {
       ctx.moveTo(cx + R * X[0], cy - R * Y[0]);
@@ -224,7 +272,7 @@ export class GlobeRenderer {
 
   /** Walk the limb from exit point to entry point so the visible part of the polygon stays closed on the correct side. */
   _limbArc(ex, ey, nx, ny, hole) {
-    const ctx = this.ctx, cx = this.cx, cy = this.cy, R = this.R;
+    const ctx = this.ctx, cx = this.cx, cy = this.cy, R = this.S;
     const aE = Math.atan2(ey, ex), aN = Math.atan2(ny, nx);
     // Exterior rings: walk clockwise on screen (angle decreasing); holes the other way.
     let delta = hole ? aN - aE : aE - aN;
@@ -265,10 +313,10 @@ export class GlobeRenderer {
 
   _drawGraticule(view, alpha) {
     if (!this._grat) this._buildGraticule();
-    const ctx = this.ctx, { cx, cy, R } = this;
+    const ctx = this.ctx, { cx, cy } = this, R = this.S;
     const { cl, sl, cp, sp } = view;
     ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
-    ctx.lineWidth = 0.7;
+    ctx.lineWidth = 0.8;
     ctx.beginPath();
     for (const arr of this._grat) {
       let pen = false;

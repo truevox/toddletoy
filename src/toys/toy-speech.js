@@ -17,17 +17,18 @@ export function resolveSpeechSettings(configManager) {
 }
 
 /** Speak text. Returns true if an utterance was queued. */
-export function speakText(configManager, text, pitch = 1.1) {
+export function speakText(configManager, text, pitch = 1.1, lang, queue = false) {
   try {
     const synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
     if (!synth || typeof SpeechSynthesisUtterance === 'undefined') return false;
     const { mute, rate, volume } = resolveSpeechSettings(configManager);
     if (mute || volume <= 0) return false;
-    synth.cancel();
+    if (!queue) synth.cancel();
     const u = new SpeechSynthesisUtterance(text);
     u.rate = rate;
     u.volume = volume;
     u.pitch = pitch;
+    if (lang) u.lang = lang;
     synth.speak(u);
     return true;
   } catch (_) {
