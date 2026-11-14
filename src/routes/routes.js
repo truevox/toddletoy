@@ -6,7 +6,6 @@ import { safeStorage } from '../utils/safeStorage.js';
 import { ConfigManager } from '../config/ConfigManager.js';
 import { ConfigScreen } from '../config/ConfigScreen.js';
 import { ToyModeSelector } from '../modes/ToyModeSelector.js';
-import { OrreryToy } from '../toys/OrreryToy.js';
 import { ParentExitButton } from '../ui/ParentExitButton.js';
 
 export class AppRoutes {
@@ -23,6 +22,7 @@ export class AppRoutes {
         this.parentExit = null; // hold-to-exit corner control, shown only on the sandbox toy
         // Cached GlobeToy class from lazy import (instance-scoped, not module-level)
         this._GlobeToyClass = null;
+        this._OrreryToyClass = null;
         this._gameModulePromise = null;
 
         this.currentScreen = null;
@@ -166,16 +166,31 @@ export class AppRoutes {
     }
 
     // ── Orrery ───────────────────────────────────────────────────────────────
-    showOrreryScreen() {
+    async showOrreryScreen() {
         this.hideCurrentScreen();
-
-        if (!this.orreryToy) {
-            this.orreryToy = new OrreryToy(this.router, this.configManager);
-        }
-
-        this.orreryToy.show();
+        // Set immediately so a quick navigation away is handled correctly
         this.currentScreen = 'orrery';
         document.title = 'ToddleToy – Solar System';
+
+        if (!this.orreryToy) {
+            // Lazy-load: keeps the toy's code out of the entry chunk
+            if (!this._OrreryToyClass) {
+                try {
+                    const mod = await import('../toys/OrreryToy.js');
+                    this._OrreryToyClass = mod.OrreryToy;
+                } catch (err) {
+                    console.error('OrreryToy failed to load:', err);
+                    this.router.replace('/');
+                    return;
+                }
+            }
+            // Guard: user may have navigated away while the import was in flight
+            if (this.router.getCurrentRoute() !== '/orrery') return;
+            if (!this.orreryToy) this.orreryToy = new this._OrreryToyClass(this.router, this.configManager);
+        }
+
+        if (this.router.getCurrentRoute() !== '/orrery') return;
+        this.orreryToy.show();
     }
 
     // ── Globe ────────────────────────────────────────────────────────────────

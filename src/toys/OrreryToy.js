@@ -1,317 +1,326 @@
 /**
- * OrreryToy - Flat animated solar system for toddlers
- * Shows all 8 planets orbiting the Sun; tap any to hear its name.
+ * OrreryToy - a playable solar system for small children.
+ * Orbit view (drag to spin time, tap planets, zoom), Compare-sizes view and a
+ * gentle "Find it!" game. Heavy lifting lives in orrery-* modules; this class
+ * owns the lifecycle, the frame loop, layout and input wiring.
  */
-import { orreryLayout, planetDrawRadius, planetPosition, pickNearest, hitSun } from './orrery-math.js';
-import { speakText, cancelSpeech } from './toy-speech.js';
+import { BODIES, PLANET_COUNT } from './orrery-data.js';
+import { TimeController, worldPosition, scrubAngleDelta } from './orrery-time.js';
+import {
+  createCamera, fitScale, scaleOf, bodyRadiusPx, stepCamera, stepView, zoomAbout, panBy,
+  MAX_FOLLOW_ZOOM, MAX_ZOOM,
+} from './orrery-camera.js';
+import { layoutMode, freeRect, sideWidth, stripHeight, estimateBottomH, TOP_H } from './orrery-layout.js';
+import { pickNearest } from './orrery-math.js';
+import { makeStars, makeBelt, makeShooter, stepShooter, makeParticles } from './orrery-sky.js';
+import { drawOrbitScene } from './orrery-render.js';
+import { drawCompareScene } from './orrery-render-compare.js';
+import { getSprites } from './orrery-sprites.js';
+import { buildUI, layoutStrip, setSpeedUi } from './orrery-ui.js';
+import { GestureTracker } from './orrery-gesture.js';
+import { Chimes } from './orrery-audio.js';
+import { createGame } from './orrery-game.js';
+import { cancelSpeech } from './toy-speech.js';
+import { actions } from './orrery-actions.js';
+
+const _w = { x: 0, y: 0 };
 
 export class OrreryToy {
-    constructor(router, configManager = null) {
-        this.router = router;
-        this.configManager = configManager;
-        this.container = null;
-        this.canvas = null;
-        this.ctx = null;
-        this.rafId = null;
-        this.stars = [];
-        this.selectedIdx = null;
-        this.labelTimer = null;
-        this._visible = false;
-        this._elapsedMs = 0;
-        this._lastNow = 0;
-        this._w = 0; this._h = 0; this._dpr = 1;
-        this._loop = (now) => this._tick(now);
-        this._resizeHandler = () => {
-            this._syncCanvasSize();
-            this._generateStars();
-        };
+  constructor(router, configManager = null) {
+    this.router = router;
+    this.configManager = configManager;
+    this.container = null;
+    this.canvas = null;
+    this.ctx = null;
+    this.infoPanel = null;
+    this.rafId = null;
+    this._visible = false;
+    this._lastNow = 0;
+    this._wall = 0;
+    this._mq = null;
+    this.time = new TimeController(false);
+    this.cam = createCamera();
+    this.view = { cx: 0, cy: 0, base: 1, w: 0, h: 0 };
+    this.viewTarget = { cx: 0, cy: 0, base: 1 };
+    this.free = { x: 0, y: 0, w: 0, h: 0 };
+    this.mode = 'orbit';       // 'orbit' | 'compare'
+    this.sel = -1;             // body index (0 = Sun) or -1
+    this.expanded = false;
+    this.game = createGame();
+    this.chimes = new Chimes(configManager);
+    this.timers = new Set();
+    this.hinted = { dragged: false, tapped: false };
+    this.cmp = { layout: null, scrollX: 0, zoom: 1, e: 12 };
+    this.S = {
+      w: 0, h: 0, dpr: 1, view: this.view, cam: this.cam, t: 0, wall: 0, sel: -1, hintOrbit: -1, pulse: -1,
+      reduced: false, sky: null, belt: makeBelt(), shooter: makeShooter(), particles: makeParticles(),
+      px: new Float64Array(9), py: new Float64Array(9), pr: new Float64Array(9),
+      ghost: { on: false, x: 0, y: 0, rad: 0, a0: 0, a: 0 }, free: this.free,
+    };
+    this._pick = Array.from({ length: PLANET_COUNT }, () => ({ x: 0, y: 0, r: 0 }));
+    this._loop = now => this._tick(now);
+    this._resizeHandler = () => this._relayout(true);
+    this._keyHandler = e => this._onKey(e);
+    this.gesture = new GestureTracker({
+      onTap: (x, y) => this._tapAt(x, y),
+      onDoubleTap: (x, y) => this._doubleTap(x, y),
+      onDragStart: () => this._dragStart(),
+      onDrag: (x, y, px, py, t) => this._drag(x, y, px, py, t),
+      onDragEnd: () => this._dragEnd(),
+      onPinch: p => this._pinch(p),
+    });
+    this._lastDragT = 0;
+  }
+
+  static get PLANETS() {
+    return BODIES.slice(1).map(b => ({ name: b.name, bodyColor: b.color, orbitR: b.orbitR, radius: b.r, periodS: b.periodYears * 24 }));
+  }
+
+  get reduced() {
+    try { return !!(this._mq && this._mq.matches); } catch (_) { return false; }
+  }
+
+  /** Planet index 0..7 (Mercury..Neptune) or null (none / the Sun). */
+  get selectedIdx() { return this.sel > 0 ? this.sel - 1 : null; }
+
+  // ── Lifecycle ───────────────────────────────────────────────────────────
+  show() {
+    if (!this.container) {
+      this._mq = typeof window.matchMedia === 'function' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+      this.ui = buildUI(this._handlers());
+      this.container = this.ui.root;
+      this.canvas = this.ui.canvas;
+      this.ctx = this.canvas.getContext('2d');
+      this.infoPanel = this.ui.card;
+      this._bindCanvas();
+      document.body.appendChild(this.container);
     }
-
-    // ── Planet catalogue ─────────────────────────────────────────────────────
-    static get PLANETS() {
-        return [
-            { name: 'Mercury', emoji: '⚫', bodyColor: '#9E9E9E', glowColor: '#bdbdbd', radius: 5,  orbitR: 72,  periodS: 3,   startDeg: 0,   fact: 'Smallest planet!' },
-            { name: 'Venus',   emoji: '🟡', bodyColor: '#E8C97F', glowColor: '#ffd54f', radius: 9,  orbitR: 104, periodS: 5,   startDeg: 60,  fact: 'Hottest planet!' },
-            { name: 'Earth',   emoji: '🌍', bodyColor: '#4A90D9', glowColor: '#64b5f6', radius: 10, orbitR: 143, periodS: 8,   startDeg: 150, fact: 'Our home!' },
-            { name: 'Mars',    emoji: '🔴', bodyColor: '#D2553D', glowColor: '#ef9a9a', radius: 7,  orbitR: 182, periodS: 13,  startDeg: 240, fact: 'The red planet!' },
-            { name: 'Jupiter', emoji: '🟠', bodyColor: '#C88B3A', glowColor: '#ffb74d', radius: 22, orbitR: 233, periodS: 20,  startDeg: 45,  fact: 'Biggest planet!' },
-            { name: 'Saturn',  emoji: '🪐', bodyColor: '#E4CC6B', glowColor: '#fff176', radius: 18, orbitR: 274, periodS: 30,  startDeg: 200, fact: 'Has beautiful rings!' },
-            { name: 'Uranus',  emoji: '🔵', bodyColor: '#7DE8E8', glowColor: '#80deea', radius: 13, orbitR: 309, periodS: 45,  startDeg: 310, fact: 'Spins on its side!' },
-            { name: 'Neptune', emoji: '🫙', bodyColor: '#4C7EC4', glowColor: '#90caf9', radius: 12, orbitR: 340, periodS: 60,  startDeg: 130, fact: 'Furthest planet!' },
-        ];
+    this.container.style.display = 'block';
+    if (!this._visible) {
+      this._visible = true;
+      window.addEventListener('resize', this._resizeHandler);
+      window.addEventListener('orientationchange', this._resizeHandler);
+      window.addEventListener('keydown', this._keyHandler);
+      this._wall0 = 0;
     }
+    if (this.reduced && this.time.speedIndex > 0 && !this._reducedApplied) { this.time.speedIndex = 0; this._reducedApplied = true; }
+    getSprites();
+    this.S.sky = null;
+    this._relayout(true);
+    setSpeedUi(this.ui, this.time.speedIndex, this.time.paused);
+    this._lastNow = 0;
+    this._startLoop();
+  }
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
-    show() {
-        if (!this.container) {
-            this.container = this._build();
-            document.body.appendChild(this.container);
-        }
-        this.container.style.display = 'block';
-        if (!this._visible) {
-            this._visible = true;
-            window.addEventListener('resize', this._resizeHandler);
-            window.addEventListener('orientationchange', this._resizeHandler);
-        }
-        this._syncCanvasSize();
-        this._generateStars();
-        this._lastNow = 0;
-        this._startLoop();
+  hide() {
+    this._visible = false;
+    this._stopLoop();
+    this.timers.forEach(t => clearTimeout(t));
+    this.timers.clear();
+    window.removeEventListener('resize', this._resizeHandler);
+    window.removeEventListener('orientationchange', this._resizeHandler);
+    window.removeEventListener('keydown', this._keyHandler);
+    this.gesture.reset();
+    if (this.time.dragging) this.time.endScrub();
+    if (this.ui) this._resetState();
+    this.chimes.close();
+    cancelSpeech();
+    if (this.container) this.container.style.display = 'none';
+  }
+
+  destroy() {
+    this.hide();
+    if (this.container && this.container.parentNode) this.container.parentNode.removeChild(this.container);
+    this.container = null; this.canvas = null; this.ctx = null; this.infoPanel = null; this.ui = null;
+  }
+
+  // ── Layout ──────────────────────────────────────────────────────────────
+  _relayout(snap = false) {
+    if (!this.canvas) return;
+    const w = Math.max(1, window.innerWidth), h = Math.max(1, window.innerHeight);
+    const S = this.S, ui = this.ui;
+    const mode = layoutMode(w, h);
+    ui.root.dataset.mode = mode;
+    const side = sideWidth(w);
+    ui.root.style.setProperty('--side', `${side}px`);
+    const rows = layoutStrip(ui, mode === 'portrait' ? w : w - side);
+    let m;
+    if (mode === 'portrait') {
+      const measured = ui.dock.getBoundingClientRect().height;
+      m = { topH: TOP_H + this._safeTop(), bottomH: measured > 20 ? measured : estimateBottomH(w, !ui.card.hidden || !ui.game.hidden, this.expanded) };
+    } else {
+      const sh = ui.strip.getBoundingClientRect().height;
+      m = { sideW: side, stripH: (sh > 20 ? sh : stripHeight(rows)) + 8 };
     }
-
-    hide() {
-        this._visible = false;
-        this._stopLoop();
-        clearTimeout(this.labelTimer);
-        this.labelTimer = null;
-        this.selectedIdx = null;
-        if (this.infoPanel) this.infoPanel.style.opacity = '0';
-        window.removeEventListener('resize', this._resizeHandler);
-        window.removeEventListener('orientationchange', this._resizeHandler);
-        cancelSpeech();
-        if (this.container) this.container.style.display = 'none';
+    Object.assign(this.free, freeRect(mode, w, h, m));
+    const f = this.free;
+    this._mode = mode;
+    this.viewTarget.cx = f.x + f.w / 2;
+    this.viewTarget.cy = f.y + f.h / 2 + (mode === 'portrait' ? 0 : 6);
+    this.viewTarget.base = fitScale(f.w, f.h);
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    if (S.w !== w || S.h !== h || S.dpr !== dpr) {
+      S.w = w; S.h = h; S.dpr = dpr;
+      this.canvas.width = Math.round(w * dpr); this.canvas.height = Math.round(h * dpr);
+      S.sky = makeStars(w, h);
     }
+    if (!S.sky) S.sky = makeStars(w, h);
+    this.view.w = w; this.view.h = h;
+    if (snap || this.view.base === 1) Object.assign(this.view, { cx: this.viewTarget.cx, cy: this.viewTarget.cy, base: this.viewTarget.base });
+    if (this.mode === 'compare') this._compareSetup(false);
+    this._refollow();
+  }
 
-    destroy() {
-        this.hide();
-        if (this.container && this.container.parentNode) {
-            this.container.parentNode.removeChild(this.container);
-        }
-        this.container = null;
-        this.canvas = null;
-        this.ctx = null;
-        this.infoPanel = null;
+  _safeTop() {
+    try { return parseFloat(getComputedStyle(this.container).getPropertyValue('--sat')) || 0; } catch (_) { return 0; }
+  }
+
+  // ── Loop ────────────────────────────────────────────────────────────────
+  _startLoop() {
+    if (this.rafId || !this._visible) return;
+    this.rafId = requestAnimationFrame(this._loop);
+  }
+
+  _stopLoop() {
+    if (this.rafId) { cancelAnimationFrame(this.rafId); this.rafId = null; }
+  }
+
+  _tick(now) {
+    this.rafId = null;
+    if (!this._visible) return;
+    const dtMs = this._lastNow ? Math.min(100, now - this._lastNow) : 16;
+    this._lastNow = now;
+    this._frame(dtMs, now);
+    this.rafId = requestAnimationFrame(this._loop);
+  }
+
+  _frame(dtMs, now) {
+    const dt = dtMs / 1000, S = this.S, reduced = this.reduced;
+    this._wall += dt;
+    S.wall = this._wall; S.reduced = reduced;
+    this.time.step(dt);
+    S.t = this.time.t;
+    this._refollow();
+    stepCamera(this.cam, dtMs, reduced);
+    stepView(this.view, this.viewTarget, dtMs, reduced);
+    if (!reduced) stepShooter(S.shooter, dt, S.w, S.h);
+    this._hintsFrame(now);
+    if (!this.ctx) return;
+    if (this.mode === 'compare') {
+      S.free = this.free;
+      this._compareFrame();
+    } else {
+      this._computePositions();
+      drawOrbitScene(this.ctx, S, dt);
     }
+  }
 
-    // ── DOM construction ──────────────────────────────────────────────────────
-    _build() {
-        const wrap = document.createElement('div');
-        wrap.id = 'orrery-toy';
-        wrap.style.cssText = 'position:fixed;inset:0;background:#000010;z-index:500;overflow:hidden;';
+  _compareFrame() {
+    const C = this.cmp;
+    drawCompareScene(this.ctx, this.S, { layout: C.layout, scrollX: C.scrollX, sel: this.sel, wall: this._wall, reduced: this.reduced });
+  }
 
-        this.canvas = document.createElement('canvas');
-        this.canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;touch-action:none;';
-        wrap.appendChild(this.canvas);
-        this.ctx = this.canvas.getContext('2d');
-
-        // Info panel (shown when planet tapped)
-        this.infoPanel = document.createElement('div');
-        this.infoPanel.style.cssText = `
-            position:absolute; bottom:70px; left:50%; transform:translateX(-50%);
-            background:rgba(0,0,20,0.85); border:1px solid rgba(255,255,255,0.25);
-            border-radius:18px; padding:14px 32px; color:#fff;
-            font-size:clamp(1rem,4vw,1.5rem); text-align:center;
-            pointer-events:none; opacity:0; transition:opacity 0.3s;
-            max-width:90vw; box-sizing:border-box;
-        `;
-        wrap.appendChild(this.infoPanel);
-
-        // Back button (>= 44px tall touch target)
-        const back = document.createElement('button');
-        back.textContent = '← Back';
-        back.style.cssText = `
-            position:absolute; top:12px; left:16px; min-height:44px; min-width:44px;
-            background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.3);
-            color:#fff; padding:0 20px; border-radius:30px;
-            cursor:pointer; font-size:0.95rem; z-index:10;
-            font-family:Arial,sans-serif;
-        `;
-        back.addEventListener('click', () => this.router.navigate('/'));
-        wrap.appendChild(back);
-
-        const title = document.createElement('div');
-        title.textContent = '☀️ Solar System';
-        title.style.cssText = `
-            position:absolute; top:22px; left:50%; transform:translateX(-50%);
-            color:rgba(255,255,255,0.7); font-size:1.1rem;
-            pointer-events:none; white-space:nowrap; font-family:Arial,sans-serif;
-        `;
-        wrap.appendChild(title);
-
-        const hint = document.createElement('div');
-        hint.textContent = 'Tap a planet!';
-        hint.style.cssText = `
-            position:absolute; bottom:20px; left:50%; transform:translateX(-50%);
-            color:rgba(255,255,255,0.3); font-size:0.85rem;
-            pointer-events:none; font-family:Arial,sans-serif;
-        `;
-        wrap.appendChild(hint);
-
-        this.canvas.addEventListener('pointerdown', e => this._handleTap(e.clientX, e.clientY));
-        return wrap;
+  _computePositions() {
+    const S = this.S, view = this.view, cam = this.cam, s = scaleOf(view, cam);
+    for (let i = 0; i < 9; i++) {
+      if (i === 0) { _w.x = 0; _w.y = 0; } else worldPosition(BODIES[i], this.time.t, _w);
+      S.px[i] = view.cx + (_w.x - cam.fx) * s;
+      S.py[i] = view.cy + (_w.y - cam.fy) * s;
+      S.pr[i] = bodyRadiusPx(BODIES[i], s);
     }
+  }
 
-    _syncCanvasSize() {
-        if (!this.canvas) return;
-        this._dpr = Math.min(2, window.devicePixelRatio || 1);
-        this._w = window.innerWidth; this._h = window.innerHeight;
-        this.canvas.width = Math.max(1, Math.round(this._w * this._dpr));
-        this.canvas.height = Math.max(1, Math.round(this._h * this._dpr));
-    }
+  /** While following, keep the camera target glued to the planet. */
+  _refollow() {
+    const c = this.cam;
+    if (c.follow < 0) return;
+    worldPosition(BODIES[c.follow], this.time.t, _w);
+    c.tx = _w.x; c.ty = _w.y;
+  }
 
-    _generateStars() {
-        this.stars = [];
-        const count = Math.round((this._w * this._h) / 3000);
-        for (let i = 0; i < count; i++) {
-            this.stars.push({
-                x: Math.random() * this._w,
-                y: Math.random() * this._h,
-                r: Math.random() * 1.4 + 0.3,
-                phase: Math.random() * Math.PI * 2,
-            });
-        }
-    }
+  /** Test/debug helper: current planet screen positions (client px). */
+  _items() {
+    this._computePositions();
+    const S = this.S;
+    const items = [];
+    for (let i = 1; i <= PLANET_COUNT; i++) items.push({ x: S.px[i], y: S.py[i], r: S.pr[i] });
+    return { layout: this.view, items, t: this.time.t };
+  }
 
-    // ── Animation loop ────────────────────────────────────────────────────────
-    _startLoop() {
-        if (this.rafId || !this._visible) return;
-        this.rafId = requestAnimationFrame(this._loop);
-    }
+  _pickAt(x, y) {
+    this._computePositions();
+    const S = this.S;
+    for (let i = 1; i <= PLANET_COUNT; i++) { const p = this._pick[i - 1]; p.x = S.px[i]; p.y = S.py[i]; p.r = S.pr[i]; }
+    const k = pickNearest(this._pick, x, y, 28);
+    if (k >= 0) return k + 1;
+    return Math.hypot(x - S.px[0], y - S.py[0]) <= Math.max(36, S.pr[0] * 1.5) ? 0 : -1;
+  }
 
-    _tick(now) {
-        this.rafId = null;
-        if (!this._visible) return;
-        if (this._lastNow) this._elapsedMs += Math.min(100, now - this._lastNow);
-        this._lastNow = now;
-        this._draw(this._elapsedMs);
-        this.rafId = requestAnimationFrame(this._loop);
-    }
+  // ── Input ───────────────────────────────────────────────────────────────
+  _bindCanvas() {
+    const c = this.canvas;
+    const pos = e => { const r = c.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+    c.addEventListener('pointerdown', e => {
+      try { c.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+      const [x, y] = pos(e); this.gesture.down(e.pointerId, x, y, e.timeStamp);
+    });
+    c.addEventListener('pointermove', e => { const [x, y] = pos(e); this.gesture.move(e.pointerId, x, y, e.timeStamp); });
+    c.addEventListener('pointerup', e => { const [x, y] = pos(e); this.gesture.up(e.pointerId, x, y, e.timeStamp); });
+    c.addEventListener('pointercancel', e => this.gesture.cancel(e.pointerId));
+    c.addEventListener('wheel', e => {
+      e.preventDefault();
+      const [x, y] = pos(e);
+      this._zoomBy(Math.exp(-e.deltaY * (e.deltaMode ? 0.05 : 0.0016)), x, y);
+    }, { passive: false });
+  }
 
-    _stopLoop() {
-        if (this.rafId) { cancelAnimationFrame(this.rafId); this.rafId = null; }
-    }
+  /** Tap in canvas coordinates (client coords are accepted for tests). */
+  _handleTap(clientX, clientY) {
+    try {
+      if (!this.canvas) return;
+      const r = this.canvas.getBoundingClientRect();
+      this._tapAt(clientX - r.left, clientY - r.top);
+    } catch (err) { console.warn('OrreryToy tap failed:', err); }
+  }
 
-    // ── Drawing ───────────────────────────────────────────────────────────────
-    _items(ms) {
-        const layout = orreryLayout(this._w, this._h);
-        const t = ms / 1000;
-        const items = OrreryToy.PLANETS.map(p => {
-            const pos = planetPosition(p, t, layout);
-            return { x: pos.x, y: pos.y, r: planetDrawRadius(p.radius, layout.scale) };
-        });
-        return { layout, items, t };
-    }
+  _dragStart() {
+    this._lastDragT = 0;
+    if (this.mode !== 'orbit') return;
+    this.time.beginScrub();
+    this.hinted.dragged = true;
+  }
 
-    _draw(ms) {
-        const { ctx } = this;
-        if (!ctx) return;
-        const W = this._w, H = this._h;
-        const planets = OrreryToy.PLANETS;
-        const { layout, items, t } = this._items(ms);
-        const { cx, cy, scale } = layout;
+  _drag(x, y, px, py, t) {
+    if (this.mode === 'compare') { this._compareScroll(x - px); return; }
+    const S = this.S, dt = this._lastDragT ? (t - this._lastDragT) / 1000 : 0.016;
+    this._lastDragT = t;
+    const gain = 0.45 * Math.min(S.w, S.h);
+    const d = scrubAngleDelta(px, py, x, y, S.px[0], S.py[0], gain);
+    this.time.scrub(d, dt);
+  }
 
-        ctx.setTransform(this._dpr, 0, 0, this._dpr, 0, 0);
-        ctx.clearRect(0, 0, W, H);
+  _dragEnd() { if (this.time.dragging) this.time.endScrub(); }
 
-        this.stars.forEach(s => {
-            const alpha = 0.45 + 0.45 * Math.sin(t * 0.8 + s.phase);
-            ctx.beginPath();
-            ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-            ctx.fill();
-        });
+  _pinch(p) {
+    if (this.mode === 'compare') { this._compareZoom(p.scale, p.cx); this._compareScroll(p.dx); return; }
+    this._zoomBy(p.scale, p.cx, p.cy);
+    if (this.cam.follow < 0) panBy(this.view, this.cam, p.dx, p.dy);
+  }
 
-        // Orbit rings
-        ctx.save();
-        ctx.setLineDash([4, 8]);
-        planets.forEach((p, i) => {
-            ctx.beginPath();
-            ctx.arc(cx, cy, p.orbitR * scale, 0, Math.PI * 2);
-            ctx.strokeStyle = this.selectedIdx === i ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.1)';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-        });
-        ctx.setLineDash([]);
-        ctx.restore();
+  _zoomBy(factor, x, y) {
+    if (this.mode === 'compare') { this._compareZoom(factor, x); return; }
+    const cam = this.cam;
+    if (cam.follow >= 0) cam.tz = Math.min(MAX_FOLLOW_ZOOM, Math.max(1, cam.tz * factor));
+    else zoomAbout(this.view, cam, x, y, factor, MAX_ZOOM);
+  }
 
-        // Sun
-        const sunPulse = layout.sunR + 4 * Math.min(1, scale) * Math.sin(t * 1.5);
-        const sunGrad = ctx.createRadialGradient(cx, cy, 0, cx, cy, sunPulse * 2.2);
-        sunGrad.addColorStop(0,   '#FFFFFF');
-        sunGrad.addColorStop(0.25,'#FFF176');
-        sunGrad.addColorStop(0.5, '#FFD600');
-        sunGrad.addColorStop(0.75,'#FF8C00');
-        sunGrad.addColorStop(1,   'rgba(255,140,0,0)');
-        ctx.beginPath();
-        ctx.arc(cx, cy, sunPulse * 2.2, 0, Math.PI * 2);
-        ctx.fillStyle = sunGrad;
-        ctx.fill();
-
-        planets.forEach((p, i) => {
-            const { x: px, y: py, r } = items[i];
-            const selected = this.selectedIdx === i;
-
-            if (selected) {
-                const g = ctx.createRadialGradient(px, py, r, px, py, r * 3.5);
-                g.addColorStop(0, p.glowColor + 'CC');
-                g.addColorStop(1, 'transparent');
-                ctx.beginPath();
-                ctx.arc(px, py, r * 3.5, 0, Math.PI * 2);
-                ctx.fillStyle = g;
-                ctx.fill();
-            }
-
-            const bodyGrad = ctx.createRadialGradient(px - r * 0.3, py - r * 0.3, r * 0.1, px, py, r);
-            bodyGrad.addColorStop(0, p.glowColor);
-            bodyGrad.addColorStop(1, p.bodyColor);
-            ctx.beginPath();
-            ctx.arc(px, py, r, 0, Math.PI * 2);
-            ctx.fillStyle = bodyGrad;
-            ctx.fill();
-
-            if (p.name === 'Saturn') {
-                ctx.save();
-                ctx.translate(px, py);
-                ctx.scale(1, 0.35);
-                ctx.beginPath();
-                ctx.arc(0, 0, r * 2.2, 0, Math.PI * 2);
-                ctx.strokeStyle = 'rgba(228,204,107,0.55)';
-                ctx.lineWidth = r * 0.55;
-                ctx.stroke();
-                ctx.restore();
-            }
-
-            if (selected) {
-                ctx.font = `${r * 2}px serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(p.emoji, px, py);
-            }
-        });
-    }
-
-    // ── Interaction ───────────────────────────────────────────────────────────
-    _handleTap(clientX, clientY) {
-        try {
-            if (!this.canvas) return;
-            const rect = this.canvas.getBoundingClientRect();
-            const x = clientX - rect.left, y = clientY - rect.top;
-            const { layout, items } = this._items(this._elapsedMs);
-            const planets = OrreryToy.PLANETS;
-
-            const idx = pickNearest(items, x, y, 28);
-            if (idx >= 0) {
-                const p = planets[idx];
-                this.selectedIdx = idx;
-                this._showInfo(`${p.emoji} ${p.name} — ${p.fact}`);
-                speakText(this.configManager, p.name, 1.15);
-            } else if (hitSun(layout, x, y)) {
-                this.selectedIdx = null;
-                this._showInfo('☀️ The Sun — Our star!');
-                speakText(this.configManager, 'The Sun', 1.15);
-            }
-        } catch (err) {
-            console.warn('OrreryToy tap failed:', err);
-        }
-    }
-
-    _showInfo(text) {
-        clearTimeout(this.labelTimer);
-        this.infoPanel.textContent = text;
-        this.infoPanel.style.opacity = '1';
-        this.labelTimer = setTimeout(() => {
-            if (this.infoPanel) this.infoPanel.style.opacity = '0';
-            this.selectedIdx = null;
-        }, 5000);
-    }
+  _onKey(e) { return actions.onKey(this, e); }
+  _handlers() { return actions.handlers(this); }
+  _tapAt(x, y) { return actions.tapAt(this, x, y); }
+  _doubleTap(x, y) { return actions.doubleTap(this, x, y); }
+  _hintsFrame(now) { return actions.hintsFrame(this, now); }
+  _resetState() { return actions.resetState(this); }
+  _compareSetup(reset) { return actions.compareSetup(this, reset); }
+  _compareScroll(dx) { return actions.compareScroll(this, dx); }
+  _compareZoom(k, cx) { return actions.compareZoom(this, k, cx); }
 }
