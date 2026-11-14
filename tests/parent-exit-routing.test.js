@@ -1,9 +1,10 @@
 /**
  * @jest-environment jsdom
  */
-const mockScene = { scene: { pause: jest.fn() }, resetToyState: jest.fn() };
+const mockScene = { scene: { pause: jest.fn(), resume: jest.fn(), isPaused: jest.fn(() => true) }, resetToyState: jest.fn() };
 jest.mock('../src/game.js', () => ({
-    ToddlerToyGame: jest.fn().mockImplementation(() => ({ game: { scene: { scenes: [mockScene] } } }))
+    // Mirrors the real ResponsiveGameManager shape (gameInstance is the Phaser.Game)
+    ToddlerToyGame: jest.fn().mockImplementation(() => ({ gameInstance: { scene: { getScene: () => mockScene } } }))
 }));
 jest.mock('../src/config/ConfigScreen.js', () => ({
     ConfigScreen: jest.fn().mockImplementation(() => ({ show: jest.fn(), hide: jest.fn() }))
