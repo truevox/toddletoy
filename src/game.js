@@ -7,9 +7,12 @@ import { ParticleManager } from './game/systems/ParticleManager.js'
 import { RenderManager } from './game/systems/RenderManager.js'
 import { SpeechManager } from './game/systems/SpeechManager.js'
 import { ObjectManager } from './game/objects/ObjectManager.js'
+import { createShapeObject as createShapeObjectImpl } from './game/objects/ShapeFactory.js'
 import { ObjectCountingRenderer } from './game/systems/ObjectCountingRenderer.js'
 import { ResourceBar } from './ui/ResourceBar.js'
 import { MovementManager } from './game/systems/MovementManager.js'
+import { remapPosition } from './positioning/BoundsClamp.js'
+import { computeAboveStackOffsets, KAKTOVIK_LIFT, CISTERCIAN_LIFT } from './game/systems/NumberModeLayout.js'
 import { AutoCleanupManager } from './game/systems/AutoCleanupManager.js'
 import GridManager from './game/systems/GridManager.js'
 import packageJson from '../package.json'
@@ -63,6 +66,11 @@ class GameScene extends Phaser.Scene {
 
         // Set up input event handlers from InputManager
         this.setupInputHandlers();
+
+        // Keep objects reachable when the viewport changes (resize / rotation)
+        this.lastKnownSize = { width: this.scale.width, height: this.scale.height };
+        this.scale.on('resize', this.handleScaleResize, this);
+        this.events.once('shutdown', () => this.scale.off('resize', this.handleScaleResize, this));
 
         // Create text style with emoji support  
         this.textStyle = {
@@ -329,7 +337,6 @@ class GameScene extends Phaser.Scene {
         const existingObject = this.gridMode.occupiedCells.get(cellKey);
         if (existingObject) {
             // Remove existing object first (with particle effects, but no auto-respawn since we're about to spawn)
-            console.log(`📐 Replacing object in cell ${cellKey}`);
             await this.removeObjectFromGridCell(row, col, false); // false = don't auto-respawn
         }
 
@@ -351,7 +358,6 @@ class GameScene extends Phaser.Scene {
             // Track in occupied cells map
             this.gridMode.occupiedCells.set(cellKey, obj);
 
-            console.log(`📐 Spawned object in grid cell ${cellKey}:`, obj.data?.itemData);
         }
 
         return obj;
@@ -365,7 +371,6 @@ class GameScene extends Phaser.Scene {
         const obj = this.gridMode.occupiedCells.get(cellKey);
 
         if (obj) {
-            console.log(`📐 Removing object from grid cell ${cellKey}`);
 
             // Add fun particle effects before removal
             if (obj.x !== undefined && obj.y !== undefined) {
@@ -382,7 +387,6 @@ class GameScene extends Phaser.Scene {
 
             // Auto-respawn a new object in this cell if in grid mode
             if (autoRespawn && this.gridMode.enabled && this.gridMode.gridManager) {
-                console.log(`📐 Auto-respawning in empty cell ${cellKey}`);
                 // Small delay for visual effect
                 await new Promise(resolve => setTimeout(resolve, 300));
                 await this.spawnObjectInGridCell(row, col, 'random');
@@ -452,7 +456,6 @@ class GameScene extends Phaser.Scene {
 
     // Input event handlers
     async onInputPointerDown(data) {
-        console.log('🎯 onInputPointerDown called with data:', data);
         const { x, y } = data;
 
         // Warn if system not fully initialized (race condition debugging)
@@ -462,23 +465,18 @@ class GameScene extends Phaser.Scene {
 
         // Grid Mode: Map click to grid cell and spawn there
         if (this.gridMode.enabled && this.gridMode.gridManager) {
-            console.log('📐 Grid Mode active, mapping pointer to grid cell');
             const gridCell = this.gridMode.gridManager.getGridCell(x, y);
 
             if (gridCell) {
                 const { row, col } = gridCell;
-                console.log(`📐 Clicked grid cell: ${row},${col}`);
 
                 if (!this.canSpawnAfterMovement()) {
-                    console.log('🛑 Grid spawn blocked: too soon after movement');
                     return;
                 }
 
                 // Spawn object in grid cell (replaces existing if present)
                 const obj = await this.spawnObjectInGridCell(row, col, 'random');
                 this.announceObject(obj, x, y);
-            } else {
-                console.log('📐 Click outside grid boundaries');
             }
             return; // Skip free-form mode handling
         }
@@ -486,15 +484,11 @@ class GameScene extends Phaser.Scene {
         // Free-form Mode: Check spawn eligibility FIRST, then move/drag
         const hitObject = this.getObjectUnderPointer(x, y);
         const isSpeaking = this.speechManager.getIsSpeaking();
-        console.log('🎯 hitObject:', hitObject, 'isSpeaking:', isSpeaking);
 
         // 1. SPAWN CHECK (first priority) — empty space, not speaking
         if (!hitObject && !isSpeaking) {
             if (this.canSpawnAfterMovement()) {
                 await this.spawnAndAnnounce(x, y, 'random');
-            } else {
-                console.log('🛑 Spawn blocked: too soon after movement (%dms)',
-                    Date.now() - this.lastMoveTime);
             }
             return;
         }
@@ -502,7 +496,6 @@ class GameScene extends Phaser.Scene {
         // 2. DRAG/MOVE checks (only reached when spawn doesn't apply)
         // Block all movement if post-spawn lock is active
         if (!this.canMoveAfterSpawn()) {
-            console.log('🛑 Movement blocked: post-spawn lock active');
             return;
         }
 
@@ -563,7 +556,7 @@ class GameScene extends Phaser.Scene {
         this.draggedObject = obj;
 
         // Visual feedback: scale up slightly for modern feel
-        this.scene.tweens.add({
+        this.tweens.add({
             targets: obj,
             scaleX: 1.15,
             scaleY: 1.15,
@@ -574,7 +567,6 @@ class GameScene extends Phaser.Scene {
         // Start particle trail
         this.particleManager.startDragTrail(obj);
 
-        console.log('👆 Started dragging object:', obj.id);
     }
 
     /**
@@ -586,7 +578,7 @@ class GameScene extends Phaser.Scene {
         const obj = this.draggedObject;
 
         // Visual feedback: scale back to normal
-        this.scene.tweens.add({
+        this.tweens.add({
             targets: obj,
             scaleX: 1.0,
             scaleY: 1.0,
@@ -601,7 +593,6 @@ class GameScene extends Phaser.Scene {
         this.isDragging = false;
         this.draggedObject = null;
 
-        console.log('✋ Stopped dragging object:', obj.id);
     }
 
     async onInputKeyPress(data) {
@@ -609,7 +600,6 @@ class GameScene extends Phaser.Scene {
 
         if (!this.speechManager.getIsSpeaking()) {
             if (!this.canSpawnAfterMovement()) {
-                console.log('🛑 Key spawn blocked: too soon after movement');
                 return;
             }
             await this.spawnAndAnnounce(position.x, position.y, 'random');
@@ -635,7 +625,6 @@ class GameScene extends Phaser.Scene {
 
         if (!this.speechManager.getIsSpeaking()) {
             if (!this.canSpawnAfterMovement()) {
-                console.log('🛑 Gamepad spawn blocked: too soon after movement');
                 return;
             }
             await this.spawnAndAnnounce(position.x, position.y, 'random');
@@ -680,9 +669,48 @@ class GameScene extends Phaser.Scene {
             // Delegate to movement manager
             this.movementManager.moveObjectTo(obj, x, y);
         } else {
-            // Immediate positioning
-            this.movementManager.setObjectPosition(obj, x, y);
+            // Immediate positioning (still clamped to the visible area)
+            this.movementManager.moveObjectTo(obj, x, y, false);
         }
+    }
+
+    /**
+     * Pull an object (with all its labels and number-mode rows) fully inside the
+     * visible area. Used after spawn/restore and on resize.
+     * @returns {boolean} true if the object had to move
+     */
+    keepObjectInBounds(obj) {
+        if (!obj || !obj.active || !this.movementManager || !this.movementManager.clampPosition) return false;
+        const target = this.movementManager.clampPosition(obj, obj.x, obj.y);
+        if (Math.abs(target.x - obj.x) < 0.5 && Math.abs(target.y - obj.y) < 0.5) return false;
+        this.movementManager.setObjectPosition(obj, target.x, target.y);
+        return true;
+    }
+
+    /**
+     * Scale resize / device rotation: bring every object back inside the new
+     * bounds (proportional remap, then clamp so components stay attached).
+     */
+    handleScaleResize() {
+        const width = this.scale?.width;
+        const height = this.scale?.height;
+        if (!width || !height) return;
+
+        const previous = this.lastKnownSize || { width, height };
+        this.lastKnownSize = { width, height };
+
+        (this.objects || []).forEach(obj => {
+            if (!obj || !obj.active) return;
+            if (this.movementManager) this.movementManager.clearMovement(obj.id);
+            const target = remapPosition(obj.x, obj.y, previous, { width, height });
+            this.movementManager.setObjectPosition(obj, target.x, target.y);
+            this.keepObjectInBounds(obj);
+        });
+
+        if (this.inputManager && this.inputManager.handleResize) {
+            this.inputManager.handleResize(previous);
+        }
+        this.saveGameState();
     }
 
     /**
@@ -725,95 +753,7 @@ class GameScene extends Phaser.Scene {
     }
 
     createShapeObject(itemData, x, y, labelText = '') {
-        const fallbackWidth = typeof window !== 'undefined' ? window.innerWidth : 800;
-        const fallbackHeight = typeof window !== 'undefined' ? window.innerHeight : 600;
-        const minDimension = Math.min(this.scale.width || fallbackWidth, this.scale.height || fallbackHeight);
-        const dynamicSize = Math.round(minDimension * 0.04);
-        const size = Math.max(28, Math.min(40, dynamicSize || 32));
-        const container = this.add.container(x, y);
-
-        const colorHex = itemData?.color?.hex || '#ffffff';
-        let fillColorInt = 0xffffff;
-        try {
-            fillColorInt = Phaser.Display.Color.HexStringToColor(colorHex).color;
-        } catch (error) {
-            console.warn('Failed to parse shape color hex:', colorHex, error);
-        }
-
-        const strokeColor = 0xffffff;
-        const strokeAlpha = 0.85;
-        const strokeWidth = Math.max(2, Math.round(size * 0.15));
-        const normalizedValue = (itemData?.value || '').toLowerCase();
-        let shape = null;
-
-        const addShape = (gameObject, { skipStroke = false } = {}) => {
-            if (!gameObject) return;
-            gameObject.setPosition(0, 0);
-            if (gameObject.setOrigin) {
-                gameObject.setOrigin(0.5, 0.5);
-            }
-            if (!skipStroke && gameObject.setStrokeStyle) {
-                gameObject.setStrokeStyle(strokeWidth, strokeColor, strokeAlpha);
-            }
-            container.add(gameObject);
-            shape = gameObject;
-        };
-
-        switch (normalizedValue) {
-            case 'circle':
-                addShape(this.add.circle(0, 0, size / 2, fillColorInt));
-                break;
-            case 'square':
-                addShape(this.add.rectangle(0, 0, size * 0.9, size * 0.9, fillColorInt));
-                break;
-            case 'triangle':
-                addShape(this.add.polygon(0, 0, [
-                    0, -size / 2,
-                    size / 2, size / 2,
-                    -size / 2, size / 2
-                ], fillColorInt));
-                break;
-            case 'star':
-                addShape(this.add.star(0, 0, 5, size * 0.5, size * 0.2, fillColorInt));
-                break;
-            case 'diamond':
-                addShape(this.add.polygon(0, 0, [
-                    0, -size / 2,
-                    size / 2, 0,
-                    0, size / 2,
-                    -size / 2, 0
-                ], fillColorInt));
-                break;
-            case 'heart': {
-                const graphics = this.add.graphics({ x: 0, y: 0 });
-                graphics.fillStyle(fillColorInt, 1);
-                graphics.lineStyle(strokeWidth, strokeColor, strokeAlpha);
-                const curveDepth = size * 0.35;
-                graphics.beginPath();
-                graphics.moveTo(0, size / 2);
-                graphics.bezierCurveTo(size / 2, size / 2 - curveDepth, size / 2, -size / 6, 0, -size / 3);
-                graphics.bezierCurveTo(-size / 2, -size / 6, -size / 2, size / 2 - curveDepth, 0, size / 2);
-                graphics.closePath();
-                graphics.fillPath();
-                graphics.strokePath();
-                addShape(graphics, { skipStroke: true });
-                break;
-            }
-            default:
-                addShape(this.add.circle(0, 0, size / 2, fillColorInt));
-                break;
-        }
-
-        container.mainShape = shape;
-        container.shapeSize = size;
-        container.text = labelText || itemData?.value || '';
-        container.componentLayout = container.componentLayout || {};
-        container.componentLayout.labelVerticalOffset = Math.round(size * 1.2);
-        const hitSize = size + 12;
-        container.setSize(hitSize, hitSize);
-        container.setInteractive(new Phaser.Geom.Rectangle(-hitSize / 2, -hitSize / 2, hitSize, hitSize), Phaser.Geom.Rectangle.Contains);
-
-        return container;
+        return createShapeObjectImpl(this, itemData, x, y, labelText);
     }
 
     async spawnObjectAt(x, y, type = 'random') {
@@ -889,8 +829,8 @@ class GameScene extends Phaser.Scene {
             const verticalOffset = obj.componentLayout?.labelVerticalOffset || 0;
             this.renderManager.displayTextLabels(obj, verticalOffset);
 
-
-            console.log(`✨ Spawned ${actualType}:`, displayText, 'at', x, y);
+            // Keep the whole composite (glyph, labels, rows) inside the visible area
+            this.keepObjectInBounds(obj);
 
             // Track spawn time to prevent accidental immediate interaction
             this.lastSpawnTime = Date.now();
@@ -916,11 +856,10 @@ class GameScene extends Phaser.Scene {
      * @returns {Promise<Object|null>} The spawned object or null if spawn failed
      */
     async spawnAndAnnounce(x, y, type = 'random') {
-        console.log('🎯 Attempting to spawn object at', x, y);
         const obj = await this.spawnObjectAt(x, y, type);
-        console.log('🎯 Spawn result:', obj);
         if (obj) {
-            this.announceObject(obj, x, y);
+            // Use the (possibly clamped) final position for audio/particles
+            this.announceObject(obj, obj.x, obj.y);
         }
         return obj;
     }
@@ -981,39 +920,36 @@ class GameScene extends Phaser.Scene {
 
             objectCountingYOffset = totalLabelArea + buffer;
 
-            const modeName = numberModes.objectCounting ? 'place values' : 'only apples';
-            console.log(`📐 Responsive layout (scale=${styleInfo.scaleFactor.toFixed(2)}): ${numberValue}, ${languageCount} langs, labelOffset=${actualLabelOffset}px, lineSpacing=${actualLineSpacing}px, ${modeName} at Y+${objectCountingYOffset}px`);
         }
 
-        // Render Cistercian numerals (furthest from center, above labels)
-        if (numberModes.cistercian) {
-            const cistercianYOffset = -107;
-            const cistercianObj = this.renderManager.renderCistercianNumeral(numberValue, centerX, centerY + cistercianYOffset);
-            if (cistercianObj) {
-                components.push({ type: 'cistercian', object: cistercianObj, offsetX: 0, offsetY: cistercianYOffset });
-            }
-        }
-
-        // Render Kaktovik numerals (middle distance, above labels)
-        if (numberModes.kaktovik) {
-            const baseOffset = numberModes.cistercian ? -60 : -80;
-            const kaktovikYOffset = baseOffset - 4;
-            const kaktovikObj = this.renderManager.renderKaktovikNumeral(numberValue, centerX, centerY + kaktovikYOffset);
-            if (kaktovikObj) {
-                components.push({ type: 'kaktovik', object: kaktovikObj, offsetX: 0, offsetY: kaktovikYOffset });
-            }
-        }
-
-        // Render binary hearts (above labels)
+        // Rows above the numeral (binary hearts nearest, then Kaktovik, then Cistercian).
+        // Create them first, then position by MEASURED height so rows never overlap
+        // the numeral or each other (see NumberModeLayout).
+        const aboveRows = [];
         if (numberModes.binary) {
-            let yOffset = -40;
-            if (numberModes.cistercian) yOffset = -20;
-            if (numberModes.kaktovik) yOffset = -20;
+            const binaryObj = this.renderManager.renderBinaryHearts(numberValue, centerX, centerY);
+            if (binaryObj) aboveRows.push({ type: 'binary', object: binaryObj, lift: 0 });
+        }
+        if (numberModes.kaktovik) {
+            const kaktovikObj = this.renderManager.renderKaktovikNumeral(numberValue, centerX, centerY);
+            if (kaktovikObj) aboveRows.push({ type: 'kaktovik', object: kaktovikObj, lift: KAKTOVIK_LIFT });
+        }
+        if (numberModes.cistercian) {
+            const cistercianObj = this.renderManager.renderCistercianNumeral(numberValue, centerX, centerY);
+            if (cistercianObj) aboveRows.push({ type: 'cistercian', object: cistercianObj, lift: CISTERCIAN_LIFT });
+        }
 
-            const binaryObj = this.renderManager.renderBinaryHearts(numberValue, centerX, centerY + yOffset);
-            if (binaryObj) {
-                components.push({ type: 'binary', object: binaryObj, offsetX: 0, offsetY: yOffset });
-            }
+        if (aboveRows.length > 0) {
+            const mainHalfHeight = (obj.displayHeight || obj.height || 32) / 2;
+            const offsets = computeAboveStackOffsets(
+                aboveRows.map(row => ({ type: row.type, lift: row.lift, height: row.object.displayHeight || row.object.height || 0 })),
+                mainHalfHeight
+            );
+            aboveRows.forEach(row => {
+                const offsetY = offsets[row.type];
+                if (row.object.setPosition) row.object.setPosition(centerX, centerY + offsetY);
+                components.push({ type: row.type, object: row.object, offsetX: 0, offsetY });
+            });
         }
 
         // Render object counting modes BELOW labels
@@ -1050,7 +986,6 @@ class GameScene extends Phaser.Scene {
                 offsetY: objectCountingYOffset
             });
 
-            console.log(`🔢 Rendered place values for ${numberValue} using ResourceBar`);
         } else if (numberModes.onlyApples) {
             // Only apples mode: 🍎🍎🍎 (simple counting with educational layouts)
             const appleComponents = this.objectCountingRenderer.renderStackedApples(
@@ -1069,7 +1004,6 @@ class GameScene extends Phaser.Scene {
                 });
             });
 
-            console.log(`🍎 Rendered only apples for ${numberValue}: ${appleComponents.length} apples`);
         }
 
         // Store component layout (no label offset needed - labels stay in normal position)
@@ -1135,7 +1069,6 @@ class GameScene extends Phaser.Scene {
                     )
                 );
 
-                console.log(`🎯 Filtered emojis: ${availableEmojis.length} available from categories [${enabledCategories.join(', ')}]`);
             }
         }
 
@@ -1408,7 +1341,6 @@ class GameScene extends Phaser.Scene {
 
         try {
             localStorage.setItem('toddleToyGameState', JSON.stringify(gameState));
-            console.log('💾 Game state saved:', gameState.objects.length, 'objects');
         } catch (error) {
             console.warn('Failed to save game state:', error);
         }
@@ -1492,8 +1424,7 @@ class GameScene extends Phaser.Scene {
         // Display text labels with dynamic vertical offset (for object counting layout)
         const verticalOffset = obj.componentLayout?.labelVerticalOffset || 0;
         this.renderManager.displayTextLabels(obj, verticalOffset);
-
-        console.log(`✨ Restored ${objData.type}:`, displayText, 'at', objData.x, objData.y);
+        this.keepObjectInBounds(obj);
     }
 
     // Cleanup methods
@@ -1671,7 +1602,6 @@ class ResponsiveGameManager {
             const newHeight = Math.min(window.innerHeight, 800);
 
             this.gameInstance.scale.resize(newWidth, newHeight);
-            console.log('🔄 Game resized to:', newWidth, 'x', newHeight);
         }
     }
 

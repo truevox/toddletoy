@@ -177,7 +177,6 @@ export class ObjectCountingRenderer {
             }
         }
 
-        console.log(`🍎 Rendered ${count} apples in ${gridLayout.rows}x${gridLayout.columns} square grid`);
         return components;
     }
 
@@ -225,9 +224,6 @@ export class ObjectCountingRenderer {
             }).setOrigin(0.5, 0);
 
             components.push(overflowText);
-            console.log(`🍎 Rendered ${displayCount}/${count} apples (capped at ${MAX_APPLES}) in ${layout.rows}x${layout.columns} grid`);
-        } else {
-            console.log(`🍎 Rendered ${count} apples in ${layout.rows}x${layout.columns} grid`);
         }
 
         return components;
@@ -280,7 +276,6 @@ export class ObjectCountingRenderer {
             rows = Math.ceil(count / columns);
         }
         
-        console.log(`📐 Optimal layout for ${count} apples: ${rows}x${columns} (sqrt-based algorithm)`);
         return { rows, columns, aspectRatio: rows / columns };
     }
 
