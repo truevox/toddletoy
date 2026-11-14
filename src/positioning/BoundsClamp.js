@@ -87,25 +87,72 @@ function clampAxis(value, extentMin, extentMax, size, margin) {
     return Math.min(hi, Math.max(lo, value));
 }
 
+/** Size (px) of the square kept clear in the top-right corner for the parent exit button (44px + 8px inset + slack). */
+export const EXIT_BUTTON_KEEP_OUT = 60;
+
+/** Default keep-out rectangles (canvas coordinates) for a visible area. */
+export function defaultKeepOutRects(bounds, size = EXIT_BUTTON_KEEP_OUT) {
+    if (!bounds || !Number.isFinite(bounds.width)) return [];
+    return [{ x: bounds.width - size, y: 0, width: size, height: size }];
+}
+
+function overlapAmounts(rect, k) {
+    const ox = Math.min(rect.right, k.x + k.width) - Math.max(rect.left, k.x);
+    const oy = Math.min(rect.bottom, k.y + k.height) - Math.max(rect.top, k.y);
+    return ox > 0 && oy > 0 ? { ox, oy } : null;
+}
+
+/**
+ * Push the composite out of a keep-out rectangle by the smaller of: moving left
+ * or moving down (only moves that stay in bounds are preferred).
+ */
+function avoidKeepOut(pos, ext, bounds, margin, k) {
+    const rect = () => ({
+        left: pos.x + ext.left, right: pos.x + ext.right,
+        top: pos.y + ext.top, bottom: pos.y + ext.bottom
+    });
+    const hit = overlapAmounts(rect(), k);
+    if (!hit) return pos;
+
+    const r = rect();
+    const left = r.right - k.x;              // distance to move left
+    const down = (k.y + k.height) - r.top;   // distance to move down
+    const canLeft = r.left - left >= margin;
+    const canDown = r.bottom + down <= bounds.height - margin;
+
+    let dir;
+    if (canLeft && canDown) dir = left <= down ? 'left' : 'down';
+    else if (canLeft) dir = 'left';
+    else if (canDown) dir = 'down';
+    else dir = left <= down ? 'left' : 'down';
+
+    return dir === 'left' ? { x: pos.x - left, y: pos.y } : { x: pos.x, y: pos.y + down };
+}
+
 /**
  * Clamp a desired anchor position so the whole composite stays inside
- * [margin, size - margin] on both axes.
+ * [margin, size - margin] on both axes and out of any keep-out rectangles.
  * @param {Object} obj - main game object with componentLayout / label words
  * @param {number} x - desired anchor X
  * @param {number} y - desired anchor Y
  * @param {{width:number,height:number}} bounds - visible area size
  * @param {number} [margin]
+ * @param {Array<{x:number,y:number,width:number,height:number}>} [keepOutRects] - canvas-space rects to stay clear of
  * @returns {{x:number,y:number}}
  */
-export function clampPositionToBounds(obj, x, y, bounds, margin = DEFAULT_EDGE_MARGIN) {
+export function clampPositionToBounds(obj, x, y, bounds, margin = DEFAULT_EDGE_MARGIN, keepOutRects = []) {
     if (!bounds || !Number.isFinite(bounds.width) || !Number.isFinite(bounds.height)) return { x, y };
     const ext = getObjectExtents(obj);
     if (!ext) return { x, y };
 
-    return {
+    let pos = {
         x: clampAxis(x, ext.left, ext.right, bounds.width, margin),
         y: clampAxis(y, ext.top, ext.bottom, bounds.height, margin)
     };
+    (keepOutRects || []).forEach(k => {
+        if (k && Number.isFinite(k.x) && Number.isFinite(k.width)) pos = avoidKeepOut(pos, ext, bounds, margin, k);
+    });
+    return pos;
 }
 
 /** Proportionally map a position from one viewport size to another. */

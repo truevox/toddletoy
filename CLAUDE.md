@@ -202,6 +202,8 @@ Each command uses `$ARGUMENTS` for flexibility :contentReference[oaicite:10]{ind
 - Use **subagents** if feature scope is large (split into smaller tasks) :contentReference[oaicite:12]{index=12}.
 - Always write a failing test before implementation.
 - Ask for a review or second agent to “verify no over‑fitting” :contentReference[oaicite:13]{index=13}.
+- **Subagents get interrupted by the 5-hour usage limit regularly.** When delegating, always tell each subagent to commit a working, verified stage as it goes (staged priorities, one commit per stage) so an interruption loses little, and resume interrupted agents from their saved worktrees rather than restarting them. (Marvin, 2026-11-14.)
+- Subagent worktrees may be cut from the default branch rather than the working branch: have each subagent merge the current working branch first, and have it merge again before its final commit.
 
 ---
 

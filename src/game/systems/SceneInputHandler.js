@@ -146,6 +146,9 @@ export class SceneInputHandler {
         this.scene.isDragging = false;
         this.scene.draggedObject = null;
 
+        // Remember where the object was left so a reload restores it there
+        if (this.scene.saveGameState) this.scene.saveGameState();
+
     }
 
     async onInputKeyPress(data) {

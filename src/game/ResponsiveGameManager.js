@@ -24,8 +24,9 @@ class ResponsiveGameManager {
 
     initGame() {
         // Calculate responsive dimensions
-        const width = Math.min(window.innerWidth, 1200);
-        const height = Math.min(window.innerHeight, 800);
+        // Scale.RESIZE fills the container, so start at the real window size (no caps)
+        const width = window.innerWidth;
+        const height = window.innerHeight;
 
         this.config = {
             type: Phaser.AUTO,
@@ -129,11 +130,7 @@ class ResponsiveGameManager {
 
     handleResize() {
         if (this.gameInstance && this.gameInstance.scene.scenes[0]) {
-            const scene = this.gameInstance.scene.scenes[0];
-            const newWidth = Math.min(window.innerWidth, 1200);
-            const newHeight = Math.min(window.innerHeight, 800);
-
-            this.gameInstance.scale.resize(newWidth, newHeight);
+            this.gameInstance.scale.resize(window.innerWidth, window.innerHeight);
         }
     }
 

@@ -117,7 +117,7 @@ export class GameStateStore {
         this.scene.objects.push(obj);
 
         // Render number modes FIRST if this is a number (to calculate layout offset)
-        if (objData.type === 'number' && objData.itemData.value) {
+        if (objData.type === 'number' && Number.isFinite(objData.itemData.value)) {
             this.scene.renderAllNumberModes(obj, objData.itemData.value, objData.x, objData.y);
         }
 
@@ -127,6 +127,7 @@ export class GameStateStore {
         if (this.scene.keepObjectInBounds) this.scene.keepObjectInBounds(obj);
 
         console.log(`✨ Restored ${objData.type}:`, displayText, 'at', objData.x, objData.y);
+        return obj;
     }
 
     // Cleanup methods
