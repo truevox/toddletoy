@@ -1,253 +1,175 @@
 import { test, expect } from '@playwright/test';
+import {
+    collectErrors, seedConfig, skipOnboarding, gotoSelector, enterSandbox, startPlaying, tapSpawn, objectCount,
+    waitForSpawnReady, waitForObjectCount, SANDBOX_CARD, clickCanvas,
+} from './helpers/app.js';
 
 /**
- * Performance validation tests for the toddler toy PWA
- * Tests performance with multiple objects and various scenarios
+ * Performance and resource budgets. Budgets are deliberately generous (CI
+ * boxes are slow); they catch order-of-magnitude regressions, not jitter.
  */
+test.describe('Performance budgets', () => {
+    test.beforeEach(async ({ context }) => {
+        await skipOnboarding(context);
+    });
 
-test.describe('Performance Validation', () => {
-  test.beforeEach(async ({ page }) => {
-    // Navigate to the application
-    await page.goto('/');
-    
-    // Wait for game to load
-    await page.waitForSelector('canvas', { timeout: 10000 });
-    await page.waitForTimeout(2000); // Allow Phaser to fully initialize
-  });
+    test('time to interactive: selector < 5s, START -> live scene < 6s', async ({ page }) => {
+        const t0 = Date.now();
+        await gotoSelector(page);
+        expect(Date.now() - t0).toBeLessThan(5000);
 
-  test('should handle multiple object spawning without significant performance degradation', async ({ page }) => {
-    const startTime = Date.now();
-    
-    // Spawn 10 objects in different locations
-    for (let i = 0; i < 10; i++) {
-      await page.click('canvas', { 
-        position: { 
-          x: 100 + (i * 60), 
-          y: 100 + (i % 3) * 100 
+        await page.locator(SANDBOX_CARD).click();
+        await expect(page.locator('#config-screen')).toBeVisible();
+        const t1 = Date.now();
+        await startPlaying(page);
+        expect(Date.now() - t1).toBeLessThan(6000);
+        // interactive means the first tap spawns
+        const t2 = Date.now();
+        await tapSpawn(page, 0.5, 0.5);
+        expect(Date.now() - t2).toBeLessThan(2000);
+    });
+
+    test('20 taps produce exactly 20 objects within budget', async ({ page }) => {
+        const c = collectErrors(page);
+        await enterSandbox(page);
+        const start = Date.now();
+        for (let i = 0; i < 20; i++) {
+            await tapSpawn(page, 0.05 + (i % 10) * 0.095, 0.15 + Math.floor(i / 10) * 0.5);
         }
-      });
-      await page.waitForTimeout(100); // Small delay between spawns
-    }
-    
-    const spawningTime = Date.now() - startTime;
-    
-    // Should complete spawning within reasonable time (under 8 seconds)
-    expect(spawningTime).toBeLessThan(8000);
-    
-    // Take screenshot to verify all objects rendered
-    await expect(page).toHaveScreenshot('multiple-objects.png');
-  });
+        expect(Date.now() - start).toBeLessThan(15000);
+        expect(await objectCount(page)).toBe(20);
+        expect(c.pageErrors).toEqual([]);
+    });
 
-  test('should maintain smooth animation with multiple objects', async ({ page }) => {
-    // Spawn several objects
-    await page.click('canvas', { position: { x: 200, y: 200 } });
-    await page.click('canvas', { position: { x: 400, y: 200 } });
-    await page.click('canvas', { position: { x: 600, y: 200 } });
-    await page.waitForTimeout(500);
-    
-    // Measure frame rate by checking for smooth movement
-    const startTime = Date.now();
-    
-    // Move objects multiple times
-    for (let i = 0; i < 5; i++) {
-      await page.click('canvas', { position: { x: 300, y: 150 + i * 50 } });
-      await page.waitForTimeout(200);
-    }
-    
-    const movementTime = Date.now() - startTime;
-    
-    // Movement should be responsive (under 4 seconds)
-    expect(movementTime).toBeLessThan(4000);
-  });
+    test('the frame loop keeps running with many objects on screen', async ({ page }) => {
+        await enterSandbox(page);
+        for (let i = 0; i < 12; i++) await tapSpawn(page, 0.08 + (i % 6) * 0.16, 0.2 + Math.floor(i / 6) * 0.5);
+        const fps = await page.evaluate(() => new Promise((resolve) => {
+            let n = 0; const t0 = performance.now();
+            const tick = () => { n++; if (performance.now() - t0 >= 1000) resolve(n); else requestAnimationFrame(tick); };
+            requestAnimationFrame(tick);
+        }));
+        expect(fps).toBeGreaterThan(8);
+    });
 
-  test('should handle rapid keyboard input without lag', async ({ page }) => {
-    const startTime = Date.now();
-    
-    // Rapid keyboard input simulation
-    const keys = ['q', 'w', 'e', 'a', 's', 'd', 'z', 'x', 'c'];
-    
-    for (const key of keys) {
-      await page.keyboard.press(key);
-      await page.waitForTimeout(50); // Very fast input
-    }
-    
-    const inputTime = Date.now() - startTime;
-    
-    // Should handle rapid input smoothly (under 2 seconds)
-    expect(inputTime).toBeLessThan(2000);
-    
-    // Take screenshot to verify all objects spawned
-    await expect(page).toHaveScreenshot('rapid-keyboard-input.png');
-  });
+    test('rapid keyboard input is absorbed without errors or lag', async ({ page }) => {
+        const c = collectErrors(page);
+        await enterSandbox(page);
+        const start = Date.now();
+        for (const key of ['KeyQ', 'KeyW', 'KeyE', 'KeyA', 'KeyS', 'KeyD', 'KeyZ', 'KeyX', 'KeyC']) {
+            await page.keyboard.press(key);
+        }
+        expect(Date.now() - start).toBeLessThan(2000);
+        // the page is still responsive afterwards
+        await waitForSpawnReady(page);
+        const n = await objectCount(page);
+        await clickCanvas(page, 0.9, 0.9);
+        await waitForObjectCount(page, n + 1);
+        expect(c.pageErrors).toEqual([]);
+    });
 
-  test('should maintain performance during speech with visual effects', async ({ page }) => {
-    // Enable speech by clicking an object
-    await page.click('canvas', { position: { x: 400, y: 300 } });
-    await page.waitForTimeout(1000); // Allow object to spawn
-    
-    const startTime = Date.now();
-    
-    // Click the object to trigger speech and effects
-    await page.click('canvas', { position: { x: 400, y: 300 } });
-    
-    // Wait for speech and effects to complete
-    await page.waitForTimeout(3000);
-    
-    const speechEffectsTime = Date.now() - startTime;
-    
-    // Speech with effects should not cause significant delay
-    expect(speechEffectsTime).toBeLessThan(5000);
-    
-    // Take screenshot during/after effects
-    await expect(page).toHaveScreenshot('speech-with-effects.png');
-  });
-
-  test('should handle stress test with many interactions', async ({ page }) => {
-    const startTime = Date.now();
-    
-    // Stress test: 20 random interactions
-    for (let i = 0; i < 20; i++) {
-      const x = Math.random() * 600 + 100;
-      const y = Math.random() * 400 + 100;
-      
-      if (i % 3 === 0) {
-        // Every 3rd interaction is keyboard
-        const keys = ['q', 'w', 'e', 'a', 's'];
-        await page.keyboard.press(keys[i % keys.length]);
-      } else {
-        // Otherwise click
-        await page.click('canvas', { position: { x, y } });
-      }
-      
-      await page.waitForTimeout(50);
+    for (const vp of [{ width: 1200, height: 800 }, { width: 375, height: 667 }]) {
+        test(`a tap responds in under 1s at ${vp.width}x${vp.height}`, async ({ page }) => {
+            await page.setViewportSize(vp);
+            await enterSandbox(page);
+            const t = Date.now();
+            await tapSpawn(page, 0.5, 0.5);
+            expect(Date.now() - t).toBeLessThan(1000);
+        });
     }
-    
-    const stressTestTime = Date.now() - startTime;
-    
-    // Stress test should complete in reasonable time (under 8 seconds)
-    expect(stressTestTime).toBeLessThan(8000);
-    
-    // Take final screenshot
-    await expect(page).toHaveScreenshot('stress-test-final.png');
-  });
-
-  test('should efficiently cleanup particle effects', async ({ page }) => {
-    // Spawn object and trigger effects
-    await page.click('canvas', { position: { x: 300, y: 300 } });
-    await page.waitForTimeout(500);
-    
-    // Move object multiple times to trigger trail effects
-    for (let i = 0; i < 5; i++) {
-      await page.click('canvas', { position: { x: 300 + i * 30, y: 300 + i * 30 } });
-      await page.waitForTimeout(200);
-    }
-    
-    // Wait for effects to cleanup
-    await page.waitForTimeout(2000);
-    
-    // Check memory usage by spawning more objects after effects
-    for (let i = 0; i < 5; i++) {
-      await page.click('canvas', { position: { x: 500, y: 200 + i * 40 } });
-      await page.waitForTimeout(100);
-    }
-    
-    // Should still be responsive after cleanup
-    await expect(page).toHaveScreenshot('post-effects-cleanup.png');
-  });
-
-  test('should perform well on different viewport sizes', async ({ page }) => {
-    // Test desktop viewport
-    await page.setViewportSize({ width: 1200, height: 800 });
-    const desktopStart = Date.now();
-    
-    await page.click('canvas', { position: { x: 600, y: 400 } });
-    await page.waitForTimeout(300);
-    
-    const desktopTime = Date.now() - desktopStart;
-    
-    // Test mobile viewport
-    await page.setViewportSize({ width: 375, height: 667 });
-    const mobileStart = Date.now();
-    
-    await page.click('canvas', { position: { x: 187, y: 333 } });
-    await page.waitForTimeout(300);
-    
-    const mobileTime = Date.now() - mobileStart;
-    
-    // Both viewports should be responsive
-    expect(desktopTime).toBeLessThan(1000);
-    expect(mobileTime).toBeLessThan(1000);
-    
-    await expect(page).toHaveScreenshot('mobile-viewport-performance.png');
-  });
 });
 
-test.describe('Memory and Resource Management', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto('/');
-    await page.waitForSelector('canvas', { timeout: 10000 });
-    await page.waitForTimeout(2000);
-  });
+test.describe('Resource management', () => {
+    test.beforeEach(async ({ context }) => {
+        await skipOnboarding(context);
+    });
 
-  test('should not leak memory with repeated object creation and destruction', async ({ page }) => {
-    // Get initial memory baseline
-    const initialMemory = await page.evaluate(() => {
-      return performance.memory ? performance.memory.usedJSHeapSize : 0;
+    const census = (page) => page.evaluate(() => {
+        const s = window.appRoutes.getGameScene();
+        return {
+            objects: s.objects.length,
+            children: s.children.list.length,
+            tweens: s.tweens.getTweens().length,
+            tones: s.audioManager.activeTones.size,
+            pointerListeners: s.input.listenerCount('pointerdown'),
+            inputEvents: s.events.listenerCount('input:pointerDown'),
+            keyListeners: s.input.keyboard.listenerCount('keydown'),
+        };
     });
-    
-    // Create and interact with many objects
-    for (let cycle = 0; cycle < 3; cycle++) {
-      // Spawn 10 objects
-      for (let i = 0; i < 10; i++) {
-        await page.click('canvas', { position: { x: 200 + i * 30, y: 200 } });
-        await page.waitForTimeout(50);
-      }
-      
-      // Wait for any cleanup
-      await page.waitForTimeout(1000);
-      
-      // Clear the scene by refreshing (simulating cleanup)
-      await page.reload();
-      await page.waitForSelector('canvas', { timeout: 10000 });
-      await page.waitForTimeout(1000);
-    }
-    
-    // Check final memory usage
-    const finalMemory = await page.evaluate(() => {
-      return performance.memory ? performance.memory.usedJSHeapSize : 0;
-    });
-    
-    // Memory should not have grown excessively (allow for some variance)
-    if (initialMemory > 0 && finalMemory > 0) {
-      const memoryGrowth = finalMemory - initialMemory;
-      const maxAcceptableGrowth = initialMemory * 2; // Allow 2x growth maximum
-      
-      expect(memoryGrowth).toBeLessThan(maxAcceptableGrowth);
-    }
-  });
 
-  test('should handle audio context creation and cleanup properly', async ({ page }) => {
-    // Test audio functionality doesn't leak resources
-    await page.keyboard.press('q'); // Spawn object that generates tones
-    await page.waitForTimeout(500);
-    
-    // Trigger tone generation
-    await page.click('canvas', { position: { x: 300, y: 300 } });
-    await page.waitForTimeout(1000);
-    
-    // Spawn more objects with audio
-    for (let i = 0; i < 5; i++) {
-      await page.keyboard.press('w');
-      await page.waitForTimeout(200);
-    }
-    
-    // Check that audio contexts are properly managed
-    const audioContextCount = await page.evaluate(() => {
-      // Check if audio context exists and is in good state
-      return window.AudioContext || window.webkitAudioContext ? 1 : 0;
+    test('exiting the toy returns display list, tweens and tones to the empty baseline', async ({ page }) => {
+        await enterSandbox(page);
+        const baseline = await census(page);
+        for (let i = 0; i < 10; i++) await tapSpawn(page, 0.08 + (i % 5) * 0.2, 0.2 + Math.floor(i / 5) * 0.5);
+        const busy = await census(page);
+        expect(busy.children).toBeGreaterThan(baseline.children);
+
+        await page.evaluate(() => window.appRoutes.exitToy());
+        await expect(page.locator('#toy-mode-selector')).toBeVisible();
+        const after = await census(page);
+        expect(after.objects).toBe(0);
+        expect(after.tones).toBe(0);
     });
-    
-    // Should have audio context available
-    expect(audioContextCount).toBeGreaterThanOrEqual(0);
-  });
+
+    test('exiting the toy leaves no orphaned display objects (labels, emitters)', async ({ page }) => {
+        test.fail(true, 'App bug: after exitToy()/resetToyState() the scene display list keeps orphaned Text/shape/Graphics objects, and ParticleEmitters (~2 per spawn) are never destroyed; e.g. 5 taps then exit leaves ~20 children (10 emitters) vs 0 at start.');
+        await enterSandbox(page);
+        const baseline = await census(page);
+        for (let i = 0; i < 5; i++) await tapSpawn(page, 0.1 + i * 0.2, 0.5);
+        await page.evaluate(() => window.appRoutes.exitToy());
+        await expect(page.locator('#toy-mode-selector')).toBeVisible();
+        await expect.poll(async () => (await census(page)).children, { timeout: 3000 }).toBeLessThanOrEqual(baseline.children);
+    });
+
+    test('five enter/exit cycles do not accumulate listeners, canvases or objects', async ({ page }) => {
+        const c = collectErrors(page);
+        await enterSandbox(page);
+        const first = await census(page);
+        for (let i = 0; i < 5; i++) {
+            await tapSpawn(page, 0.5, 0.5);
+            await page.evaluate(() => window.appRoutes.exitToy());
+            await expect(page.locator('#toy-mode-selector')).toBeVisible();
+            await page.locator(SANDBOX_CARD).click();
+            await startPlaying(page);
+        }
+        const last = await census(page);
+        expect(last.pointerListeners).toBe(first.pointerListeners);
+        expect(last.inputEvents).toBe(first.inputEvents);
+        expect(last.keyListeners).toBe(first.keyListeners);
+        expect(last.objects).toBe(0);
+        await expect(page.locator('#game-container canvas')).toHaveCount(1);
+        expect(c.pageErrors).toEqual([]);
+    });
+
+    test('auto-cleanup removes idle objects and releases their resources', async ({ page, context }) => {
+        await seedConfig(context, { advanced: { autoCleanup: { enabled: true, timeoutSeconds: 5 } } });
+        await enterSandbox(page);
+        await tapSpawn(page, 0.3, 0.5);
+        await tapSpawn(page, 0.7, 0.5);
+        expect(await objectCount(page)).toBe(2);
+        await expect.poll(() => objectCount(page), { timeout: 20000, intervals: [500] }).toBe(0);
+        const after = await census(page);
+        expect(after.tones).toBe(0);
+    });
+
+    test('JS heap does not balloon over repeated spawn/exit cycles (Chromium only)', async ({ page, browserName }) => {
+        test.skip(browserName !== 'chromium', 'performance.memory is Chromium-only');
+        await enterSandbox(page);
+        const heap = () => page.evaluate(() => performance.memory.usedJSHeapSize);
+        const start = await heap();
+        for (let cycle = 0; cycle < 3; cycle++) {
+            for (let i = 0; i < 8; i++) await tapSpawn(page, 0.1 + i * 0.1, 0.5);
+            await page.evaluate(() => window.appRoutes.exitToy());
+            await page.locator(SANDBOX_CARD).click();
+            await startPlaying(page);
+        }
+        expect(await heap() - start).toBeLessThan(Math.max(start * 2, 60 * 1024 * 1024));
+    });
+
+    test('audio context is created lazily and tones stop when objects are removed', async ({ page }) => {
+        await enterSandbox(page);
+        await tapSpawn(page, 0.5, 0.5);
+        await page.evaluate(() => window.appRoutes.exitToy());
+        expect(await page.evaluate(() => window.appRoutes.getGameScene().audioManager.activeTones.size)).toBe(0);
+    });
 });

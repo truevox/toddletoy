@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import {
-    collectErrors, skipOnboarding, enterSandbox, tapSpawn, objectCount, waitForObjectCount,
+    collectErrors, seedConfig, skipOnboarding, enterSandbox, tapSpawn, objectCount, waitForObjectCount,
     waitForSpawnReady, allObjects, sceneSize, clickCanvas, spawnForced, canvasPoint,
 } from './helpers/app.js';
 
@@ -116,7 +116,12 @@ test.describe('Sandbox regressions', () => {
         }
     });
 
-    test('L, 5 and Space each spawn an object; Q spawns at 10% / 10%', async ({ page }) => {
+    test('L, 5 and Space each spawn an object; Q spawns at 10% / 10%', async ({ page, context }) => {
+        // emojis only: numbers are legitimately nudged down to fit their numerals on screen
+        await seedConfig(context, { content: {
+            shapes: { enabled: false }, smallNumbers: { enabled: false }, largeNumbers: { enabled: false },
+            uppercaseLetters: { enabled: false }, lowercaseLetters: { enabled: false }, emojis: { enabled: true, weight: 20 },
+        } });
         const c = collectErrors(page);
         await enterSandbox(page);
         for (const key of ['KeyL', 'Digit5', 'Space']) {
