@@ -53,7 +53,7 @@ for (const toy of TOYS) {
             await page.locator(toy.card).click();
             await expect(page).toHaveURL(toy.route);
             await expect(page.locator(toy.container)).toBeVisible();
-            await expect(page.locator(`${toy.container} canvas`)).toBeVisible();
+            await expect(page.locator(`${toy.container} canvas`).first()).toBeVisible();
             await expect(page.locator('#toy-mode-selector')).toBeHidden();
             expect(await page.locator(toy.container).count()).toBe(1);
             // Nothing from the sandbox leaks onto this screen.
@@ -72,7 +72,7 @@ for (const toy of TOYS) {
             const c = collectErrors(page);
             await gotoSelector(page);
             await page.locator(toy.card).click();
-            await expect(page.locator(`${toy.container} canvas`)).toBeVisible();
+            await expect(page.locator(`${toy.container} canvas`).first()).toBeVisible();
             await page.waitForTimeout(500); // first frame so hit-testing buffers are drawn
             const text = await tapUntilInfoPanel(page, toy.container);
             expect(text, 'no tap produced an info panel').toBeTruthy();
