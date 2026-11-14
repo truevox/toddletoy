@@ -3,6 +3,7 @@
  * Functions take the owning ConfigScreen instance as first argument and call
  * back through it (screen.method) so instance-level spies still intercept.
  */
+import { readChecked, readInt, readFloat } from './domHelpers.js';
 
 /**
  * Load current configuration into the UI
@@ -146,121 +147,121 @@ export function setRadioValue(screen, name, value) {
 
 export function setSelectValue(screen, selector, value) {
     const element = screen.container.querySelector(selector);
-    if (element) element.value = value;
+    if (!element) return;
+    element.value = value;
+    // Numeric values (e.g. rate 1 vs option "1.0") don't match by string: fall back to numeric compare
+    if (element.tagName === 'SELECT' && element.selectedIndex === -1 && typeof value === 'number') {
+        const idx = Array.from(element.options).findIndex(o => parseFloat(o.value) === value);
+        if (idx >= 0) element.selectedIndex = idx;
+    }
 }
 
 /**
  * Validate number ranges and auto-adjust if needed
  */
 export function validateNumberRanges(screen) {
-    const smallMax = parseInt(screen.container.querySelector('#small-max').value);
-    const largeMin = parseInt(screen.container.querySelector('#large-min').value);
+    const smallMaxEl = screen.container.querySelector('#small-max');
+    const largeMinEl = screen.container.querySelector('#large-min');
+    if (!smallMaxEl || !largeMinEl) return;
+
+    const smallMax = parseInt(smallMaxEl.value);
+    const largeMin = parseInt(largeMinEl.value);
 
     // Auto-adjust overlapping ranges
     if (smallMax >= largeMin) {
-        screen.container.querySelector('#small-max').value = largeMin - 1;
+        smallMaxEl.value = largeMin - 1;
     }
     if (largeMin <= smallMax) {
-        screen.container.querySelector('#large-min').value = smallMax + 1;
+        largeMinEl.value = smallMax + 1;
     }
 }
 
 /**
- * Build configuration object from UI state
+ * Build configuration object from UI state.
+ * Any control that is missing from the DOM (or holds a non-number) keeps the
+ * value from the currently stored config instead of aborting the save.
  */
 export function buildConfigFromUI(screen) {
+    const c = screen.container;
+    const cur = screen.configManager.getConfig();
+    const checked = (sel, fb) => readChecked(c, sel, fb);
+    const int = (sel, fb) => readInt(c, sel, fb);
+
+    const toggle = (cfg, enabledSel, weightSel) => ({
+        ...cfg,
+        enabled: checked(enabledSel, cfg.enabled),
+        weight: int(weightSel, cfg.weight)
+    });
+    const range = (cfg, enabledSel, minSel, maxSel, weightSel) => ({
+        ...toggle(cfg, enabledSel, weightSel),
+        min: int(minSel, cfg.min),
+        max: int(maxSel, cfg.max)
+    });
+
+    const content = cur.content;
+    const cats = cur.emojiCategories;
+    const catNames = ['animals', 'food', 'vehicles', 'faces', 'nature', 'objects'];
+    const emojiCategories = { ...cats };
+    catNames.forEach(name => {
+        emojiCategories[name] = toggle(cats[name], `#${name}-enabled`, `#${name}-weight`);
+    });
+
+    const grid = cur.gridMode;
+    const gridSize = screen.getGridSizeFromSelect();
+    const nm = cur.advanced.numberModes;
+
     return {
         content: {
-            shapes: {
-                enabled: screen.container.querySelector('#shapes-enabled').checked,
-                weight: parseInt(screen.container.querySelector('#shapes-weight').value)
-            },
-            smallNumbers: {
-                enabled: screen.container.querySelector('#small-numbers-enabled').checked,
-                min: parseInt(screen.container.querySelector('#small-min').value),
-                max: parseInt(screen.container.querySelector('#small-max').value),
-                weight: parseInt(screen.container.querySelector('#small-numbers-weight').value)
-            },
-            largeNumbers: {
-                enabled: screen.container.querySelector('#large-numbers-enabled').checked,
-                min: parseInt(screen.container.querySelector('#large-min').value),
-                max: parseInt(screen.container.querySelector('#large-max').value),
-                weight: parseInt(screen.container.querySelector('#large-numbers-weight').value)
-            },
-            uppercaseLetters: {
-                enabled: screen.container.querySelector('#uppercase-enabled').checked,
-                weight: parseInt(screen.container.querySelector('#uppercase-weight').value)
-            },
-            lowercaseLetters: {
-                enabled: screen.container.querySelector('#lowercase-enabled').checked,
-                weight: parseInt(screen.container.querySelector('#lowercase-weight').value)
-            },
-            emojis: {
-                enabled: screen.container.querySelector('#emojis-enabled').checked,
-                weight: parseInt(screen.container.querySelector('#emojis-weight').value)
-            }
+            ...content,
+            shapes: toggle(content.shapes, '#shapes-enabled', '#shapes-weight'),
+            smallNumbers: range(content.smallNumbers, '#small-numbers-enabled', '#small-min', '#small-max', '#small-numbers-weight'),
+            largeNumbers: range(content.largeNumbers, '#large-numbers-enabled', '#large-min', '#large-max', '#large-numbers-weight'),
+            uppercaseLetters: toggle(content.uppercaseLetters, '#uppercase-enabled', '#uppercase-weight'),
+            lowercaseLetters: toggle(content.lowercaseLetters, '#lowercase-enabled', '#lowercase-weight'),
+            emojis: toggle(content.emojis, '#emojis-enabled', '#emojis-weight')
         },
-        emojiCategories: {
-            animals: {
-                enabled: screen.container.querySelector('#animals-enabled').checked,
-                weight: parseInt(screen.container.querySelector('#animals-weight').value)
-            },
-            food: {
-                enabled: screen.container.querySelector('#food-enabled').checked,
-                weight: parseInt(screen.container.querySelector('#food-weight').value)
-            },
-            vehicles: {
-                enabled: screen.container.querySelector('#vehicles-enabled').checked,
-                weight: parseInt(screen.container.querySelector('#vehicles-weight').value)
-            },
-            faces: {
-                enabled: screen.container.querySelector('#faces-enabled').checked,
-                weight: parseInt(screen.container.querySelector('#faces-weight').value)
-            },
-            nature: {
-                enabled: screen.container.querySelector('#nature-enabled').checked,
-                weight: parseInt(screen.container.querySelector('#nature-weight').value)
-            },
-            objects: {
-                enabled: screen.container.querySelector('#objects-enabled').checked,
-                weight: parseInt(screen.container.querySelector('#objects-weight').value)
-            }
-        },
-        colorCategories: screen.configManager.getConfig().colorCategories,
-        languages: screen.configManager.getConfig().languages,
+        emojiCategories,
+        colorCategories: cur.colorCategories,
+        languages: cur.languages,
         audio: {
-            volume: parseInt(screen.container.querySelector('#audio-volume').value),
-            mute: screen.container.querySelector('#audio-mute').checked,
-            toneDuration: parseInt(screen.container.querySelector('#audio-tone-duration').value)
+            ...cur.audio,
+            volume: int('#audio-volume', cur.audio.volume),
+            mute: checked('#audio-mute', cur.audio.mute),
+            toneDuration: int('#audio-tone-duration', cur.audio.toneDuration)
         },
         speech: {
-            volume: parseInt(screen.container.querySelector('#speech-volume').value),
-            mute: screen.container.querySelector('#speech-mute').checked,
-            rate: parseFloat(screen.container.querySelector('#speech-rate').value)
+            ...cur.speech,
+            volume: int('#speech-volume', cur.speech.volume),
+            mute: checked('#speech-mute', cur.speech.mute),
+            rate: readFloat(c, '#speech-rate', cur.speech.rate)
         },
         advanced: {
-            skipConfig: screen.container.querySelector('#skip-config-checkbox').checked,
+            ...cur.advanced,
+            skipConfig: checked('#skip-config-checkbox', cur.advanced.skipConfig),
             numberModes: {
-                cistercian: screen.container.querySelector('#cistercian-enabled').checked,
-                kaktovik: screen.container.querySelector('#kaktovik-enabled').checked,
-                binary: screen.container.querySelector('#binary-enabled').checked,
-                // Read counting mode from radio button group
-                objectCounting: screen.container.querySelector('#object-counting-enabled').checked,
-                onlyApples: screen.container.querySelector('#only-apples-enabled').checked
+                ...nm,
+                cistercian: checked('#cistercian-enabled', nm.cistercian),
+                kaktovik: checked('#kaktovik-enabled', nm.kaktovik),
+                binary: checked('#binary-enabled', nm.binary),
+                // Counting mode is a radio group
+                objectCounting: checked('#object-counting-enabled', nm.objectCounting),
+                onlyApples: checked('#only-apples-enabled', nm.onlyApples)
             },
             autoCleanup: {
-                enabled: screen.container.querySelector('#auto-cleanup-enabled').checked,
-                timeoutSeconds: parseInt(screen.container.querySelector('#cleanup-timer-seconds').value)
+                ...cur.advanced.autoCleanup,
+                enabled: checked('#auto-cleanup-enabled', cur.advanced.autoCleanup.enabled),
+                timeoutSeconds: int('#cleanup-timer-seconds', cur.advanced.autoCleanup.timeoutSeconds)
             }
         },
         gridMode: {
-            enabled: screen.container.querySelector('#grid-mode-enabled').checked,
-            rows: screen.getGridSizeFromSelect().rows,
-            cols: screen.getGridSizeFromSelect().cols,
-            showGrid: screen.container.querySelector('#grid-show-lines').checked,
-            autoPopulate: screen.container.querySelector('#grid-auto-populate').checked,
-            cellPadding: parseInt(screen.container.querySelector('#grid-cell-padding').value),
-            wrapNavigation: screen.container.querySelector('#grid-wrap-navigation').checked,
+            ...grid,
+            enabled: checked('#grid-mode-enabled', grid.enabled),
+            rows: gridSize.rows,
+            cols: gridSize.cols,
+            showGrid: checked('#grid-show-lines', grid.showGrid),
+            autoPopulate: checked('#grid-auto-populate', grid.autoPopulate),
+            cellPadding: int('#grid-cell-padding', grid.cellPadding),
+            wrapNavigation: checked('#grid-wrap-navigation', grid.wrapNavigation),
             highlightStyle: 'default',
             theme: 'default'
         }
@@ -268,12 +269,16 @@ export function buildConfigFromUI(screen) {
 }
 
 /**
- * Helper to parse grid size from select value
+ * Helper to parse grid size from select value (falls back to the stored grid size)
  */
 export function getGridSizeFromSelect(screen) {
-    const sizeValue = screen.container.querySelector('#grid-size-select').value;
-    const [rows, cols] = sizeValue.split('x').map(n => parseInt(n));
-    return { rows, cols };
+    const el = screen.container.querySelector('#grid-size-select');
+    const stored = screen.configManager.getConfig().gridMode || {};
+    const [rows, cols] = el ? String(el.value).split('x').map(n => parseInt(n)) : [];
+    return {
+        rows: Number.isNaN(rows) || rows === undefined ? stored.rows : rows,
+        cols: Number.isNaN(cols) || cols === undefined ? stored.cols : cols
+    };
 }
 
 /**

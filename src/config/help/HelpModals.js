@@ -47,7 +47,7 @@ export function showOnboarding(help) {
                         <li><strong>Play Together:</strong> ToddleToy works best when a grown-up plays along!</li>
                         <li><strong>Help Icons:</strong> Look for <span class="help-icon-demo">ⓘ</span> icons throughout help page for detailed help</li>
                         <li><strong>Complete Guide:</strong> <a href="/docs/CONFIG-GUIDE.md" target="_blank">Read the full configuration guide</a> for detailed explanations</li>
-                        <li><strong>Adjust Anytime:</strong> You can always come back to adjust settings at <code>/admin</code></li>
+                        <li><strong>Adjust Anytime:</strong> You can always come back to adjust settings at <code>/admin</code>. While playing, press and hold the small top-right corner button for 2 seconds to exit back to the toy selector.</li>
                     </ul>
                 </div>
 

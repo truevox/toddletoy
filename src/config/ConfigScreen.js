@@ -4,6 +4,7 @@
  */
 import { HelpSystem } from './HelpSystem.js';
 import { PLATFORMS } from './constants.js';
+import { safeStorage } from '../utils/safeStorage.js';
 import { detectPlatform, detectPWAInstalled } from '../utils/platformUtils.js';
 import { getLanguageFlag, getDifficultyLevel, getDifficultyText, getDefaultRank, getDefaultHours } from '../utils/languageUtils.js';
 import { PlayingTips } from './ui/PlayingTips.js';
@@ -221,7 +222,7 @@ export class ConfigScreen {
         this.saveCurrentConfig();
 
         // Verify config was saved
-        const savedConfig = localStorage.getItem('toddleToyConfig');
+        const savedConfig = safeStorage.getItem('toddleToyConfig');
         console.log('Config saved to localStorage:', !!savedConfig);
 
         // Allow toy access since user went through config

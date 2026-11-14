@@ -37,10 +37,19 @@ export class ToyModeSelector {
             position: fixed; inset: 0;
             background: radial-gradient(ellipse at 30% 20%, #0d2137 0%, #000510 70%);
             display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
             z-index: 1000; overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             padding: 20px; box-sizing: border-box;
             font-family: Arial, sans-serif;
+        `;
+
+        // Inner wrapper uses margin:auto to centre when there is spare room, but
+        // (unlike justify-content:center) never pushes the top out of scroll range.
+        const inner = document.createElement('div');
+        inner.className = 'toy-selector-inner';
+        inner.style.cssText = `
+            margin: auto; width: 100%; max-width: 860px;
+            display: flex; flex-direction: column; align-items: center;
         `;
 
         const header = document.createElement('div');
@@ -56,13 +65,13 @@ export class ToyModeSelector {
                 Pick a world to explore!
             </p>
         `;
-        el.appendChild(header);
+        inner.appendChild(header);
 
         const grid = document.createElement('div');
         grid.style.cssText = `
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 20px; max-width: 860px; width: 100%;
+            grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+            gap: 20px; width: 100%;
         `;
 
         const cards = [
@@ -86,10 +95,6 @@ export class ToyModeSelector {
             card.setAttribute('aria-label', `${title}. ${desc}`);
 
             card.addEventListener('click', () => this._selectMode(mode));
-            card.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                this._selectMode(mode);
-            });
             card.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault();
@@ -108,13 +113,14 @@ export class ToyModeSelector {
             grid.appendChild(card);
         });
 
-        el.appendChild(grid);
+        inner.appendChild(grid);
 
         const version = document.createElement('p');
         version.textContent = `v${typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'dev'}`;
         version.style.cssText = 'color:rgba(255,255,255,0.25); margin-top:40px; font-size:0.75rem;';
-        el.appendChild(version);
+        inner.appendChild(version);
 
+        el.appendChild(inner);
         return el;
     }
 
@@ -123,7 +129,8 @@ export class ToyModeSelector {
         card.style.cssText = `
             background: linear-gradient(145deg, ${bgColor} 0%, ${bgColor}cc 100%);
             border: 2px solid ${borderColor};
-            border-radius: 20px; padding: 32px 24px;
+            border-radius: 20px; padding: 32px 24px; min-height: 44px;
+            touch-action: manipulation;
             cursor: pointer; text-align: center;
             transition: transform 0.18s ease, box-shadow 0.18s ease;
             user-select: none; -webkit-tap-highlight-color: transparent;

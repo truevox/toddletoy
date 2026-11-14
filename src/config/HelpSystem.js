@@ -10,6 +10,7 @@
 
 // Import CSS styles (Vite will handle this)
 import './HelpSystem.css';
+import { safeStorage } from '../utils/safeStorage.js';
 import './DocumentationStyles.css';
 import { initializeHelpTopics } from './help/HelpTopics.js';
 import { showOnboarding, showHelp, createModal, showHelpMenu } from './help/HelpModals.js';
@@ -27,7 +28,7 @@ export class HelpSystem {
      * Check if this is the user's first time seeing the config screen
      */
     checkFirstTimeUser() {
-        const hasSeenOnboarding = localStorage.getItem('toddletoy-seen-onboarding');
+        const hasSeenOnboarding = safeStorage.getItem('toddletoy-seen-onboarding');
         return !hasSeenOnboarding;
     }
 
@@ -35,7 +36,7 @@ export class HelpSystem {
      * Mark onboarding as seen
      */
     markOnboardingSeen() {
-        localStorage.setItem('toddletoy-seen-onboarding', 'true');
+        safeStorage.setItem('toddletoy-seen-onboarding', 'true');
         this.isFirstTime = false;
     }
 

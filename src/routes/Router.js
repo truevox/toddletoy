@@ -2,6 +2,8 @@
  * Simple client-side router for the toddler toy application
  * Handles navigation between configuration and game screens
  */
+import { safeStorage } from '../utils/safeStorage.js';
+
 export class Router {
     constructor() {
         this.routes = new Map();
@@ -34,8 +36,8 @@ export class Router {
         
         // Check if we're on toy route AND there's saved game state (indicates user was playing)
         if (currentPath === '/toy') {
-            const hasGameState = localStorage.getItem('toddleToyGameState') !== null;
-            const hasConfig = localStorage.getItem('toddleToyConfig') !== null;
+            const hasGameState = safeStorage.getItem('toddleToyGameState') !== null;
+            const hasConfig = safeStorage.getItem('toddleToyConfig') !== null;
             
             // If we have both game state and config, user was likely on toy route before refresh
             if (hasGameState && hasConfig) {

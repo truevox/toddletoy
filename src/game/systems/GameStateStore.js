@@ -1,3 +1,5 @@
+import { safeStorage } from '../../utils/safeStorage.js';
+
 /**
  * GameStateStore - Persists/restores spawned objects (localStorage) and resets toy state.
  * State stays on the scene; calls go back through the scene so spies intercept.
@@ -11,7 +13,7 @@ export class GameStateStore {
     saveGameState() {
         if (!this.scene.objects || this.scene.objects.length === 0) {
             // Clear saved state if no objects exist
-            localStorage.removeItem('toddleToyGameState');
+            safeStorage.removeItem('toddleToyGameState');
             return;
         }
 
@@ -29,7 +31,7 @@ export class GameStateStore {
         };
 
         try {
-            localStorage.setItem('toddleToyGameState', JSON.stringify(gameState));
+            safeStorage.setItem('toddleToyGameState', JSON.stringify(gameState));
             console.log('💾 Game state saved:', gameState.objects.length, 'objects');
         } catch (error) {
             console.warn('Failed to save game state:', error);
@@ -38,16 +40,24 @@ export class GameStateStore {
 
     async restoreGameState() {
         try {
-            const savedState = localStorage.getItem('toddleToyGameState');
+            const savedState = safeStorage.getItem('toddleToyGameState');
             if (!savedState) return;
 
             const gameState = JSON.parse(savedState);
+
+            // Wrong-shaped saved state (null, array, missing/garbage fields): discard it
+            if (!gameState || typeof gameState !== 'object' || Array.isArray(gameState) ||
+                !Array.isArray(gameState.objects) || !Number.isFinite(gameState.timestamp)) {
+                console.warn('Saved game state has an unexpected shape, clearing');
+                safeStorage.removeItem('toddleToyGameState');
+                return;
+            }
 
             // Check if saved state is recent (within 1 hour to avoid stale data)
             const ageHours = (Date.now() - gameState.timestamp) / (1000 * 60 * 60);
             if (ageHours > 1) {
                 console.log('🕐 Saved state too old, clearing');
-                localStorage.removeItem('toddleToyGameState');
+                safeStorage.removeItem('toddleToyGameState');
                 return;
             }
 
@@ -58,7 +68,6 @@ export class GameStateStore {
             }
 
             console.log('📦 Restoring game state:', gameState.objects.length, 'objects');
-
             // Restore each object
             for (const objData of gameState.objects) {
                 try {
@@ -72,12 +81,14 @@ export class GameStateStore {
 
         } catch (error) {
             console.warn('Failed to restore game state:', error);
-            localStorage.removeItem('toddleToyGameState');
+            safeStorage.removeItem('toddleToyGameState');
         }
     }
 
     async restoreObject(objData) {
-        if (!objData || !objData.itemData || !objData.type) return;
+        if (!objData || typeof objData !== 'object' || !objData.itemData || typeof objData.itemData !== 'object' ||
+            typeof objData.type !== 'string' || !objData.type ||
+            !Number.isFinite(objData.x) || !Number.isFinite(objData.y)) return;
 
         // Ensure restored items have color information when expected
         if (objData.type === 'letter' && (!objData.itemData.color || !objData.itemData.color.hex)) {
