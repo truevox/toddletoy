@@ -1,38 +1,87 @@
-# 🎨 ToddleToy - Interactive Learning for Toddlers
+# ToddleToy
 
-ToddleToy is a Progressive Web App (PWA) designed to help toddlers learn through interactive, multi-sensory play. It combines visual elements, spoken words, musical tones, and particle effects to create an engaging learning environment.
+ToddleToy is a small collection of touch-first learning toys for young children (roughly ages 1–6, with a grown-up nearby). It runs entirely in the browser, installs as an app, works offline, and collects no data.
 
-## ✨ Features
+![Toy selector](./docs/screenshots/selector.png)
 
-- **🎯 Multi-Input Support**: Touch, mouse, keyboard, and gamepad controls
-- **🌍 Multilingual**: 13 languages including English, Spanish, French, Mandarin, and more
-- **🔢 Multiple Number Systems**: Binary, Cistercian, Kaktovik numerals, and visual counting
-- **🎨 Rich Content**: Shapes, numbers, letters, and curated emojis
-- **🎵 Audio Feedback**: Position-based tones and clear speech synthesis
-- **📱 PWA Ready**: Install as an app for offline play and enhanced safety
-- **🔧 Fully Configurable**: Customize everything for your child's learning style
-- **❓ Built-In Help**: Comprehensive onboarding and inline help system
+## The toys
 
-## 🚀 Quick Start
+### 🧸 Toddler Sandbox
 
-1. **Visit** ToddleToy at your deployment URL or open locally
-2. **Configure** your preferences on the initial setup screen
-3. **Install** as a PWA for the best experience (recommended)
-4. **Play** together with your child!
+Tap, click, press any key or use a gamepad and something appears where you touched: a shape, a letter, a number or an emoji. It is named out loud in each language you have enabled, with a tone whose pitch follows its position and a burst of particles. Things can be dragged around; they tidy themselves away after a while.
 
-### First Time Users
+Numbers can also be shown in other systems, stacked around the numeral: Cistercian and Kaktovik numerals, binary (as hearts), and place-value counting with apples, bags, boxes and trucks.
 
-When you first open ToddleToy, you'll see:
-- **Welcome Guide**: Step-by-step onboarding for new users
-- **Configuration Screen**: Customize content, languages, and settings
-- **Help Icons (ⓘ)**: Click for detailed explanations of any option
-- **Quick Start**: Or jump right in with default settings!
+![Sandbox](./docs/screenshots/sandbox.png)
 
-## 📚 Documentation
+Parents choose what appears, how often, and in which languages on a settings screen. An optional **Grid Mode** arranges things in fixed cells instead of free placement.
 
-- **[Complete Configuration Guide](./docs/CONFIG-GUIDE.md)**: Detailed explanations of every setting
-- **[Technical Documentation](./docs/README.md)**: System architecture and implementation details
-- **Built-In Help**: Click the "❓ Need Help?" button in the config screen
+![Settings](./docs/screenshots/settings.png)
+
+### 🌞 Solar System
+
+A living model of the eight planets. Drag around the Sun to spin time forwards or backwards, tap a planet (or its button in the strip) to fly alongside it and hear its name, open the card for a few facts, compare the planets at their true relative sizes, or play **Find it!**. Orbital speeds are in the right proportion; sizes and distances in the orbit view are not to scale, and the toy says so.
+
+![Solar System](./docs/screenshots/solar-system.png)
+![Comparing planet sizes](./docs/screenshots/solar-system-sizes.png)
+
+### 🌍 World Globe
+
+A real globe drawn from Natural Earth country outlines. Drag to spin, pinch or scroll to zoom, tap a country to fly to it and hear its name; the card shows its flag and continent and expands to its capital and its name in your other enabled languages. **Surprise me** jumps somewhere random, **Find it!** is a gentle hunting game with hints and no penalties, and the **passport** collects every country visited.
+
+![World Globe](./docs/screenshots/globe.png)
+
+## Design principles
+
+- **For non-readers.** Every interaction works without reading; text and facts are there for older children and adults.
+- **Forgiving.** Large tap targets, nearest-thing-wins hit testing, no wrong answers that punish.
+- **Private.** No accounts, no analytics, no network requests after the app has loaded. Settings and progress stay in the browser's local storage.
+- **Hard to leave by accident.** In the sandbox the browser's back button is blocked; a grown-up leaves by holding the small ✕ in the top-right corner for two seconds, or by visiting `/admin`.
+
+## Try it
+
+```bash
+npm install
+```
+
+```bash
+npm run dev
+```
+
+The dev server runs at http://localhost:4001. Requires Node 20 or newer (the version CI and the Netlify build use).
+
+Routes: `/` toy selector · `/config` sandbox settings · `/toy` sandbox · `/orrery` Solar System · `/globe` World Globe · `/admin` settings (always shown, even if "skip this screen" is on).
+
+## Development
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Vite dev server on port 4001 (no service worker) |
+| `npm run build` | Production build into `dist/`, including the service worker |
+| `npm run preview` | Serve the production build locally |
+| `npm test` | Jest unit tests (jsdom) |
+| `npm run test:e2e` | Playwright end-to-end tests against the production build |
+| `npm run lint` | ESLint over `src/` |
+
+A pre-commit hook checks that `package.json`'s version was bumped whenever code changes. CI (`.github/workflows/ci.yml`) runs lint, unit tests, the build and the Chromium end-to-end suite.
+
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for the project layout, conventions and how to add to it, and [docs/README.md](./docs/README.md) for the architecture.
+
+## Languages
+
+Spoken and written labels in the sandbox: English, Spanish, Mandarin Chinese, Hindi, Arabic, French, Bengali, Portuguese, Russian, Indonesian, Esperanto, and for fun Klingon and Lojban. Speech uses the device's own voices (Web Speech API), so which languages are actually spoken depends on the voices installed; Klingon and Lojban are read with an English voice. Without any speech support the toys still work silently.
+
+## Supported environments
+
+Current Chrome, Edge, Safari and Firefox on desktop, Android and iOS/iPadOS. Automated end-to-end tests run on Chromium (desktop and phone emulation); the other browsers are supported by design but are not part of the automated run.
+
+## Known limitations
+
+- The sandbox canvas renders at 1× pixel density, so its text and emoji look slightly soft on high-density phone screens.
+- Flag emoji are drawn by the device; desktop Windows shows two-letter codes instead of flags.
+- Country outlines are the 1:110m Natural Earth set: very small countries and islands are simplified or missing.
+- Card text in the Solar System and continent/ocean labels on the globe are English only.
+- Remaining `npm audit` advisories are all in development tooling and need major upgrades of Vite and Jest.
 
 ## 🎯 Recommended Settings by Age
 
@@ -84,56 +133,11 @@ ToddleToy is designed with child safety in mind:
 3. Open ToddleToy, tap Recent Apps (□)
 4. Tap app icon → Pin
 
-## 🌍 Supported Languages
+## 🔒 Keeping a child in the app
 
-- 🇺🇸 English
-- 🇪🇸 Spanish (Español)
-- 🇨🇳 Mandarin Chinese (中文)
-- 🇮🇳 Hindi (हिन्दी)
-- 🇸🇦 Arabic (العربية)
-- 🇫🇷 French (Français)
-- 🇧🇩 Bengali (বাংলা)
-- 🇵🇹 Portuguese (Português)
-- 🇷🇺 Russian (Русский)
-- 🇮🇩 Indonesian (Bahasa Indonesia)
-- ⚔️ Klingon (tlhIngan Hol)
-- 🤖 Lojban
-- ⭐ Esperanto
-
-## 🔢 Number Systems
-
-ToddleToy teaches that numbers can be represented in multiple ways:
-
-- **⚙️ Cistercian Numerals**: Medieval monastery number system
-- **❄️ Kaktovik Numerals**: Inuit base-20 system from Alaska
-- **❤️ Binary Hearts**: Computer binary with hearts and white hearts
-- **🍎 Only Apples Counting**: Simple one-to-one correspondence
-- **🔢 Object Counting**: Place values with apples (1s), bags (10s), boxes (100s), trucks (1000s)
-
-## 💻 Technical Stack
-
-- **Framework**: Phaser 3 game engine
-- **Build Tool**: Vite
-- **Audio**: Web Audio API for position-based tones
-- **Speech**: Web Speech API for multilingual synthesis
-- **Storage**: localStorage for configuration persistence
-- **PWA**: Service Worker for offline capability
-
-## 🛠️ Development
-
-```bash
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-
-# Build for production
-npm run build
-
-# Run tests
-npm test
-```
+- **Install it** (below) so there is no address bar or tabs.
+- **iOS – Guided Access:** Settings → Accessibility → Guided Access, set a passcode, open ToddleToy, triple-click the side button.
+- **Android – Screen Pinning:** Settings → Security → Screen Pinning, open ToddleToy, Recent Apps → app icon → Pin.
 
 ## 📱 Installation as PWA
 
@@ -152,16 +156,10 @@ npm test
 2. Tap "Install app" or "Add to Home screen"
 3. Tap "Install" to confirm
 
-## ❓ Getting Help
+## ❓ Getting help
 
-### In-App Help
-- **Help Icons (ⓘ)**: Click icons next to any configuration option
-- **"Need Help?" Button**: Floating button at bottom-right of config screen
-- **Onboarding Guide**: Appears automatically for first-time users
-
-### Documentation
-- **[Configuration Guide](./docs/CONFIG-GUIDE.md)**: Complete explanations of all settings
-- **[Technical Docs](./docs/README.md)**: Architecture and implementation details
+- **ⓘ icons** next to each settings section explain it in plain language; the floating **Need Help?** button lists every topic.
+- **[Configuration Guide](./docs/CONFIG-GUIDE.md)** explains every setting.
 
 ### Troubleshooting
 
@@ -186,23 +184,13 @@ npm test
 - Try slower speech speed (0.5x-0.75x)
 - Mute audio tones if distracting
 
-## 🤝 Contributing
-
-ToddleToy is designed with TDD principles and modular architecture. See [CLAUDE.md](./CLAUDE.md) for development guidelines.
-
 ## 📄 License
 
 MIT — see [LICENSE](./LICENSE). Bundled third-party components are listed in [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md).
 
 ## 🙏 Acknowledgments
 
-- Cistercian numerals are drawn by ToddleToy itself (original procedural renderer, no font)
-- Kaktovik Unicode font for Inuit numerals
-- Phaser 3 game framework
-- All the toddlers who inspire better learning tools!
-
----
-
-**Happy Learning! 🎉**
-
-*ToddleToy is not a babysitter. It works best when a grown-up plays along with the child.*
+- Gentium Kaktovik font (SIL Open Font License) for Kaktovik numerals
+- Natural Earth for country outlines
+- Phaser 3
+- All the toddlers who inspire better learning tools
