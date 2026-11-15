@@ -25,7 +25,7 @@ test.describe('Routing protection', () => {
         await page.goto('/toy');
         await atRoot(page);
         await expect(page.locator('#toy-mode-selector')).toBeVisible();
-        await expect(page.locator('#game-container canvas')).toHaveCount(0);
+        await expect(page.locator('#game-container canvas:not(.tt-backdrop)')).toHaveCount(0);
     });
 
     test('/toy redirect drops query parameters and still lands on the selector', async ({ page }) => {
@@ -59,7 +59,7 @@ test.describe('Routing protection', () => {
         await expect(page).toHaveURL(/\/config$/);
         await expect(page.locator('#config-screen')).toBeVisible();
         await startPlaying(page);
-        await expect(page.locator('#game-container canvas')).toBeVisible();
+        await expect(page.locator('#game-container canvas:not(.tt-backdrop)')).toBeVisible();
         await expect(page.locator('#config-screen')).toBeHidden();
         await expect(page.locator('#toy-mode-selector')).toBeHidden();
         expect(c.pageErrors).toEqual([]);
@@ -70,7 +70,7 @@ test.describe('Routing protection', () => {
         await page.goto('/admin');
         await expect(page).toHaveURL(/\/admin$/);
         await expect(page.locator('#config-screen')).toBeVisible();
-        await expect(page.locator('#game-container canvas')).toHaveCount(0);
+        await expect(page.locator('#game-container canvas:not(.tt-backdrop)')).toHaveCount(0);
     });
 
     test('/config with skipConfig enabled jumps straight into the toy', async ({ page, context }) => {
@@ -125,7 +125,7 @@ test.describe('Sandbox is locked while playing', () => {
         await enterSandbox(page);
         await page.goBack();
         await expect(page).toHaveURL(/\/toy$/);
-        await expect(page.locator('#game-container canvas')).toBeVisible();
+        await expect(page.locator('#game-container canvas:not(.tt-backdrop)')).toBeVisible();
         await expect(page.locator('#config-screen')).toBeHidden();
         await expect(page.locator('#toy-mode-selector')).toBeHidden();
         expect(c.pageErrors).toEqual([]);
@@ -145,7 +145,7 @@ test.describe('Sandbox is locked while playing', () => {
             await page.goBack().catch(() => {});
             await expect(page).toHaveURL(/\/toy$/);
         }
-        await expect(page.locator('#game-container canvas')).toBeVisible();
+        await expect(page.locator('#game-container canvas:not(.tt-backdrop)')).toBeVisible();
     });
 
     test('Back keeps blocking however many times it is pressed', async ({ page }) => {
@@ -186,6 +186,6 @@ test.describe('Sandbox is locked while playing', () => {
         await enterSandbox(page);
         await page.evaluate(() => window.appRoutes.navigate('/nowhere'));
         await expect(page).toHaveURL(/\/toy$/);
-        await expect(page.locator('#game-container canvas')).toBeVisible();
+        await expect(page.locator('#game-container canvas:not(.tt-backdrop)')).toBeVisible();
     });
 });

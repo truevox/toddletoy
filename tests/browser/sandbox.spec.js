@@ -18,7 +18,7 @@ test.describe('Sandbox smoke', () => {
     test('initialises with a sensibly sized canvas and no errors', async ({ page }) => {
         const c = collectErrors(page);
         await enterSandbox(page);
-        const box = await page.locator('#game-container canvas').boundingBox();
+        const box = await page.locator('#game-container canvas:not(.tt-backdrop)').boundingBox();
         expect(box.width).toBeGreaterThan(200);
         expect(box.height).toBeGreaterThan(200);
         expect(c.all()).toEqual([]);
@@ -115,7 +115,7 @@ test.describe('Sandbox smoke', () => {
         await expect.poll(async () => (await sceneSize(page)).width).toBeLessThanOrEqual(800);
         await page.setViewportSize({ width: 375, height: 667 });
         await expect.poll(async () => (await sceneSize(page)).width).toBeLessThanOrEqual(375);
-        const box = await page.locator('#game-container canvas').boundingBox();
+        const box = await page.locator('#game-container canvas:not(.tt-backdrop)').boundingBox();
         expect(box.width).toBeLessThanOrEqual(376);
         await tapSpawn(page, 0.5, 0.5);
         const [o] = await allObjects(page);

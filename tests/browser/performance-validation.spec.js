@@ -142,7 +142,7 @@ test.describe('Resource management', () => {
         expect(last.inputEvents).toBe(first.inputEvents);
         expect(last.keyListeners).toBe(first.keyListeners);
         expect(last.objects).toBe(0);
-        await expect(page.locator('#game-container canvas')).toHaveCount(1);
+        await expect(page.locator('#game-container canvas:not(.tt-backdrop)')).toHaveCount(1);
         expect(c.pageErrors).toEqual([]);
     });
 

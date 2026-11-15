@@ -217,7 +217,7 @@ test.describe('Toy state reset on exit', () => {
         await tapSpawn(page, 0.5, 0.5);
         expect(await objectCount(page)).toBe(1);
         // Exactly one canvas, however many times we re-entered.
-        await expect(page.locator('#game-container canvas')).toHaveCount(1);
+        await expect(page.locator('#game-container canvas:not(.tt-backdrop)')).toHaveCount(1);
         expect(c.pageErrors).toEqual([]);
         void waitForScene;
     });
