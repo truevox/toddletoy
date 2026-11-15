@@ -47,26 +47,6 @@ describe('Particle Effects', () => {
             tweens: mockTweens,
             objects: [],
             particleEmitters: new Map(),
-            createParticleEffect: function(x, y, objId) {
-                try {
-                    const particles = this.add.particles(x, y, 'particle', {
-                        speed: { min: 50, max: 150 },
-                        scale: { start: 0.5, end: 0 },
-                        blendMode: 'ADD',
-                        lifespan: 300
-                    });
-                    
-                    this.particleEmitters.set(objId, particles);
-                    
-                    setTimeout(() => {
-                        this.cleanupParticles(objId);
-                    }, 1000);
-                    
-                    return particles;
-                } catch (error) {
-                    return this.createFallbackEffect(x, y, objId);
-                }
-            },
             createSpawnBurst: function(x, y) {
                 try {
                     const graphics = this.add.graphics();
@@ -97,26 +77,6 @@ describe('Particle Effects', () => {
                     console.warn('Error creating spawn burst:', error);
                 }
             },
-            createFallbackEffect: function(x, y, objId) {
-                const graphics = this.add.graphics();
-                graphics.fillStyle(0xffffff);
-                graphics.fillCircle(x, y, 20);
-                
-                this.tweens.add({
-                    targets: graphics,
-                    alpha: 0,
-                    scaleX: 2,
-                    scaleY: 2,
-                    duration: 300,
-                    onComplete: () => {
-                        graphics.destroy();
-                        this.particleEmitters.delete(objId);
-                    }
-                });
-                
-                this.particleEmitters.set(objId, graphics);
-                return graphics;
-            },
             cleanupParticles: function(objId) {
                 const emitter = this.particleEmitters.get(objId);
                 if (emitter) {
@@ -131,14 +91,6 @@ describe('Particle Effects', () => {
         };
     });
 
-    test('should create particle effect and store emitter reference', () => {
-        const result = game.createParticleEffect(100, 200, 'obj1');
-        
-        expect(mockAdd.particles).toHaveBeenCalledWith(100, 200, 'particle', expect.any(Object));
-        expect(game.particleEmitters.has('obj1')).toBe(true);
-        expect(result).toBeDefined();
-    });
-
     test('should create colorful spawn burst with graphics', () => {
         game.createSpawnBurst(150, 250);
         
@@ -151,8 +103,8 @@ describe('Particle Effects', () => {
     });
 
     test('should cleanup particle emitters', () => {
-        // First create an effect
-        game.createParticleEffect(200, 300, 'obj1');
+        // Seed an emitter directly (the live path stores emitters in this map)
+        game.particleEmitters.set('obj1', { destroy: jest.fn() });
         expect(game.particleEmitters.has('obj1')).toBe(true);
         
         // Then clean it up
@@ -165,17 +117,5 @@ describe('Particle Effects', () => {
         expect(() => {
             game.cleanupParticles('nonexistent');
         }).not.toThrow();
-    });
-
-    test('should create fallback effect when particles fail', () => {
-        // Force particles to fail by making add.particles throw
-        mockAdd.particles.mockImplementationOnce(() => {
-            throw new Error('Particles not available');
-        });
-        
-        const result = game.createParticleEffect(100, 200, 'obj1');
-        
-        expect(mockAdd.graphics).toHaveBeenCalled();
-        expect(game.particleEmitters.has('obj1')).toBe(true);
     });
 });

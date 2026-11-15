@@ -33,37 +33,8 @@ export class ParticleManager {
         console.log('Particle texture created by ParticleManager');
     }
 
-    createParticleEffect(x, y, objId) {
-        try {
-            // Create a simple particle system using Phaser graphics
-            const particles = this.scene.add.particles(x, y, 'particle', {
-                speed: { min: 50, max: 150 },
-                scale: { start: 0.5, end: 0 },
-                blendMode: 'ADD',
-                lifespan: 300
-            });
-
-            // Store reference for cleanup
-            this.particleEmitters.set(objId, particles);
-
-            // Auto-cleanup after animation
-            setTimeout(() => {
-                this.cleanupParticles(objId);
-            }, 1000);
-
-            return particles;
-        } catch (error) {
-            // Fallback: create simple visual effect with graphics
-            return this.effectRenderer.createFallbackEffect(x, y, objId, this.particleEmitters);
-        }
-    }
-
     createSpawnBurst(x, y) {
         return this.effectRenderer.createSpawnBurst(x, y);
-    }
-
-    createFallbackEffect(x, y, objId) {
-        return this.effectRenderer.createFallbackEffect(x, y, objId, this.particleEmitters);
     }
 
     cleanupParticles(objId) {
@@ -199,32 +170,10 @@ export class ParticleManager {
         }
     }
 
-    triggerWordSparkles(obj, wordIndex) {
-        if (!obj || !obj.englishWords || !obj.englishWords[wordIndex]) {
-            return false;
-        }
-        
-        const wordObj = obj.englishWords[wordIndex];
-        const sparkleEmitter = this.createWordSparkleEffect(wordObj);
-        
-        // Store the emitter for cleanup
-        if (!obj.sparkleEmitters) {
-            obj.sparkleEmitters = new Map();
-        }
-        obj.sparkleEmitters.set(wordIndex, sparkleEmitter);
-        
-        return sparkleEmitter !== null;
-    }
-    
-    cleanupWordSparkles(obj) {
-        if (!obj || !obj.sparkleEmitters) return;
-        
-        obj.sparkleEmitters.forEach((emitter) => {
-            if (emitter && emitter.destroy) {
-                emitter.destroy();
-            }
-        });
-        obj.sparkleEmitters.clear();
+    // No-op kept for callers (SpeechManager, ObjectLifecycle): word sparkles
+    // are not tracked per object any more.
+    cleanupWordSparkles(_obj) {
+        // intentionally empty
     }
 
     createCleanupParticleEffect(x, y) {

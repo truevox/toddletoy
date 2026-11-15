@@ -83,25 +83,9 @@ const createGameWithSparkleEffects = () => {
             throw new Error('createWordSparkleEffect not implemented yet');
         },
         
-        // Method to trigger sparkles during speech highlighting
-        triggerWordSparkles: function(obj, wordIndex) {
-            if (!obj || !obj.englishWords || !obj.englishWords[wordIndex]) {
-                return false;
-            }
-            
-            const wordObj = obj.englishWords[wordIndex];
-            this.createWordSparkleEffect(wordObj);
-            return true;
-        },
-        
         // Method to clean up sparkle effects
         cleanupWordSparkles: function(obj) {
-            if (!obj || !obj.sparkleEmitters) return;
-            
-            obj.sparkleEmitters.forEach((emitter, wordIndex) => {
-                emitter.destroy();
-            });
-            obj.sparkleEmitters.clear();
+            // No-op: word sparkles are not tracked per object any more
         }
     };
 };
@@ -149,9 +133,9 @@ describe('Word-Specific Sparkle Effects', () => {
                 return new mockPhaser.GameObjects.Particles.ParticleEmitter();
             });
             
-            // Trigger sparkles for each word
-            obj.englishWords.forEach((wordObj, index) => {
-                game.triggerWordSparkles(obj, index);
+            // SpeechManager creates one sparkle per word
+            obj.englishWords.forEach((wordObj) => {
+                game.createWordSparkleEffect(wordObj);
             });
             
             expect(game.createWordSparkleEffect).toHaveBeenCalledTimes(3);
@@ -167,21 +151,9 @@ describe('Word-Specific Sparkle Effects', () => {
                 return new mockPhaser.GameObjects.Particles.ParticleEmitter();
             });
             
-            const result = game.triggerWordSparkles(obj, 0); // Sparkle "Orange"
+            game.createWordSparkleEffect(obj.englishWords[0]); // Sparkle "Orange"
             
-            expect(result).toBe(true);
             expect(game.createWordSparkleEffect).toHaveBeenCalledWith(obj.englishWords[0]);
-        });
-        
-        test('should handle invalid word indices gracefully', () => {
-            const obj = game.createTestObject('Green Circle');
-            
-            game.createWordSparkleEffect = jest.fn();
-            
-            const result = game.triggerWordSparkles(obj, 5); // Invalid index
-            
-            expect(result).toBe(false);
-            expect(game.createWordSparkleEffect).not.toHaveBeenCalled();
         });
         
         test('should synchronize sparkle timing with speech highlighting', () => {
@@ -194,7 +166,7 @@ describe('Word-Specific Sparkle Effects', () => {
                 return emitter;
             });
             
-            game.triggerWordSparkles(obj, 0);
+            game.createWordSparkleEffect(obj.englishWords[0], 1000);
             
             expect(game.createWordSparkleEffect).toHaveBeenCalled();
         });
@@ -240,23 +212,6 @@ describe('Word-Specific Sparkle Effects', () => {
     });
     
     describe('Cleanup and Memory Management', () => {
-        test('should properly clean up sparkle emitters', () => {
-            const obj = game.createTestObject('Clean Up Test');
-            
-            // Add some mock emitters
-            const mockEmitter1 = new mockPhaser.GameObjects.Particles.ParticleEmitter();
-            const mockEmitter2 = new mockPhaser.GameObjects.Particles.ParticleEmitter();
-            
-            obj.sparkleEmitters.set(0, mockEmitter1);
-            obj.sparkleEmitters.set(1, mockEmitter2);
-            
-            game.cleanupWordSparkles(obj);
-            
-            expect(mockEmitter1.destroy).toHaveBeenCalled();
-            expect(mockEmitter2.destroy).toHaveBeenCalled();
-            expect(obj.sparkleEmitters.size).toBe(0);
-        });
-        
         test('should handle cleanup of non-existent sparkles gracefully', () => {
             const obj = game.createTestObject('No Sparkles');
             
@@ -278,8 +233,8 @@ describe('Word-Specific Sparkle Effects', () => {
             });
             
             // Trigger sparkles for all words rapidly
-            obj.englishWords.forEach((wordObj, index) => {
-                game.triggerWordSparkles(obj, index);
+            obj.englishWords.forEach((wordObj) => {
+                game.createWordSparkleEffect(wordObj);
             });
             
             // Should have reasonable limit on concurrent effects

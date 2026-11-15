@@ -138,10 +138,6 @@ export class RenderManager {
         };
     }
 
-    highlightWord(textObject, wordIndex, totalWords) {
-        return this.textLayoutManager.highlightWord(textObject, wordIndex, totalWords);
-    }
-
     /**
      * Cistercian numeral drawn procedurally by ToddleToy (vector strokes, no font).
      * Sized with the same responsive factor as the other numeral rows.
