@@ -70,15 +70,6 @@ export class TextLayoutManager {
         };
     }
 
-    highlightWord(textObject, wordIndex) {
-        if (!textObject || wordIndex < 0) return;
-        
-        // Create sparkle effects during highlighting
-        if (this.scene.currentSpeakingObject && this.scene.particleManager) {
-            this.scene.particleManager.triggerWordSparkles(this.scene.currentSpeakingObject, wordIndex);
-        }
-    }
-
     destroy() {
         // No cleanup needed for this utility class
     }

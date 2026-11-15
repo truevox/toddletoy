@@ -82,30 +82,6 @@ export class EffectRenderer {
         }
     }
 
-    createFallbackEffect(x, y, objId, particleEmitters) {
-        // Simple fallback effect using graphics
-        const graphics = this.scene.add.graphics();
-        this.transient.add(graphics);
-        graphics.fillStyle(0xffffff);
-        graphics.fillCircle(x, y, 20);
-        
-        // Fade out effect
-        this.scene.tweens.add({
-            targets: graphics,
-            alpha: 0,
-            scaleX: 2,
-            scaleY: 2,
-            duration: 300,
-            onComplete: () => {
-                this.release(graphics);
-                particleEmitters.delete(objId);
-            }
-        });
-
-        particleEmitters.set(objId, graphics);
-        return graphics;
-    }
-
     createFallbackTrail(object) {
         const graphics = this.scene.add.graphics();
         this.transient.add(graphics);

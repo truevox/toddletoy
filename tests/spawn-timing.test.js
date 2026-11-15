@@ -17,9 +17,6 @@ jest.mock('phaser', () => ({
 jest.mock('../src/config/ConfigManager.js', () => ({
     ConfigManager: jest.fn()
 }));
-jest.mock('../src/positioning/PositioningSystem.js', () => ({
-    PositioningSystem: jest.fn()
-}));
 jest.mock('../src/game/systems/AudioManager.js', () => ({
     AudioManager: jest.fn()
 }));
@@ -34,9 +31,6 @@ jest.mock('../src/game/systems/RenderManager.js', () => ({
 }));
 jest.mock('../src/game/systems/SpeechManager.js', () => ({
     SpeechManager: jest.fn()
-}));
-jest.mock('../src/game/objects/ObjectManager.js', () => ({
-    ObjectManager: jest.fn()
 }));
 jest.mock('../src/game/systems/ObjectCountingRenderer.js', () => ({
     ObjectCountingRenderer: jest.fn()

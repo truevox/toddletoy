@@ -193,14 +193,6 @@ export class SceneInputHandler {
         this.scene.awaitingSpawnInputRelease = false;
     }
 
-    onInputGamepadMove() {
-        // Handle gamepad movement if needed
-    }
-
-    onInputHoldStart() {
-        // Handle hold start if needed
-    }
-
     // Object management methods
     getObjectUnderPointer(x, y) {
         // Find the topmost object at the given coordinates
