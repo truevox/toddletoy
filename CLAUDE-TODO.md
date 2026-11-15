@@ -57,7 +57,7 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 
 **Remaining:**
 - [ ] Files still over ~300 lines: `DocumentationContent.js` (614, mostly content), `ui/AdvancedSection.js` (520), `ui/LanguageSection.js` (499), `systems/ObjectCountingRenderer.js` (469), `toys/GlobeToy.js` (360), `objects/ObjectManager.js` (355), `positioning/PositioningSystem.js` (343), `toys/OrreryToy.js` (336), `systems/SpeechManager.js` (328), `ui/ConfigForm.js` (313), `ConfigScreen.js` (349), `game.js` (391)
-- [ ] Clean up the ~43 `no-unused-vars` lint warnings
+- [x] Clean up the ~43 `no-unused-vars` lint warnings (v2.0.0, lint is clean)
 - [x] Null-guard element lookups in `ui/ConfigEvents.js` / `ui/ConfigForm.js` (v1.0.83, `ui/domHelpers.js`)
 - [ ] `game.js create()` calls `restoreGameState()` before data preload finishes and relies on setTimeout polling (pre-existing)
 
@@ -497,4 +497,4 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 
 ---
 
-**🎯 Current Focus**: See PICK-UP-HERE.md for the state of the rehabilitation pass and what is in flight.
+**🎯 Current Focus**: See PICK-UP-HERE.md for the current state (v2.0.1) and the list of known gaps.

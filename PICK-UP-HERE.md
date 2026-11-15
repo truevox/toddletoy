@@ -1,26 +1,30 @@
 # PICK-UP-HERE.md
 **Context Recovery Document for Next Session**
 
-## 🟢 CURRENT STATUS (v2.0.0, branch `claude/optimistic-brown-xmf2t5`)
+## 🟢 CURRENT STATUS (v2.0.1, branch `claude/optimistic-brown-xmf2t5`)
 
-Rehabilitation pass in progress. Integrated, browser-verified and pushed:
+The November 2026 rehabilitation pass is complete and pushed. Nothing is in flight.
 
-- **Sandbox**: heart shapes spawn; silent fallback when the Web Speech API is missing; objects stay on screen (spawn, drag, restore, resize); any printable key spawns; numeral rows no longer overlap; shapes sized like emojis; debug logging removed.
-- **Config / storage**: saved config is type-checked and merged over defaults; `src/utils/safeStorage.js` wraps all storage; config DOM wiring tolerates missing elements; phone layouts fixed; START PLAYING and "All toys" at the top of settings.
-- **Navigation**: hold-for-2-seconds parent exit from the sandbox (`src/ui/ParentExitButton.js`); the toy really pauses/resets when left; no self-reload on first visit.
-- **World Globe**: real orthographic globe from Natural Earth data (`src/toys/globe-*.js`).
-- **Loading**: Phaser bundle lazy-loaded when the sandbox opens (entry chunk ~135 kB).
-- **Repo**: MIT `LICENSE`, `THIRD-PARTY-NOTICES.md`, PNG PWA icons + `public/manifest.json`, `.github/workflows/ci.yml`.
-- **Tests**: `npm test` → 1103 passing, 225 skipped (optional grid enhancements). Lint 0 errors.
+**What the app is now**
+- **Toy selector** (`/`) → **Toddler Sandbox** (`/config` → `/toy`), **Solar System** (`/orrery`), **World Globe** (`/globe`).
+- **Sandbox**: reliable spawning (tap, any key, gamepad), objects kept on screen, measured numeral stacking, procedural Cistercian numerals, grid mode that fits the real canvas, silent fallback without speech, hold-for-2-seconds parent exit, browser Back locked without disturbing play, state restored on reload.
+- **Solar System** (`src/toys/OrreryToy.js` + `orrery-*.js`): procedural planets, time scrub and speed steps, planet strip, info cards, true-size comparison, Find it game.
+- **World Globe** (`src/toys/GlobeToy.js` + `globe-*.js`): Natural Earth globe, tap-to-fly, info card in the enabled languages, zoom, Surprise me, Find it game, passport.
+- **Repo**: MIT `LICENSE`, `THIRD-PARTY-NOTICES.md`, PWA icons/manifest, CI (`.github/workflows/ci.yml`), README with real screenshots, `CONTRIBUTING.md`, `docs/README.md` (architecture).
 
-In flight (separate worktrees under `.claude/worktrees/`, not yet merged):
+**Verification at v2.0.1**
+- `npm test`: 1243 passing, 225 skipped (optional grid enhancements). `npm run lint`: clean. `npm run build`: succeeds.
+- `npm run test:e2e:ci`: 136 Playwright tests × desktop Chromium and Pixel 5 emulation, all passing against the production build. No `test.fail`/`fixme` marks.
+- Firefox, WebKit and real devices have **not** been run. CI has not yet executed on GitHub (it triggers on `main`/`dev` pushes and pull requests).
 
-1. Procedural Cistercian numerals (replaces the CC BY-NC-ND font), grid-mode fit, exit-button keep-out, outlines for dark colours.
-2. World Globe UX overhaul (zoom, fly-to, info card, Find-it game, passport).
-3. Solar System UX overhaul (procedural planets, time scrub, planet strip, compare sizes, Find-it game).
-4. Playwright E2E rehabilitation (the old suite predates the toy selector; 1 of ~85 tests passed).
-
-Then: clear the lint warnings, rewrite README/contributor docs with real screenshots, final skeptical review.
+**Known gaps / next candidates** (none block play)
+1. Run the suite on Firefox/WebKit and try real phones/tablets (speech voices, touch, performance).
+2. Sandbox canvas renders at 1× device pixel ratio, so text is soft on high-DPI phones.
+3. Globe labels and Solar System card text are English-only (spoken names are localised); flag emoji show as letter codes on Windows.
+4. 13 `npm audit` advisories remain, all in dev tooling (need Vite/Jest major upgrades).
+5. Netlify build moved to Node 20 but the deploy itself is untested.
+6. Files still over ~300 lines (see CLAUDE-TODO.md Phase 18).
+7. No git tag or GitHub release exists for 2.0.x yet (owner's call).
 
 ## 🕰️ OLDER STATUS (v1.0.55)
 

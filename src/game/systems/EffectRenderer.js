@@ -5,12 +5,14 @@
 export class EffectRenderer {
     constructor(scene) {
         this.scene = scene;
+        this.transient = new Set(); // burst graphics awaiting their fade-out
     }
 
     createSpawnBurst(x, y) {
         try {
             // Create a burst effect using simple graphics since we don't have texture assets
             const graphics = this.scene.add.graphics();
+            this.transient.add(graphics);
             
             // Create colorful burst circles
             const colors = [0xff6b6b, 0x4ecdc4, 0x45b7d1, 0xf9ca24, 0xf0932b, 0xeb4d4b, 0x6c5ce7];
@@ -33,7 +35,7 @@ export class EffectRenderer {
                 duration: 500,
                 ease: 'Power2',
                 onComplete: () => {
-                    graphics.destroy();
+                    this.release(graphics);
                 }
             });
 
@@ -46,6 +48,7 @@ export class EffectRenderer {
         try {
             // Create festive cleanup burst with celebration colors
             const graphics = this.scene.add.graphics();
+            this.transient.add(graphics);
             
             // Create colorful celebration circles
             const colors = [0xFFD700, 0xFF69B4, 0x00CED1, 0xFF6347, 0x32CD32, 0x9370DB];
@@ -70,7 +73,7 @@ export class EffectRenderer {
                 duration: 800,
                 ease: 'Power2',
                 onComplete: () => {
-                    graphics.destroy();
+                    this.release(graphics);
                 }
             });
 
@@ -82,6 +85,7 @@ export class EffectRenderer {
     createFallbackEffect(x, y, objId, particleEmitters) {
         // Simple fallback effect using graphics
         const graphics = this.scene.add.graphics();
+        this.transient.add(graphics);
         graphics.fillStyle(0xffffff);
         graphics.fillCircle(x, y, 20);
         
@@ -93,7 +97,7 @@ export class EffectRenderer {
             scaleY: 2,
             duration: 300,
             onComplete: () => {
-                graphics.destroy();
+                this.release(graphics);
                 particleEmitters.delete(objId);
             }
         });
@@ -104,6 +108,7 @@ export class EffectRenderer {
 
     createFallbackTrail(object) {
         const graphics = this.scene.add.graphics();
+        this.transient.add(graphics);
         graphics.fillStyle(0xff6b6b);
         graphics.fillCircle(object.x, object.y, 3);
         
@@ -111,11 +116,17 @@ export class EffectRenderer {
             targets: graphics,
             alpha: 0,
             duration: 200,
-            onComplete: () => graphics.destroy()
+            onComplete: () => this.release(graphics)
         });
     }
 
     destroy() {
         // No cleanup needed for this utility class
+    }
+
+    /** Destroy a burst graphic and stop tracking it. */
+    release(graphics) {
+        this.transient.delete(graphics);
+        if (graphics && graphics.destroy) graphics.destroy();
     }
 }

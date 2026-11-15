@@ -227,6 +227,17 @@ export class InputManager {
         }
     }
 
+    /**
+     * Forget every held key. Key-up events are not delivered while the scene
+     * is paused (parent exit, tab switch), so stale entries would make the
+     * next key press look like a multi-key hold and spawn nothing.
+     */
+    clearHeldKeys() {
+        this.keysHeld.clear();
+        this.randomKeyPositions.clear();
+        this.updateAverageKeyPosition();
+    }
+
     updateAverageKeyPosition() {
         if (this.keysHeld.size === 0) {
             this.averageKeyPosition = { x: 0, y: 0 };

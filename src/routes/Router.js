@@ -91,7 +91,10 @@ export class Router {
             // Check if this is a popstate (back/forward button) - BLOCK
             if (this.isPopstateNavigation) {
                 console.log('🔒 Locked in toy: blocking popstate navigation to', path);
-                this.replace('/toy');
+                // Put a fresh /toy entry back on the stack so Back can be pressed any
+                // number of times without draining history, and leave the running
+                // scene alone: re-running the route handler would reset the toy.
+                window.history.pushState({}, '', '/toy');
                 return;
             }
 
@@ -107,6 +110,13 @@ export class Router {
             }
         }
 
+        // Forward/Back landing on /toy while already playing: nothing to do.
+        if (this.toyLocked && path === '/toy' && this.currentRoute === '/toy' && this.isPopstateNavigation) {
+            // Landed on a spare entry: top the buffer back up.
+            window.history.pushState({ toyGuard: true }, '', '/toy');
+            return;
+        }
+
         this.previousRoute = this.currentRoute;
         this.currentRoute = path;
 
@@ -116,6 +126,11 @@ export class Router {
             if (!this.toyLocked) {
                 console.log('🔒 Entering toy: locking mode');
                 this.toyLocked = true;
+                // Spare /toy entries so several Back presses in quick succession
+                // (faster than popstate can re-push) still land inside the toy.
+                if (!this.isPopstateNavigation) {
+                    for (let i = 0; i < 2; i++) window.history.pushState({ toyGuard: true }, '', '/toy');
+                }
             }
 
             // If this is a refresh from toy route, preserve access and lock

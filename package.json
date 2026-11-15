@@ -1,6 +1,6 @@
 {
   "name": "toddler-toy-pwa",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Montessori-aligned interactive toddler toy PWA",
   "main": "index.html",
   "scripts": {
@@ -10,17 +10,15 @@
     "test:e2e:chromium": "playwright test --project=chromium",
     "test:e2e:firefox": "playwright test --project=firefox",
     "test:e2e:webkit": "playwright test --project=webkit",
-    "test:e2e:mobile": "playwright test --project='Mobile Chrome' --project='Mobile Safari'",
-    "test:visual": "playwright test tests/browser/layout-preservation-visual.spec.js",
+    "test:e2e:mobile": "playwright test --project=\"Mobile Chrome\" --project=\"Mobile Safari\"",
+    "test:e2e:ci": "playwright test --project=chromium --project=\"Mobile Chrome\"",
     "test:performance": "playwright test tests/browser/performance-validation.spec.js",
-    "test:cross-browser": "playwright test tests/browser/cross-browser-compatibility.spec.js",
     "test:all": "npm run test && npm run test:e2e",
     "prepare": "husky install",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint src/",
-    "typecheck": "echo 'No TypeScript yet'"
+    "lint": "eslint src/"
   },
   "dependencies": {
     "phaser": "^3.70.0",

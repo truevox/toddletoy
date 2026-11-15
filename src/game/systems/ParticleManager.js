@@ -10,6 +10,7 @@ export class ParticleManager {
         this.particleEmitters = new Map();
         this.dragTrails = new Map();
         this.sparkleEmitters = new Map();
+        this.transientEffects = new Set(); // short-lived emitters awaiting their timer
         this.effectRenderer = new EffectRenderer(scene);
         
         this.initParticleSystem();
@@ -183,7 +184,9 @@ export class ParticleManager {
             sparkleEmitter.start();
             
             // Auto-cleanup after duration
+            this.transientEffects.add(sparkleEmitter);
             this.scene.time.delayedCall(duration, () => {
+                this.transientEffects.delete(sparkleEmitter);
                 if (sparkleEmitter && sparkleEmitter.destroy) {
                     sparkleEmitter.destroy();
                 }
@@ -226,6 +229,18 @@ export class ParticleManager {
 
     createCleanupParticleEffect(x, y) {
         return this.effectRenderer.createCleanupParticleEffect(x, y);
+    }
+
+    /** Destroy every short-lived effect right now (used when the toy is reset). */
+    clearTransientEffects() {
+        const destroyAll = (set) => {
+            set.forEach((effect) => {
+                try { if (effect && effect.destroy) effect.destroy(); } catch (error) { /* already gone */ }
+            });
+            set.clear();
+        };
+        destroyAll(this.transientEffects);
+        if (this.effectRenderer && this.effectRenderer.transient) destroyAll(this.effectRenderer.transient);
     }
 
     // Cleanup all particle systems

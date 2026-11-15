@@ -60,7 +60,8 @@ Routes: `/` toy selector · `/config` sandbox settings · `/toy` sandbox · `/or
 | `npm run build` | Production build into `dist/`, including the service worker |
 | `npm run preview` | Serve the production build locally |
 | `npm test` | Jest unit tests (jsdom) |
-| `npm run test:e2e` | Playwright end-to-end tests against the production build |
+| `npm run test:e2e:ci` | Playwright end-to-end tests on desktop and mobile Chromium, against a production build (what CI runs) |
+| `npm run test:e2e` | The same tests on all five browser projects (needs Firefox and WebKit installed) |
 | `npm run lint` | ESLint over `src/` |
 
 A pre-commit hook checks that `package.json`'s version was bumped whenever code changes. CI (`.github/workflows/ci.yml`) runs lint, unit tests, the build and the Chromium end-to-end suite.

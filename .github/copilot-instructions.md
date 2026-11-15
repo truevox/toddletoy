@@ -47,7 +47,7 @@ ToddleToy is a Montessori-aligned, multi-sensory interactive learning PWA for to
 - **Unit tests:** Place test files in `tests/` with the naming convention `<feature>.test.js`. Use Jest with the jsdom environment.
 - **E2E tests:** Place Playwright specs in `tests/browser/` with the `.spec.js` extension.
 - **Run unit tests:** `npm test`
-- **Run E2E tests:** `npm run test:e2e`
+- **Run E2E tests:** `npm run test:e2e:ci` (desktop + mobile Chromium, as CI does) or `npm run test:e2e` (all five projects)
 - **Run all tests:** `npm run test:all`
 - **Mock setup:** `tests/setup.js` provides global mocks for `AudioContext`, `speechSynthesis`, `SpeechSynthesisUtterance` and `HTMLCanvasElement.getContext`.
 - **TDD workflow:** Write a failing test first, implement just enough code to pass it, then refactor. Never modify a test solely to make it pass.

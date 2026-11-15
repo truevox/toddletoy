@@ -106,7 +106,8 @@ describe('Locked Toy Mode', () => {
             popstateListeners.forEach(handler => handler({ state: null }));
 
             // Should be blocked and redirected back to /toy
-            expect(mockHistory.replaceState).toHaveBeenCalledWith({}, '', '/toy');
+            // Re-push (not replace) so repeated Back presses can never drain history
+            expect(mockHistory.pushState).toHaveBeenCalledWith({}, '', '/toy');
             expect(router.getCurrentRoute()).toBe('/toy');
             expect(router.isToyLocked()).toBe(true); // Still locked
         });
@@ -126,7 +127,8 @@ describe('Locked Toy Mode', () => {
             popstateListeners.forEach(handler => handler({ state: null }));
 
             // Should stay in /toy
-            expect(mockHistory.replaceState).toHaveBeenCalledWith({}, '', '/toy');
+            // Re-push (not replace) so repeated Back presses can never drain history
+            expect(mockHistory.pushState).toHaveBeenCalledWith({}, '', '/toy');
             expect(router.isToyLocked()).toBe(true);
         });
     });
@@ -264,7 +266,8 @@ describe('Locked Toy Mode', () => {
             popstateListeners.forEach(handler => handler({ state: null }));
 
             // Should stay locked in /toy
-            expect(mockHistory.replaceState).toHaveBeenCalledWith({}, '', '/toy');
+            // Re-push (not replace) so repeated Back presses can never drain history
+            expect(mockHistory.pushState).toHaveBeenCalledWith({}, '', '/toy');
             expect(router.isToyLocked()).toBe(true);
         });
     });

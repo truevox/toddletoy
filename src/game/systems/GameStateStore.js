@@ -143,13 +143,23 @@ export class GameStateStore {
         }
 
         // Clean up all objects
-        this.scene.objects.forEach(obj => this.scene.removeObject(obj));
+        // Iterate over a copy: removeObject() splices scene.objects as it goes
+        [...this.scene.objects].forEach(obj => this.scene.removeObject(obj));
         this.scene.objects = [];
+
+        // Sparkles and spawn bursts normally clean themselves up on scene timers,
+        // which do not run once the scene is paused behind another screen.
+        if (this.scene.particleManager && this.scene.particleManager.clearTransientEffects) {
+            this.scene.particleManager.clearTransientEffects();
+        }
 
         // Clear movement queue
         this.scene.movementManager.clearAllMovements();
 
         // Reset state
+        if (this.scene.inputManager && this.scene.inputManager.clearHeldKeys) {
+            this.scene.inputManager.clearHeldKeys();
+        }
         this.scene.isDragging = false;
         this.scene.draggedObject = null;
         this.scene.currentSpeakingObject = null;

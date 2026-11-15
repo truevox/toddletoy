@@ -20,11 +20,12 @@ Run these from the repository root after `npm install`. Every command below is d
 | `npm run preview` | Serves the production build locally. |
 | `npm test` | Jest unit tests (jsdom). |
 | `npm run test:e2e` | Playwright specs in `tests/browser/` across all five projects (Chromium, Firefox, WebKit, Pixel 5, iPhone 12). Needs every browser installed. |
-| `npm run test:e2e:chromium` | Same specs, Chromium only. This is what CI runs. |
+| `npm run test:e2e:ci` | Same specs on desktop Chromium and Pixel 5 emulation. This is what CI runs. |
+| `npm run test:e2e:chromium` | Same specs, desktop Chromium only. |
 | `npm run test:all` | `npm test` followed by `npm run test:e2e`. |
 | `npm run lint` | ESLint over `src/`. |
 
-The Playwright config starts `npm run dev` itself (reusing a running server outside CI), so you do not need a server running first.
+The Playwright config builds the app and serves the production bundle with `vite preview` on port 4173 (reusing a server already on that port outside CI), so you do not need a server running first — but stop any stale preview server after changing `src/`, or the tests will run against the old build. If Playwright cannot download its own browser, point the Chromium projects at an installed one with `PW_CHROMIUM_PATH=/path/to/chromium`. Tests that document a known app bug are marked `test.fail()` with the reason; there are none at present.
 
 ## Project layout
 
@@ -77,7 +78,7 @@ sw.js                  service worker source; vite-plugin-pwa (injectManifest) b
 - Write a failing test first, run it and see it fail, then write the smallest code that passes it.
 - Unit tests with mocks are not enough for anything visual or interactive. Verify UI changes in a real browser (Playwright, or `npm run dev` and look). Several past bugs were hidden by mocks that did not match Phaser's real API.
 - Do not skip, delete or weaken a test to get green. Change a test only if it is testing the wrong thing, and say so in the commit message.
-- Run `npm test` and `npm run lint` before committing. Run `npm run test:e2e:chromium` when you touch the sandbox, routing, or anything in `tests/browser/`.
+- Run `npm test` and `npm run lint` before committing. Run `npm run test:e2e:ci` when you touch the sandbox, routing, or anything in `tests/browser/`.
 
 ## Versioning
 

@@ -1,284 +1,191 @@
 import { test, expect } from '@playwright/test';
+import {
+    collectErrors, seedConfig, skipOnboarding, gotoSelector, enterSandbox, startPlaying, waitForScene,
+    tapSpawn, objectCount, waitForObjectCount, savedConfig, CONFIG_KEY, SANDBOX_CARD,
+} from './helpers/app.js';
 
 /**
- * Routing Protection Tests
- * 
- * Tests to verify that direct access to /toy redirects to config screen
- * when no configuration exists, and other routing protection behaviors.
+ * Routing rules (src/routes/routes.js, Router.js):
+ *   /          toy selector
+ *   /config    parent config
+ *   /toy       sandbox; only reachable via the app flow (config -> START) or a
+ *              reload while playing (saved game state + config). Otherwise it
+ *              redirects to `/`. While on /toy the router is locked.
+ *   /admin     config, always (ignores skipConfig)
+ *   unknown    redirects to `/`
  */
+const atRoot = (page) => expect(page).toHaveURL(/^[^?#]*\/$/);
 
-test.describe('Routing Protection', () => {
-  
-  test.beforeEach(async ({ page }) => {
-    // Clear any existing localStorage to simulate fresh user
-    await page.evaluate(() => {
-      localStorage.clear();
+test.describe('Routing protection', () => {
+    test.beforeEach(async ({ context }) => {
+        await skipOnboarding(context);
     });
-  });
 
-  test('should redirect to config screen when accessing /toy without configuration', async ({ page }) => {
-    // Attempt to navigate directly to /toy
-    await page.goto('/toy');
-    
-    // Should be redirected to config screen (root /)
-    await page.waitForTimeout(1000);
-    
-    // Check URL should be / not /toy
-    expect(page.url()).toMatch(/\/$|\/(?:\?.*)?$/);
-    
-    // Should see config screen elements
-    const hasConfigElements = await page.evaluate(() => {
-      // Look for common config screen indicators
-      const configTexts = [
-        'Configure', 'Settings', 'Age', 'Category', 'Start', 'Play', 
-        'Choose', 'Select', 'Enable', 'toddletoy', 'ToddleToy'
-      ];
-      
-      const bodyText = document.body.textContent.toLowerCase();
-      return configTexts.some(text => bodyText.includes(text.toLowerCase()));
+    test('/toy without any saved config redirects to the selector', async ({ page }) => {
+        await page.goto('/toy');
+        await atRoot(page);
+        await expect(page.locator('#toy-mode-selector')).toBeVisible();
+        await expect(page.locator('#game-container canvas')).toHaveCount(0);
     });
-    
-    expect(hasConfigElements).toBe(true);
-  });
 
-  test('should allow access to /toy after completing configuration', async ({ page }) => {
-    // First, go through configuration flow
-    await page.goto('/');
-    
-    // Wait for config screen to load
-    await page.waitForTimeout(2000);
-    
-    // Try to find and interact with config elements
-    // Enable some emoji categories (adjust selectors based on actual implementation)
-    try {
-      await page.check('input[value="animals"]', { timeout: 5000 });
-    } catch (e) {
-      // Fallback: try different possible selectors
-      try {
-        await page.click('input[type="checkbox"]:first-of-type', { timeout: 2000 });
-      } catch (e2) {
-        // If checkboxes don't exist, just try to proceed
-      }
-    }
-    
-    // Try to find and click start/play button
-    try {
-      await page.click('button:has-text("Start")', { timeout: 3000 });
-    } catch (e) {
-      try {
-        await page.click('button:has-text("Play")', { timeout: 2000 });
-      } catch (e2) {
-        try {
-          await page.click('button[type="submit"]', { timeout: 2000 });
-        } catch (e3) {
-          // Try to click any button that might be the start button
-          await page.click('button:first-of-type', { timeout: 2000 });
+    test('/toy redirect drops query parameters and still lands on the selector', async ({ page }) => {
+        await page.goto('/toy?test=123&param=value');
+        await atRoot(page);
+        await expect(page.locator('#toy-mode-selector')).toBeVisible();
+    });
+
+    test('/toy with a saved config but no flow/game state is still protected', async ({ page, context }) => {
+        await seedConfig(context, { advanced: { skipConfig: false } });
+        await page.goto('/toy');
+        await atRoot(page);
+        await expect(page.locator('#toy-mode-selector')).toBeVisible();
+    });
+
+    test('/toy with corrupt or empty saved config redirects to the selector', async ({ page, context }) => {
+        await seedConfig(context, null, { raw: 'invalid-json' });
+        await page.goto('/toy');
+        await atRoot(page);
+        await page.evaluate((k) => localStorage.setItem(k, '{}'), CONFIG_KEY);
+        await page.goto('/toy');
+        await atRoot(page);
+        await expect(page.locator('#toy-mode-selector')).toBeVisible();
+    });
+
+    test('the normal flow selector -> /config -> /toy works and shows the canvas', async ({ page }) => {
+        const c = collectErrors(page);
+        await gotoSelector(page);
+        await expect(page).toHaveTitle(/ToddleToy/);
+        await page.locator(SANDBOX_CARD).click();
+        await expect(page).toHaveURL(/\/config$/);
+        await expect(page.locator('#config-screen')).toBeVisible();
+        await startPlaying(page);
+        await expect(page.locator('#game-container canvas')).toBeVisible();
+        await expect(page.locator('#config-screen')).toBeHidden();
+        await expect(page.locator('#toy-mode-selector')).toBeHidden();
+        expect(c.pageErrors).toEqual([]);
+    });
+
+    test('/admin shows the config screen even when skipConfig is enabled', async ({ page, context }) => {
+        await seedConfig(context, { advanced: { skipConfig: true } });
+        await page.goto('/admin');
+        await expect(page).toHaveURL(/\/admin$/);
+        await expect(page.locator('#config-screen')).toBeVisible();
+        await expect(page.locator('#game-container canvas')).toHaveCount(0);
+    });
+
+    test('/config with skipConfig enabled jumps straight into the toy', async ({ page, context }) => {
+        await seedConfig(context, { advanced: { skipConfig: true } });
+        await page.goto('/config');
+        await waitForScene(page);
+    });
+
+    test('unknown routes fall back to the selector', async ({ page }) => {
+        await page.goto('/nonexistent');
+        await atRoot(page);
+        await expect(page.locator('#toy-mode-selector')).toBeVisible();
+        await page.goto('/toy/extra/segments');
+        await atRoot(page);
+    });
+
+    test('rapid navigation between routes ends in a stable, working state', async ({ page }) => {
+        const c = collectErrors(page);
+        for (const route of ['/', '/toy', '/admin', '/', '/toy', '/orrery', '/']) {
+            await page.goto(route);
         }
-      }
-    }
-    
-    // Wait for navigation to toy screen
-    await page.waitForTimeout(2000);
-    
-    // Now should be on toy screen
-    const currentUrl = page.url();
-    expect(currentUrl).toMatch(/\/toy/);
-    
-    // Should see game canvas
-    await page.waitForSelector('canvas', { timeout: 10000 });
-    const canvas = await page.locator('canvas');
-    await expect(canvas).toBeVisible();
-  });
-
-  test('should allow direct access to /toy after configuration exists', async ({ page }) => {
-    // Manually set up configuration in localStorage
-    await page.evaluate(() => {
-      const mockConfig = {
-        ageRange: 'toddler',
-        emojiCategories: {
-          animals: { enabled: true },
-          faces: { enabled: true }
-        },
-        skipConfig: false,
-        lastModified: Date.now()
-      };
-      localStorage.setItem('toddletoy-config', JSON.stringify(mockConfig));
+        await atRoot(page);
+        await expect(page.locator('#toy-mode-selector')).toBeVisible();
+        expect(c.pageErrors).toEqual([]);
     });
-    
-    // Now try to access /toy directly
-    await page.goto('/toy');
-    
-    // Should successfully load toy screen without redirect
-    const currentUrl = page.url();
-    expect(currentUrl).toMatch(/\/toy/);
-    
-    // Should see game canvas
-    await page.waitForSelector('canvas', { timeout: 10000 });
-    const canvas = await page.locator('canvas');
-    await expect(canvas).toBeVisible();
-  });
 
-  test('should handle /admin route to always show config', async ({ page }) => {
-    // Set up existing configuration
-    await page.evaluate(() => {
-      const mockConfig = {
-        ageRange: 'toddler',
-        emojiCategories: { animals: { enabled: true } },
-        skipConfig: true, // Even with skip enabled
-        lastModified: Date.now()
-      };
-      localStorage.setItem('toddletoy-config', JSON.stringify(mockConfig));
+    test('config is written to localStorage when playing starts and survives navigation', async ({ page }) => {
+        expect(await page.goto('/').then(() => page.evaluate((k) => localStorage.getItem(k), CONFIG_KEY))).toBeNull();
+        await enterSandbox(page);
+        const saved = await savedConfig(page);
+        expect(saved).toBeTruthy();
+        expect(saved.content).toBeTruthy();
+        await page.goto('/admin');
+        expect(await savedConfig(page)).toEqual(saved);
     });
-    
-    // Navigate to /admin
-    await page.goto('/admin');
-    
-    // Should show config screen despite skipConfig being true
-    await page.waitForTimeout(1000);
-    
-    // URL should be /admin
-    expect(page.url()).toMatch(/\/admin/);
-    
-    // Should see config elements even though config exists
-    const hasConfigElements = await page.evaluate(() => {
-      const configTexts = ['Configure', 'Settings', 'Age', 'Category'];
-      const bodyText = document.body.textContent.toLowerCase();
-      return configTexts.some(text => bodyText.includes(text.toLowerCase()));
-    });
-    
-    expect(hasConfigElements).toBe(true);
-  });
 
-  test('should handle browser back/forward navigation correctly', async ({ page }) => {
-    // Start at root
-    await page.goto('/');
-    await page.waitForTimeout(1000);
-    
-    // Try to navigate to /toy (should redirect back to /)
-    await page.goto('/toy');
-    await page.waitForTimeout(1000);
-    
-    // Should be back at root due to redirect
-    expect(page.url()).toMatch(/\/$|\/(?:\?.*)?$/);
-    
-    // Use browser back button
-    await page.goBack();
-    await page.waitForTimeout(500);
-    
-    // Should still be at root (or potentially the previous page in history)
-    const urlAfterBack = page.url();
-    expect(urlAfterBack).toMatch(/\/$|\/(?:\?.*)?$|\/toy/);
-  });
-
-  test('should preserve URL parameters during redirects', async ({ page }) => {
-    // Try to access /toy with query parameters
-    await page.goto('/toy?test=123&param=value');
-    await page.waitForTimeout(1000);
-    
-    // Should redirect to / but might preserve some context
-    const currentUrl = page.url();
-    expect(currentUrl).toMatch(/\//);
-    
-    // The exact behavior depends on implementation, but should handle gracefully
-    expect(currentUrl).toBeTruthy();
-  });
-
-  test('should handle invalid routes gracefully', async ({ page }) => {
-    // Try to access non-existent route
-    await page.goto('/nonexistent');
-    await page.waitForTimeout(1000);
-    
-    // Should either redirect to / or show 404 - either is acceptable
-    const currentUrl = page.url();
-    expect(currentUrl).toBeTruthy();
-    
-    // Page should not be broken
-    const pageContent = await page.textContent('body');
-    expect(pageContent).toBeTruthy();
-  });
-
-  test('should handle configuration validation on toy access', async ({ page }) => {
-    // Set up invalid/corrupted configuration
-    await page.evaluate(() => {
-      localStorage.setItem('toddletoy-config', 'invalid-json');
+    test('hash/trailing navigation via the router API uses registered routes only', async ({ page }) => {
+        await gotoSelector(page);
+        await page.evaluate(() => window.appRoutes.navigate('/definitely-not-a-route'));
+        await atRoot(page);
+        await expect(page.locator('#toy-mode-selector')).toBeVisible();
     });
-    
-    // Try to access /toy
-    await page.goto('/toy');
-    await page.waitForTimeout(1000);
-    
-    // Should redirect to config due to invalid configuration
-    expect(page.url()).toMatch(/\/$|\/(?:\?.*)?$/);
-    
-    // Clear and try with empty config
-    await page.evaluate(() => {
-      localStorage.setItem('toddletoy-config', '{}');
-    });
-    
-    await page.goto('/toy');
-    await page.waitForTimeout(1000);
-    
-    // Should redirect to config due to empty configuration
-    expect(page.url()).toMatch(/\/$|\/(?:\?.*)?$/);
-  });
+});
 
-  test('should handle rapid navigation attempts', async ({ page }) => {
-    // Rapidly try to navigate between routes
-    const routes = ['/', '/toy', '/admin', '/', '/toy'];
-    
-    for (const route of routes) {
-      await page.goto(route);
-      await page.waitForTimeout(200);
-    }
-    
-    // Should end up in a stable state
-    const finalUrl = page.url();
-    expect(finalUrl).toMatch(/\/$|\/toy|\/admin/);
-    
-    // Page should not be broken
-    const hasBody = await page.locator('body').isVisible();
-    expect(hasBody).toBe(true);
-  });
+test.describe('Sandbox is locked while playing', () => {
+    test.beforeEach(async ({ context }) => {
+        await skipOnboarding(context);
+    });
 
-  test('should verify localStorage persistence across navigation', async ({ page }) => {
-    // Navigate to config and set up configuration
-    await page.goto('/');
-    await page.waitForTimeout(1000);
-    
-    // Check if localStorage is working
-    const canUseLocalStorage = await page.evaluate(() => {
-      try {
-        localStorage.setItem('test', 'value');
-        const result = localStorage.getItem('test') === 'value';
-        localStorage.removeItem('test');
-        return result;
-      } catch (e) {
-        return false;
-      }
+    test('browser Back is blocked on /toy: URL and screens stay put', async ({ page }) => {
+        const c = collectErrors(page);
+        await enterSandbox(page);
+        await page.goBack();
+        await expect(page).toHaveURL(/\/toy$/);
+        await expect(page.locator('#game-container canvas')).toBeVisible();
+        await expect(page.locator('#config-screen')).toBeHidden();
+        await expect(page.locator('#toy-mode-selector')).toBeHidden();
+        expect(c.pageErrors).toEqual([]);
     });
-    
-    expect(canUseLocalStorage).toBe(true);
-    
-    // Set up valid configuration
-    await page.evaluate(() => {
-      const config = {
-        ageRange: 'toddler',
-        emojiCategories: { animals: { enabled: true } },
-        skipConfig: false
-      };
-      localStorage.setItem('toddletoy-config', JSON.stringify(config));
+
+    test('the toy is still playable after Back is blocked', async ({ page }) => {
+        await enterSandbox(page);
+        await page.goBack();
+        await expect(page).toHaveURL(/\/toy$/);
+        await page.waitForTimeout(500); // let Phaser apply its queued scene pause
+        await tapSpawn(page, 0.5, 0.5);
     });
-    
-    // Navigate to /toy
-    await page.goto('/toy');
-    await page.waitForTimeout(1000);
-    
-    // Verify configuration persists
-    const configPersisted = await page.evaluate(() => {
-      const config = localStorage.getItem('toddletoy-config');
-      return config !== null && config.includes('toddler');
+
+    test('Back is blocked for the first two presses', async ({ page }) => {
+        await enterSandbox(page);
+        for (let i = 0; i < 2; i++) {
+            await page.goBack().catch(() => {});
+            await expect(page).toHaveURL(/\/toy$/);
+        }
+        await expect(page.locator('#game-container canvas')).toBeVisible();
     });
-    
-    expect(configPersisted).toBe(true);
-  });
+
+    test('Back keeps blocking however many times it is pressed', async ({ page }) => {
+        await enterSandbox(page);
+        for (let i = 0; i < 4; i++) {
+            await page.goBack().catch(() => {});
+        }
+        await expect(page).toHaveURL(/\/toy$/, { timeout: 2000 });
+    });
+
+    test('Back does not wipe the objects the child already made', async ({ page }) => {
+        await enterSandbox(page);
+        await tapSpawn(page, 0.3, 0.3);
+        await tapSpawn(page, 0.7, 0.6);
+        expect(await objectCount(page)).toBe(2);
+        await page.goBack();
+        await expect(page).toHaveURL(/\/toy$/);
+        // Blocking Back should be a no-op for the scene.
+        expect(await objectCount(page)).toBe(2);
+    });
+
+    test('reloading /toy restores the spawned objects', async ({ page }) => {
+        await enterSandbox(page);
+        const a = await tapSpawn(page, 0.3, 0.3);
+        const b = await tapSpawn(page, 0.7, 0.6);
+        await page.reload();
+        await waitForScene(page);
+        await waitForObjectCount(page, 2);
+        const restored = await page.evaluate(() =>
+            window.appRoutes.getGameScene().objects.map((o) => ({ x: o.x, y: o.y, type: o.type })));
+        expect(restored).toEqual([
+            { x: a.x, y: a.y, type: a.type },
+            { x: b.x, y: b.y, type: b.type },
+        ]);
+    });
+
+    test('a programmatic route change to an unknown path is blocked while playing', async ({ page }) => {
+        await enterSandbox(page);
+        await page.evaluate(() => window.appRoutes.navigate('/nowhere'));
+        await expect(page).toHaveURL(/\/toy$/);
+        await expect(page.locator('#game-container canvas')).toBeVisible();
+    });
 });

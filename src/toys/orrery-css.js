@@ -60,7 +60,7 @@ export const ORRERY_CSS = `
 #orrery-toy[data-mode="landscape"] .orr-actions{order:0}
 #orrery-toy[data-mode="landscape"] .orr-card,#orrery-toy[data-mode="landscape"] .orr-game{order:1;max-width:none;overflow:auto;max-height:100%}
 #orrery-toy[data-mode="landscape"] .orr-strip{position:absolute;left:0;bottom:calc(6px + var(--sab));width:calc(100% - var(--side));z-index:10;padding:0 8px;box-sizing:border-box}
-#orrery-toy[data-mode="landscape"] .orr-note{right:max(12px,var(--sar))}
+#orrery-toy[data-mode="landscape"] .orr-note{right:calc(var(--side) + 8px)}
 @media (max-width:540px),(max-height:520px){#orrery-toy .orr-title{display:none}}
 @media (orientation:portrait) and (max-height:700px){#orrery-toy .orr-expand{max-height:max(90px,19vh)}}
 @media (max-width:360px){#orrery-toy .orr-name{font-size:1.25rem}#orrery-toy .orr-line{font-size:.92rem}}

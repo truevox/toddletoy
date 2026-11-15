@@ -124,7 +124,7 @@ Globe storage: `toddletoy_globe_passport_v1` (visited countries) and `toddletoy_
 | --- | --- | --- |
 | Lint | `src/` (ESLint 8 config in `.eslintrc.cjs`) | `npm run lint` |
 | Unit | `tests/*.test.js`, `tests/unit/*.test.js` (Jest, jsdom, Babel) | `npm test` |
-| End-to-end | `tests/browser/*.spec.js` (Playwright, five projects) | `npm run test:e2e`, `npm run test:e2e:chromium` |
+| End-to-end | `tests/browser/*.spec.js` (Playwright, five projects) | `npm run test:e2e:ci` (desktop + mobile Chromium), `npm run test:e2e` (all five) |
 | Version gate | `scripts/verify-version-bump.js` via `.husky/pre-commit` | every commit |
 
-`tests/setup.js` provides global stand-ins for `AudioContext`, `speechSynthesis`, `SpeechSynthesisUtterance` and `HTMLCanvasElement.getContext`. Playwright starts `npm run dev` itself. CI (`.github/workflows/ci.yml`) runs lint, unit tests and the build, then the Chromium end-to-end suite.
+`tests/setup.js` provides global stand-ins for `AudioContext`, `speechSynthesis`, `SpeechSynthesisUtterance` and `HTMLCanvasElement.getContext`. Playwright builds the app and serves the production bundle with `vite preview` itself. CI (`.github/workflows/ci.yml`) runs lint, unit tests and the build, then the Chromium end-to-end suite.

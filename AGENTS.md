@@ -59,7 +59,7 @@ Repeat until the feature is complete:
 - Versions are `x.y.z`: **x** for major changes or overhauls, **y** for new features, **z** for fixes and chores. Pick the smallest part that honestly describes the commit.
 
 ## 🧪 Testing & Quality Gates
-- Use existing npm scripts: `npm test`, `npm run lint`, `npm run test:e2e` (or `npm run test:e2e:chromium`), etc. See `CONTRIBUTING.md` for the full list.
+- Use existing npm scripts: `npm test`, `npm run lint`, `npm run test:e2e:ci` (desktop + mobile Chromium; `npm run test:e2e` for all five browser projects), etc. See `CONTRIBUTING.md` for the full list.
 - Run relevant tests before committing; record commands and outcomes in PRs.
 - Treat Jest/Playwright snapshots as code—review diffs before accepting.
 - Keep CI workflows current when adding new tooling.
