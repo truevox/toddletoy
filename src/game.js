@@ -1,12 +1,10 @@
 import Phaser from 'phaser'
 import { ConfigManager } from './config/ConfigManager.js'
-import { PositioningSystem } from './positioning/PositioningSystem.js'
 import { AudioManager } from './game/systems/AudioManager.js'
 import { InputManager } from './game/systems/InputManager.js'
 import { ParticleManager } from './game/systems/ParticleManager.js'
 import { RenderManager } from './game/systems/RenderManager.js'
 import { SpeechManager } from './game/systems/SpeechManager.js'
-import { ObjectManager } from './game/objects/ObjectManager.js'
 import { ObjectCountingRenderer } from './game/systems/ObjectCountingRenderer.js'
 import { MovementManager } from './game/systems/MovementManager.js'
 import { AutoCleanupManager } from './game/systems/AutoCleanupManager.js'
@@ -56,21 +54,11 @@ class GameScene extends Phaser.Scene {
             console.log('📋 Using provided ConfigManager in GameScene');
         }
 
-        // Initialize positioning system for collision detection
-        try {
-            this.positioningSystem = new PositioningSystem(this);
-            console.log('PositioningSystem initialized successfully');
-        } catch (error) {
-            console.error('Failed to initialize PositioningSystem:', error);
-            this.positioningSystem = null;
-        }
-
         // Initialize manager systems
         this.audioManager = new AudioManager(this);
         this.particleManager = new ParticleManager(this);
         this.renderManager = new RenderManager(this);
         this.speechManager = new SpeechManager(this);
-        this.objectManager = new ObjectManager(this);
         this.objectCountingRenderer = new ObjectCountingRenderer(this);
         this.inputManager = new InputManager(this);
         this.movementManager = new MovementManager(this);
