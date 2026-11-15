@@ -22,6 +22,8 @@ import { ObjectFactory } from './game/objects/ObjectFactory.js'
 import { ObjectLifecycle } from './game/objects/ObjectLifecycle.js'
 import { remapPosition, defaultKeepOutRects } from './positioning/BoundsClamp.js'
 import { ContentSelector } from './game/systems/ContentSelector.js'
+import { createSceneReady, adoptAppConfigManager } from './game/systems/SceneReadiness.js'
+import { buildSnapshot } from './game/systems/DebugSnapshot.js'
 
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -48,13 +50,8 @@ class GameScene extends Phaser.Scene {
         // Version logging for troubleshooting
         console.log(`🎯 TODDLER TOY v${packageJson.version} - Build:`, new Date().toISOString());
 
-        // Initialize configuration manager if not already provided
-        if (!this.configManager) {
-            this.configManager = new ConfigManager();
-            console.log('📋 Created new ConfigManager in GameScene');
-        } else {
-            console.log('📋 Using provided ConfigManager in GameScene');
-        }
+        // Use the app's ConfigManager (handed over via the game registry before boot)
+        adoptAppConfigManager(this, () => new ConfigManager());
 
         // Initialize positioning system for collision detection
         try {
@@ -137,11 +134,9 @@ class GameScene extends Phaser.Scene {
             console.log('🔧 Development mode: Use clearToddleToyCache() to clear all caches');
         }
 
-        // Pre-load critical data to avoid first-click delays
-        this.preloadGameData();
-
-        // Restore game state from previous session if available
-        this.restoreGameState();
+        // One readiness promise (data + fonts with a timeout + config); restore runs once after it
+        this.ready = createSceneReady(this);
+        this.ready.then(() => this.restoreGameState());
 
         // Initialize Grid Mode if enabled in configuration
         this.initializeGridMode();
@@ -198,22 +193,10 @@ class GameScene extends Phaser.Scene {
             console.log('📦 Things data ready (bundled)');
         }
 
-        this.dataLoaded = true;
-        this.checkFullInitialization();
     }
 
-    checkFullInitialization() {
-        // Check if fonts are also loaded
-        this.fontsLoaded = document.fonts.check('1em Kaktovik');
-
-        if (this.dataLoaded && this.fontsLoaded) {
-            this.isFullyInitialized = true;
-            console.log('✅ Game fully initialized - ready for interactions');
-        } else if (this.dataLoaded) {
-            // Wait a bit more for fonts
-            setTimeout(() => this.checkFullInitialization(), 100);
-        }
-    }
+    /** Plain-JSON picture of the scene for browser tests (see DebugSnapshot.js) */
+    debugSnapshot() { return buildSnapshot(this); }
 
     setupInputHandlers() {
         // Set up input event listeners from InputManager

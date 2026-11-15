@@ -34,6 +34,10 @@ class ResponsiveGameManager {
             height: height,
             parent: 'game-container',
             scene: GameScene,
+            // Hand the app's ConfigManager to the scene before it is created
+            callbacks: {
+                preBoot: (game) => { if (this.configManager) game.registry.set('configManager', this.configManager); }
+            },
             scale: {
                 mode: Phaser.Scale.RESIZE,
                 autoCenter: Phaser.Scale.CENTER_BOTH
@@ -51,15 +55,6 @@ class ResponsiveGameManager {
         };
 
         this.gameInstance = new Phaser.Game(this.config);
-
-        // Wait for scene to be ready, then pass configManager
-        this.gameInstance.events.once('ready', () => {
-            const scene = this.gameInstance.scene.getScene('GameScene');
-            if (scene && this.configManager) {
-                scene.configManager = this.configManager;
-                console.log('📋 ConfigManager passed to GameScene after ready event');
-            }
-        });
 
         // Global click debugging (remove in production)
         // window.addEventListener('click', (e) => {

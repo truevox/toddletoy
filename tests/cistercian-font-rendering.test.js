@@ -85,9 +85,11 @@ describe('Cistercian font removal', () => {
     test('font files, @font-face and the fonts.check gate are gone', () => {
         expect(fs.existsSync(path.join(root, 'fonts', 'cistercian-qwerty'))).toBe(false);
         expect(fs.readFileSync(path.join(root, 'index.html'), 'utf8')).not.toMatch(/Cistercian/i);
+        // The font gate moved from game.js into SceneReadiness.js (scene.ready)
         const game = fs.readFileSync(path.join(root, 'src', 'game.js'), 'utf8');
-        expect(game).not.toMatch(/fonts\.check\([^)]*Cistercian/);
-        expect(game).toMatch(/fonts\.check\('1em Kaktovik'\)/);
+        const ready = fs.readFileSync(path.join(root, 'src', 'game', 'systems', 'SceneReadiness.js'), 'utf8');
+        expect(game + ready).not.toMatch(/Cistercian/);
+        expect(ready).toMatch(/1em Kaktovik/);
         const rmSrc = fs.readFileSync(path.join(root, 'src', 'game', 'systems', 'RenderManager.js'), 'utf8');
         expect(rmSrc).not.toMatch(/fontFamily:\s*'Cistercian/);
         expect(rmSrc).not.toMatch(/getCistercianKeyMapping/);
