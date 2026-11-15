@@ -36,7 +36,7 @@ test.describe('Sandbox smoke', () => {
         expect(a.words.every((w) => w.dy > 0)).toBe(true);
     });
 
-    test('keyboard Q, W and E spawn at the top row (left, centre, right)', async ({ page, isMobile }) => {
+    test('keyboard Q, W and E spawn at the top row (left, centre, right)', async ({ page }) => {
         await enterSandbox(page);
         const { width, height } = await sceneSize(page);
         for (const key of ['KeyQ', 'KeyW', 'KeyE']) {
@@ -46,13 +46,12 @@ test.describe('Sandbox smoke', () => {
             await waitForObjectCount(page, before + 1);
         }
         const objs = await allObjects(page);
-        if (isMobile) { // clamping on narrow screens: order and bounds only
-            expect(objs[0].x).toBeLessThan(objs[1].x);
-            expect(objs[1].x).toBeLessThan(objs[2].x);
-            objs.forEach((o) => { expect(o.x).toBeGreaterThan(0); expect(o.x).toBeLessThan(width); });
-        } else {
-            expect(objs.map((o) => Math.round(o.x))).toEqual([0.1, 0.5, 0.9].map((f) => Math.round(width * f)));
-        }
+        // Objects are clamped inward so their labels stay on screen, never outward.
+        expect(objs[0].x).toBeGreaterThanOrEqual(width * 0.1 - 1);
+        expect(objs[0].x).toBeLessThan(width * 0.3);
+        expect(objs[1].x).toBeCloseTo(width * 0.5, 0);
+        expect(objs[2].x).toBeLessThanOrEqual(width * 0.9 + 1);
+        expect(objs[2].x).toBeGreaterThan(width * 0.7);
         // objects may be nudged down so their attached numerals/labels stay on screen
         objs.forEach((o) => { expect(o.y).toBeGreaterThanOrEqual(height * 0.1 - 1); expect(o.y).toBeLessThan(height * 0.5); });
     });
