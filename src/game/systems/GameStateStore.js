@@ -60,11 +60,8 @@ export class GameStateStore {
                 return;
             }
 
-            // Wait for game to be fully initialized before restoring
-            if (!this.scene.isFullyInitialized) {
-                setTimeout(() => this.scene.restoreGameState(), 100);
-                return;
-            }
+            // Wait (once, no polling) for the scene's ready promise before restoring
+            if (!this.scene.isFullyInitialized && this.scene.ready) await this.scene.ready;
 
             console.log('📦 Restoring game state:', gameState.objects.length, 'objects');
             // Restore each object

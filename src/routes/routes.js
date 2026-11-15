@@ -124,6 +124,8 @@ export class AppRoutes {
             const scene = this.getGameScene();
             if (scene && scene.scene && scene.scene.isPaused()) scene.scene.resume();
             this.resetToyState();
+            // Pick up settings changed since the toy was last entered
+            if (scene && scene.autoCleanupManager) scene.autoCleanupManager.updateAutoCleanupConfig();
             return;
         }
 
