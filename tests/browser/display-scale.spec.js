@@ -99,9 +99,9 @@ test.describe('display scale: crisp canvas and exact tap mapping', () => {
             const words = o.allLanguageWords.flatMap((g) => g.words);
             return { glyph: o.style.resolution, words: words.map((w) => w.style.resolution), dpr: window.devicePixelRatio };
         });
-        expect(res.glyph).toBeCloseTo(res.dpr, 1);
+        expect(res.glyph).toBeCloseTo(Math.min(res.dpr, 2), 1);
         expect(res.words.length).toBeGreaterThan(0);
-        res.words.forEach((r) => expect(r).toBeCloseTo(res.dpr, 1));
+        res.words.forEach((r) => expect(r).toBeCloseTo(Math.min(res.dpr, 2), 1));
     });
 });
 

@@ -1,6 +1,6 @@
 import { safeStorage } from '../utils/safeStorage.js';
 import { getDefaults } from './manager/ConfigDefaults.js';
-import { migrateLanguageStructure, mergeWithDefaults } from './manager/ConfigMigration.js';
+import { migrateLanguageStructure, migrateSchema, mergeWithDefaults } from './manager/ConfigMigration.js';
 import { validateConfig } from './manager/ConfigValidation.js';
 import { getContentWeights, getEmojiCategoryWeights, getColorCategoryWeights } from './manager/ConfigWeights.js';
 
@@ -37,7 +37,7 @@ export class ConfigManager {
             if (stored) {
                 const parsed = JSON.parse(stored);
                 // Migrate old language structure if needed
-                const migrated = this.migrateLanguageStructure(parsed);
+                const migrated = migrateSchema(this.migrateLanguageStructure(parsed));
                 // Merge with defaults to ensure all required properties exist
                 return this.mergeWithDefaults(migrated);
             }

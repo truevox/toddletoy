@@ -120,7 +120,7 @@ test.describe('Resource management', () => {
     test('exiting the toy leaves no orphaned display objects (labels, emitters)', async ({ page }) => {
         await enterSandbox(page);
         const baseline = await census(page);
-        for (let i = 0; i < 5; i++) await tapSpawn(page, 0.1 + i * 0.2, 0.5);
+        for (let i = 0; i < 5; i++) await tapFreeSpot(page); // fixed points now land on earlier (bigger) objects on a phone
         await page.evaluate(() => window.appRoutes.exitToy());
         await expect(page.locator('#toy-mode-selector')).toBeVisible();
         await expect.poll(async () => (await census(page)).children, { timeout: 3000 }).toBeLessThanOrEqual(baseline.children);

@@ -97,11 +97,11 @@ describe('Configuration System', () => {
         });
 
         test('should get number modes', () => {
-            const modes = configManager.getNumberModes();
+            const modes = configManager.getNumberModes(); // calm default since 2.3: extra number displays are opt-in
             
-            expect(modes.cistercian).toBe(true);
-            expect(modes.kaktovik).toBe(true);
-            expect(modes.binary).toBe(true);
+            expect(modes.cistercian).toBe(false);
+            expect(modes.kaktovik).toBe(false);
+            expect(modes.binary).toBe(false);
         });
     });
 

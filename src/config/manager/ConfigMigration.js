@@ -49,6 +49,27 @@ export function migrateLanguageStructure(manager, config) {
     return config;
 }
 
+const NUMBER_MODES = ['cistercian', 'kaktovik', 'binary', 'objectCounting', 'onlyApples'];
+
+/**
+ * One-off migrations for saved configs written before the current schema.
+ * v2 (app 2.3): the extra number displays went from all-on to all-off by
+ * default. A saved config that still has the untouched all-on default is
+ * calmed; anything a parent had changed is kept as they left it.
+ */
+export function migrateSchema(config) {
+    if (!isPlainObject(config)) return config;
+    const from = typeof config.schemaVersion === 'number' ? config.schemaVersion : 1;
+    if (from < 2) {
+        const modes = config.advanced && config.advanced.numberModes;
+        if (isPlainObject(modes) && NUMBER_MODES.every((k) => modes[k] === true)) {
+            for (const k of NUMBER_MODES) modes[k] = false;
+        }
+        config.schemaVersion = 2;
+    }
+    return config;
+}
+
 /**
  * Merge stored config over defaults, validating each field's type against the
  * default. Anything missing or wrong-typed (null, a string where an object is

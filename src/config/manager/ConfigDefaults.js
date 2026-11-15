@@ -9,6 +9,8 @@
  */
 export function getDefaults() {
     return {
+        // Bumped when a default changes in a way that needs a one-off migration (see ConfigMigration.js)
+        schemaVersion: 2,
         content: {
             shapes: { enabled: true, weight: 25 },
             smallNumbers: { enabled: true, min: 0, max: 20, weight: 30 },
@@ -61,12 +63,14 @@ export function getDefaults() {
         },
         advanced: {
             skipConfig: false,
+            // Calm by default: a number shows its numeral and caption. The other
+            // ways of showing it are opt-in (Advanced settings).
             numberModes: {
-                cistercian: true,
-                kaktovik: true,
-                binary: true,
-                objectCounting: true,
-                onlyApples: true
+                cistercian: false,
+                kaktovik: false,
+                binary: false,
+                objectCounting: false,
+                onlyApples: false
             },
             autoCleanup: {
                 enabled: true,
