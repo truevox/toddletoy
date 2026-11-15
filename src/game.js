@@ -213,8 +213,6 @@ class GameScene extends Phaser.Scene {
         this.events.on('input:keyRelease', this.onInputKeyRelease, this);
         this.events.on('input:gamepadButtonDown', this.onInputGamepadButtonDown, this);
         this.events.on('input:gamepadButtonUp', this.onInputGamepadButtonUp, this);
-        this.events.on('input:gamepadMove', this.onInputGamepadMove, this);
-        this.events.on('input:holdStart', this.onInputHoldStart, this);
     }
 
     update() {
@@ -259,10 +257,6 @@ class GameScene extends Phaser.Scene {
     async onInputGamepadButtonDown(data) { return this.sceneInputHandler.onInputGamepadButtonDown(data); }
 
     onInputGamepadButtonUp(data) { return this.sceneInputHandler.onInputGamepadButtonUp(data); }
-
-    onInputGamepadMove(data) { return this.sceneInputHandler.onInputGamepadMove(data); }
-
-    onInputHoldStart(data) { return this.sceneInputHandler.onInputHoldStart(data); }
 
     // Object management methods
     getObjectUnderPointer(x, y) { return this.sceneInputHandler.getObjectUnderPointer(x, y); }
