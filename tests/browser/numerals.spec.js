@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { seedConfig, skipOnboarding, enterSandbox, spawnForced, sceneSize, lastObject, collectErrors } from './helpers/app.js';
-import { forceNumberValue, dragScene, attachmentOffsets } from './helpers/scene.js';
+import { forceNumberValue, dragScene, attachmentOffsets, expectDraggedTo } from './helpers/scene.js';
 
 /**
  * Number-mode rendering (Cistercian, Kaktovik, binary hearts, object counting).
@@ -134,10 +134,7 @@ test.describe('Number modes', () => {
             await dragScene(page, pos, to);
             pos = to;
             const after = await attachmentOffsets(page);
-            if (!isMobile) { // phones clamp objects away from the edges
-                expect(after.x).toBeCloseTo(to.x, 0);
-                expect(after.y).toBeCloseTo(to.y, 0);
-            }
+            await expectDraggedTo(page, after, to);
             expect(after.x).toBeGreaterThan(0); expect(after.x).toBeLessThan(width);
             expect(after.text).toBe(before.text);
             after.comps.forEach((c, i) => {

@@ -64,10 +64,14 @@ export function viewSize(scene) {
     return { width: viewWidth(scene), height: viewHeight(scene) };
 }
 
-/** Canvas pointer position -> logical world position. */
+/** Canvas pointer position -> logical world position (exact CSS px, per axis). */
 export function toLogical(scene, pointer) {
-    const d = dpr(scene);
-    return { x: pointer.x / d, y: pointer.y / d };
+    const info = displayInfo(scene);
+    const sw = scene && scene.scale && scene.scale.width;
+    const sh = scene && scene.scale && scene.scale.height;
+    const dx = info && info.cssW > 0 && sw > 0 ? sw / info.cssW : 1;
+    const dy = info && info.cssH > 0 && sh > 0 ? sh / info.cssH : 1;
+    return { x: pointer.x / dx, y: pointer.y / dy };
 }
 
 /**

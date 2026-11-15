@@ -55,7 +55,7 @@ test.describe('display scale: crisp canvas and exact tap mapping', () => {
         expect(Math.abs(snap.canvas.height - Math.round(css.h * Math.min(css.dpr, 3)))).toBeLessThanOrEqual(1);
 
         // the canvas element still fills the window in CSS px (no letterboxing)
-        const box = await page.locator('#game-container canvas').boundingBox();
+        const box = await page.locator('#game-container canvas:not(.tt-backdrop)').boundingBox();
         expect(Math.round(box.width)).toBe(css.w);
         expect(Math.abs(box.height - css.h)).toBeLessThanOrEqual(1);
         expect(errs.all()).toEqual([]);

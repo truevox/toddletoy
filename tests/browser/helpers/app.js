@@ -106,7 +106,7 @@ export async function enterConfig(page) {
 /** Wait until /toy is up with an initialized Phaser scene. */
 export async function waitForScene(page) {
     await expect(page).toHaveURL(/\/toy$/);
-    await page.waitForSelector('#game-container canvas');
+    await page.waitForSelector('#game-container canvas:not(.tt-backdrop)');
     await page.waitForFunction(() => {
         const s = window.appRoutes?.getGameScene?.();
         return !!s && s.isFullyInitialized === true && !!s.speechManager;
@@ -128,7 +128,7 @@ export async function enterSandbox(page) {
 
 /** Tab-local fractional canvas position -> page coordinates. */
 export async function canvasPoint(page, fx, fy) {
-    const box = await page.locator('#game-container canvas').boundingBox();
+    const box = await page.locator('#game-container canvas:not(.tt-backdrop)').boundingBox();
     return { x: box.x + box.width * fx, y: box.y + box.height * fy };
 }
 

@@ -1,4 +1,5 @@
 /** Scene-level helpers: dragging, attachment geometry, pixel presence. */
+import { expect } from '@playwright/test';
 import { canvasPoint, waitForSpawnReady, objectCount, waitForObjectCount, lastObject } from './app.js';
 
 /** Wait until the scene accepts drags (post-spawn lock released). */
@@ -107,4 +108,25 @@ export async function tapFreeSpot(page) {
         throw new Error(`free-spot tap at ${JSON.stringify(spot)} did not spawn (had ${before}): ${JSON.stringify(st)}`);
     }
     return lastObject(page);
+}
+
+/**
+ * After a drag the object sits at the target, unless its whole composite (glyph,
+ * captions, number rows) is bigger than the room left on that axis, in which case it is
+ * clamped with its bounds against the screen margin. Objects are screen-relative and big,
+ * so a number with every mode on is clamped on any screen, not only on phones.
+ */
+export async function expectDraggedTo(page, after, to) {
+    const { width, height, bounds } = await page.evaluate(() => {
+        const s = window.appRoutes.getGameScene();
+        const snap = s.debugSnapshot();
+        return { width: snap.width, height: snap.height, bounds: snap.objects.at(-1).bounds };
+    });
+    const m = 9;
+    const clampedX = bounds.x <= m || bounds.x + bounds.w >= width - m;
+    const clampedY = bounds.y <= m || bounds.y + bounds.h >= height - m;
+    // a composite touching the top-right exit-button keep-out square is pushed out of it
+    const keepOut = bounds.y < 61 && bounds.x + bounds.w >= width - 61;
+    if (!clampedX && !keepOut) expect(Math.abs(after.x - to.x), `x: ${JSON.stringify({ after, to, bounds, width, height })}`).toBeLessThan(1.5);
+    if (!clampedY && !keepOut) expect(Math.abs(after.y - to.y), `y: ${JSON.stringify({ after, to, bounds, width, height })}`).toBeLessThan(1.5);
 }

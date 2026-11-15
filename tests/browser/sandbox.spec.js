@@ -3,7 +3,7 @@ import {
     collectErrors, skipOnboarding, enterConfig, startPlaying, enterSandbox, tapSpawn, objectCount, allObjects,
     sceneSize, waitForObjectCount, waitForSpawnReady, canvasPoint,
 } from './helpers/app.js';
-import { dragScene, attachmentOffsets } from './helpers/scene.js';
+import { dragScene, attachmentOffsets, expectDraggedTo } from './helpers/scene.js';
 
 /**
  * Behavioural smoke suite for the sandbox (replaces the old screenshot-based
@@ -18,7 +18,7 @@ test.describe('Sandbox smoke', () => {
     test('initialises with a sensibly sized canvas and no errors', async ({ page }) => {
         const c = collectErrors(page);
         await enterSandbox(page);
-        const box = await page.locator('#game-container canvas').boundingBox();
+        const box = await page.locator('#game-container canvas:not(.tt-backdrop)').boundingBox();
         expect(box.width).toBeGreaterThan(200);
         expect(box.height).toBeGreaterThan(200);
         expect(c.all()).toEqual([]);
@@ -95,10 +95,7 @@ test.describe('Sandbox smoke', () => {
             await dragScene(page, pos, to);
             pos = to;
             const after = await attachmentOffsets(page);
-            if (!isMobile) { // phones clamp objects away from the edges
-                expect(after.x).toBeCloseTo(to.x, 0);
-                expect(after.y).toBeCloseTo(to.y, 0);
-            }
+            await expectDraggedTo(page, after, to);
             expect(after.x).toBeGreaterThan(0); expect(after.x).toBeLessThan(width);
             expect(after.text).toBe(before.text);
             after.words.forEach((w, i) => {
@@ -115,7 +112,7 @@ test.describe('Sandbox smoke', () => {
         await expect.poll(async () => (await sceneSize(page)).width).toBeLessThanOrEqual(800);
         await page.setViewportSize({ width: 375, height: 667 });
         await expect.poll(async () => (await sceneSize(page)).width).toBeLessThanOrEqual(375);
-        const box = await page.locator('#game-container canvas').boundingBox();
+        const box = await page.locator('#game-container canvas:not(.tt-backdrop)').boundingBox();
         expect(box.width).toBeLessThanOrEqual(376);
         await tapSpawn(page, 0.5, 0.5);
         const [o] = await allObjects(page);
