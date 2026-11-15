@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
     collectErrors, seedConfig, skipOnboarding, gotoSelector, enterSandbox, startPlaying, tapSpawn, objectCount,
-    waitForSpawnReady, waitForObjectCount, SANDBOX_CARD, clickCanvas,
+    waitForSpawnReady, SANDBOX_CARD,
 } from './helpers/app.js';
 import { tapFreeSpot } from './helpers/scene.js';
 
@@ -66,9 +66,10 @@ test.describe('Performance budgets', () => {
         expect(Date.now() - start).toBeLessThan(2000);
         // the page is still responsive afterwards
         await waitForSpawnReady(page);
+        // a free spot: on a phone the nine big objects cover any fixed point
         const n = await objectCount(page);
-        await clickCanvas(page, 0.9, 0.9);
-        await waitForObjectCount(page, n + 1);
+        await tapFreeSpot(page);
+        expect(await objectCount(page)).toBe(n + 1);
         expect(c.pageErrors).toEqual([]);
     });
 

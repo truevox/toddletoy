@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { seedConfig, skipOnboarding, enterSandbox, spawnForced, sceneSize, lastObject, collectErrors } from './helpers/app.js';
+import { seedConfig, skipOnboarding, enterSandbox, spawnForced, sceneSize, lastObject, collectErrors, savedConfig } from './helpers/app.js';
 import { forceNumberValue, dragScene, attachmentOffsets, expectDraggedTo } from './helpers/scene.js';
 
 /**
@@ -36,6 +36,35 @@ async function spawnNumber(page, value, x, y, type = 'smallNumbers') {
 test.describe('Number modes', () => {
     test.beforeEach(async ({ context }) => {
         await skipOnboarding(context);
+    });
+
+    test('calm default: a brand-new user going through START sees a number with no extra displays', async ({ page }) => {
+        await enterSandbox(page);
+        const { width, height } = await sceneSize(page);
+        const small = await spawnNumber(page, 7, width / 2, height / 2);
+        expect(small.text).toBe('7');
+        expect(small.comps).toEqual([]);
+        const big = await spawnNumber(page, 8874, width / 2, height / 2, 'largeNumbers');
+        expect(big.comps).toEqual([]);
+        const nm = (await savedConfig(page)).advanced.numberModes;
+        expect(Object.values(nm).every((v) => v === false)).toBe(true);
+    });
+
+    test('calm default: settings saved by the old form with its untouched defaults are calmed too', async ({ page, context }) => {
+        // what pre-2.3 wrote after START with nothing changed: the counting radio made onlyApples false
+        await seedConfig(context, { advanced: { numberModes: { cistercian: true, kaktovik: true, binary: true, objectCounting: true, onlyApples: false } } });
+        await enterSandbox(page);
+        const { width, height } = await sceneSize(page);
+        expect((await spawnNumber(page, 12, width / 2, height / 2)).comps).toEqual([]);
+    });
+
+    test('a parent can still choose a counting display, or none, in settings', async ({ page, context }) => {
+        await seedConfig(context, { schemaVersion: 2, advanced: { numberModes: { cistercian: false, kaktovik: false, binary: false, objectCounting: false, onlyApples: true } } });
+        await enterSandbox(page);
+        const { width, height } = await sceneSize(page);
+        const n = await spawnNumber(page, 3, width / 2, height / 2);
+        expect(n.comps.length).toBeGreaterThan(0);
+        expect((await savedConfig(page)).advanced.numberModes.onlyApples).toBe(true);
     });
 
     test('Cistercian: a number gets a Cistercian component above it, inside the screen', async ({ page, context }) => {

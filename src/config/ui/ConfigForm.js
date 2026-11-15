@@ -57,6 +57,9 @@ export function loadCurrentConfig(screen) {
     } else if (config.advanced.numberModes.onlyApples) {
         const radio = screen.container.querySelector('#only-apples-enabled');
         if (radio) radio.checked = true;
+    } else {
+        const radio = screen.container.querySelector('#counting-none');
+        if (radio) radio.checked = true;
     }
     screen.setCheckboxValue('#skip-config-checkbox', config.advanced.skipConfig);
 

@@ -33,7 +33,7 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 ### Phase 26: Sandbox 10x (ACTIVE — plan in docs/SANDBOX-10X-PLAN.md)
 
 - [x] Stage 0 — Clear the ground: dead code, ready-promise, config races, debug hook (v2.0.2–2.0.3)
-- [ ] Stage 1 — Sharp and big: device-pixel rendering, screen-relative sizes, backdrop (v2.1.0)
+- [x] Stage 1 — Sharp and big: backdrop (v2.1.0–2.1.3), device-pixel rendering and screen-relative sizes (v2.2.0); calm number default brought forward from Stage 5 (v2.3.0–2.3.1)
 - [ ] Stage 2 — It feels alive: spawn/despawn/idle motion, tap reactions, throw and settle, no overlap (v2.2.0)
 - [ ] Stage 3 — It sounds good: musical sound engine, event sounds, speech queue/voices/word order (v2.3.0)
 - [ ] Stage 4 — Many fingers, many keys: multi-touch, baby keyboard, gamepads, object cap (v2.4.0)

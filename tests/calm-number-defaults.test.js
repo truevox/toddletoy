@@ -21,6 +21,11 @@ describe('calm number default (v2.3)', () => {
         expect(cfg.advanced.numberModes).toEqual(modes(false));
     });
 
+    test('what the old settings form saved with untouched defaults (onlyApples false via its radio) is calmed too', () => {
+        localStorage.setItem(KEY, JSON.stringify({ advanced: { numberModes: { ...modes(true), onlyApples: false } } }));
+        expect(new ConfigManager().getConfig().advanced.numberModes).toEqual(modes(false));
+    });
+
     test('a parent who had changed any number display keeps exactly what they chose', () => {
         const chosen = { ...modes(true), binary: false };
         localStorage.setItem(KEY, JSON.stringify({ advanced: { numberModes: chosen } }));

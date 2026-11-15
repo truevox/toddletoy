@@ -25,19 +25,24 @@ export class AdvancedSection {
 
                 <div class="advanced-options" data-help-anchor="special-numbers">
                     <label class="advanced-option">
-                        <input type="checkbox" id="cistercian-enabled" checked>
+                        <input type="checkbox" id="cistercian-enabled">
                         ⚙️ Cistercian Numerals
                         <span class="advanced-note">Ancient monastery number system</span>
                     </label>
                     <label class="advanced-option">
-                        <input type="checkbox" id="kaktovik-enabled" checked>
+                        <input type="checkbox" id="kaktovik-enabled">
                         ❄️ Kaktovik Numerals
                         <span class="advanced-note">Inuit base-20 number system</span>
                     </label>
                     <label class="advanced-option">
-                        <input type="checkbox" id="binary-enabled" checked>
+                        <input type="checkbox" id="binary-enabled">
                         ❤️ Binary Hearts
                         <span class="advanced-note">Computer-style numbers with hearts</span>
+                    </label>
+                    <label class="advanced-option">
+                        <input type="radio" name="counting-mode" id="counting-none" value="none" checked>
+                        🔢 Just the number
+                        <span class="advanced-note">No counting objects under numbers (calm default)</span>
                     </label>
                     <label class="advanced-option">
                         <input type="radio" name="counting-mode" id="object-counting-enabled" value="objectCounting">
@@ -45,7 +50,7 @@ export class AdvancedSection {
                         <span class="advanced-note">🍎=1s, 🛍️=10s, 📦=100s, 🚛=1000s (e.g. 15 = 1🛍️ + 5🍎)</span>
                     </label>
                     <label class="advanced-option">
-                        <input type="radio" name="counting-mode" id="only-apples-enabled" value="onlyApples" checked>
+                        <input type="radio" name="counting-mode" id="only-apples-enabled" value="onlyApples">
                         🍎 Only Apples Counting
                         <span class="advanced-note">Simple counting with just apples (e.g. 5 = 🍎🍎🍎🍎🍎)</span>
                     </label>

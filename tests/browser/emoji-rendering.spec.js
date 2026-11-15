@@ -64,7 +64,8 @@ test.describe('Emoji rendering', () => {
         await dragScene(page, { x: o.x, y: o.y }, to);
         await expect.poll(() => regionHasContent(page, at(to.x, to.y))).toBe(true);
         // (on phones the two spots can overlap after edge clamping)
-        if (!isMobile) expect(await regionHasContent(page, at(o.x, o.y), 200)).toBe(false);
+        // polled: the drag trail takes a moment to fade from the old spot
+        if (!isMobile) await expect.poll(() => regionHasContent(page, at(o.x, o.y), 200)).toBe(false);
     });
 
     test('the platform can draw emoji glyphs at all', async ({ page }) => {

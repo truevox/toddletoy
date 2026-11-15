@@ -62,7 +62,11 @@ export function migrateSchema(config) {
     const from = typeof config.schemaVersion === 'number' ? config.schemaVersion : 1;
     if (from < 2) {
         const modes = config.advanced && config.advanced.numberModes;
-        if (isPlainObject(modes) && NUMBER_MODES.every((k) => modes[k] === true)) {
+        // Untouched old default: all on. The old settings form saved the counting
+        // pair through a two-way radio, so onlyApples was written as false.
+        const untouched = isPlainObject(modes)
+            && ['cistercian', 'kaktovik', 'binary', 'objectCounting'].every((k) => modes[k] === true);
+        if (untouched) {
             for (const k of NUMBER_MODES) modes[k] = false;
         }
         config.schemaVersion = 2;
