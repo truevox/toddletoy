@@ -14,6 +14,11 @@ function makeImage(key) {
         setOrigin(x, y) { this.originX = x; this.originY = y; return this; },
         setPosition(x, y) { this.x = x; this.y = y; return this; },
         setDisplaySize(w, h) { this.displayWidth = w; this.displayHeight = h; return this; },
+        setScale(x, y) { this.scaleX = x; this.scaleY = y; return this; },
+        resize(w, h) { this.rtWidth = w; this.rtHeight = h; return this; },
+        beginDraw() { this.draws = (this.draws || 0) + 1; },
+        batchDraw(entries) { this.lastEntries = entries; },
+        endDraw() {},
         destroy() { this.destroyed = true; },
     };
     return img;
@@ -30,7 +35,11 @@ function makeScene(width = 800, height = 600) {
             on: jest.fn((e, fn) => { (listeners[e] = listeners[e] || []).push(fn); }),
             off: jest.fn((e, fn) => { listeners[e] = (listeners[e] || []).filter((f) => f !== fn); }),
         },
-        events: { once: jest.fn(), off: jest.fn() },
+        events: {
+            once: jest.fn(),
+            on: jest.fn((e, fn) => { (listeners['ev:' + e] = listeners['ev:' + e] || []).push(fn); }),
+            off: jest.fn((e, fn) => { listeners['ev:' + e] = (listeners['ev:' + e] || []).filter((f) => f !== fn); }),
+        },
         textures: {
             exists: (k) => textures.has(k),
             remove: (k) => textures.delete(k),
@@ -47,12 +56,16 @@ function makeScene(width = 800, height = 600) {
                 };
             }),
         },
-        add: { image: jest.fn((x, y, key) => { const i = makeImage(key); scene.images.push(i); return i; }) },
+        add: { renderTexture: jest.fn((x, y, w, h) => { const i = makeImage('rt'); i.rtWidth = w; i.rtHeight = h; scene.layers.push(i); return i; }) },
+        make: { image: jest.fn(({ key }) => { const i = makeImage(key); scene.images.push(i); return i; }) },
+        layers: [],
         tweens: {
             add: jest.fn((cfg) => { const t = { cfg, removed: false, remove() { this.removed = true; } }; scene.tweenList.push(t); return t; }),
         },
     };
     scene.textureKeys = () => [...textures.keys()];
+    scene.emitUpdate = (delta) => (listeners['ev:update'] || []).forEach((f) => f(0, delta));
+    scene.updateListeners = () => (listeners['ev:update'] || []).length;
     scene.emitResize = (w, h) => { scene.scale.width = w; scene.scale.height = h; (listeners.resize || []).forEach((f) => f({ width: w, height: h })); };
     return scene;
 }
@@ -89,50 +102,89 @@ describe('Backdrop palettes', () => {
 });
 
 describe('Backdrop behaviour', () => {
-    test('creates under everything and covers the whole canvas', () => {
+    const blobCount = PALETTES[DEFAULT_PALETTE].blobs.length;
+
+    test('is one layer far below everything, stretched over the whole canvas', () => {
         const scene = makeScene(800, 600);
         const b = new Backdrop(scene, { reducedMotion: false }).create();
-        const [grad, alt] = scene.images;
-        expect(Math.max(...scene.images.map((i) => i.depth))).toBeLessThan(-9000);
-        expect(grad.depth).toBe(BACKDROP_DEPTH);
-        for (const g of [grad, alt]) {
-            expect([g.x, g.y, g.displayWidth, g.displayHeight]).toEqual([0, 0, 800, 600]);
-        }
+        const layer = scene.layers[0];
+        expect(scene.layers.length).toBe(1);
+        expect(layer.depth).toBe(BACKDROP_DEPTH);
+        expect([layer.originX, layer.originY]).toEqual([0, 0]);
+        // covers the canvas (a few px of overscan on each side is fine)
+        expect(layer.x).toBeLessThanOrEqual(0);
+        expect(layer.y).toBeLessThanOrEqual(0);
+        expect(layer.x + layer.rtWidth * layer.scaleX).toBeGreaterThanOrEqual(800);
+        expect(layer.y + layer.rtHeight * layer.scaleY).toBeGreaterThanOrEqual(600);
+        // the layer is a fraction of the screen so the GPU fills the screen once
+        expect(layer.rtWidth * layer.rtHeight).toBeLessThan(800 * 600 / 8);
         b.destroy();
+    });
+
+    test('draws the gradient first (opaque cover), then crossfade partner, then every blob', () => {
+        const scene = makeScene();
+        new Backdrop(scene, { reducedMotion: true }).create();
+        const entries = scene.layers[0].lastEntries;
+        expect(entries.length).toBe(2 + blobCount);
+        expect(entries[0].key).toMatch(/grad$/);
+        expect([entries[0].x, entries[0].y]).toEqual([0, 0]);
+        expect(entries[0].displayWidth).toBe(scene.layers[0].rtWidth);
+        expect(entries[0].displayHeight).toBe(scene.layers[0].rtHeight);
+        expect(entries[1].alpha).toBe(0);
     });
 
     test.each([[390, 844], [844, 390], [1920, 1080], [3440, 1440]])('resize to %ix%i covers the screen again', (w, h) => {
         const scene = makeScene(800, 600);
         const b = new Backdrop(scene, { reducedMotion: false }).create();
         scene.emitResize(w, h);
-        const [grad, alt] = scene.images;
-        for (const g of [grad, alt]) expect([g.displayWidth, g.displayHeight]).toEqual([w, h]);
-        // blobs are huge relative to the screen and centred inside it
+        const layer = scene.layers[0];
+        expect(layer.x).toBeLessThanOrEqual(0);
+        expect(layer.y).toBeLessThanOrEqual(0);
+        expect(layer.x + layer.rtWidth * layer.scaleX).toBeGreaterThanOrEqual(w);
+        expect(layer.y + layer.rtHeight * layer.scaleY).toBeGreaterThanOrEqual(h);
+        expect(scene.layers.length).toBe(1);
+        const [grad] = layer.lastEntries;
+        expect([grad.displayWidth, grad.displayHeight]).toEqual([layer.rtWidth, layer.rtHeight]);
+        // blobs are huge relative to the layer and centred near it
         for (const img of scene.images.slice(2)) {
-            expect(img.displayWidth).toBeGreaterThan(Math.max(w, h) * 0.8);
-            expect(img.x).toBeGreaterThan(-w * 0.5);
-            expect(img.x).toBeLessThan(w * 1.5);
+            expect(img.displayWidth).toBeGreaterThan(Math.max(layer.rtWidth, layer.rtHeight) * 0.8);
+            expect(img.x).toBeGreaterThan(-layer.rtWidth * 0.5);
+            expect(img.x).toBeLessThan(layer.rtWidth * 1.5);
         }
         b.resize(w, h);
         b.destroy();
     });
 
-    test('resize replaces running tweens instead of stacking them', () => {
+    test('resize replaces running tweens and update listeners instead of stacking them', () => {
         const scene = makeScene();
         new Backdrop(scene, { reducedMotion: false }).create();
         const before = scene.tweenList.length;
         scene.emitResize(500, 900);
-        const alive = scene.tweenList.filter((t) => !t.removed).length;
-        expect(alive).toBe(before);
+        scene.emitResize(900, 500);
+        expect(scene.tweenList.filter((t) => !t.removed).length).toBe(before);
+        expect(scene.updateListeners()).toBe(1);
     });
 
-    test('reduced motion creates no tweens', () => {
+    test('redraws are throttled while animating', () => {
+        const scene = makeScene();
+        new Backdrop(scene, { reducedMotion: false }).create();
+        const layer = scene.layers[0];
+        const start = layer.draws;
+        for (let i = 0; i < 10; i++) scene.emitUpdate(16); // 160 ms
+        expect(layer.draws - start).toBeGreaterThanOrEqual(2);
+        expect(layer.draws - start).toBeLessThanOrEqual(4);
+    });
+
+    test('reduced motion: drawn once, no tweens, no update listener', () => {
         const scene = makeScene();
         const b = new Backdrop(scene, { reducedMotion: true }).create();
         expect(scene.tweens.add).not.toHaveBeenCalled();
+        expect(scene.updateListeners()).toBe(0);
+        expect(scene.layers[0].draws).toBe(1);
         scene.emitResize(400, 700);
         expect(scene.tweens.add).not.toHaveBeenCalled();
-        expect(scene.images.length).toBe(2 + PALETTES[DEFAULT_PALETTE].blobs.length);
+        expect(scene.updateListeners()).toBe(0);
+        expect(scene.images.length).toBe(2 + blobCount);
         b.destroy();
     });
 
@@ -148,15 +200,17 @@ describe('Backdrop behaviour', () => {
         }
     });
 
-    test('destroy releases images, tweens, textures and listeners', () => {
+    test('destroy releases images, layer, tweens, textures and listeners', () => {
         const scene = makeScene();
         const b = new Backdrop(scene, { reducedMotion: false }).create();
         expect(scene.textureKeys().length).toBe(3);
         expect(scene.tweenList.length).toBeGreaterThan(0);
         b.destroy();
         expect(scene.images.every((i) => i.destroyed)).toBe(true);
+        expect(scene.layers.every((i) => i.destroyed)).toBe(true);
         expect(scene.tweenList.every((t) => t.removed)).toBe(true);
         expect(scene.textureKeys()).toEqual([]);
+        expect(scene.updateListeners()).toBe(0);
         expect(scene.scale.off).toHaveBeenCalledWith('resize', b.onResize);
         b.destroy(); // idempotent
         scene.emitResize(100, 100); // no listener left, must not throw

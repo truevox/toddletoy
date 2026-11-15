@@ -41,17 +41,16 @@ export function createGradientTexture(scene, key, stops, hueShift = 0) {
     tex.refresh();
 }
 
-/** White radial blob whose alpha falls off smoothly (smootherstep) to zero at the rim. */
+/** White radial blob whose alpha falls off smoothly (gaussian bell) to zero at the rim. */
 export function createBlobTexture(scene, key) {
     const { tex, ctx } = makeCanvas(scene, key, BLOB_SIZE);
     if (!ctx) return;
     const r = BLOB_SIZE / 2;
     const g = ctx.createRadialGradient(r, r, 0, r, r, r);
-    const steps = 16;
+    const steps = 24;
     for (let i = 0; i <= steps; i++) {
         const t = i / steps;
-        const s = 1 - t;
-        const alpha = s * s * s * (s * (s * 6 - 15) + 10); // smootherstep 1 -> 0
+        const alpha = Math.exp(-4.5 * t * t) * (1 - t * t); // gaussian bell, exactly 0 at the rim
         g.addColorStop(t, `rgba(255,255,255,${alpha.toFixed(4)})`);
     }
     ctx.fillStyle = g;
