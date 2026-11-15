@@ -26,6 +26,13 @@ The November 2026 rehabilitation pass is complete and pushed. Nothing is in flig
 6. Files still over ~300 lines (see CLAUDE-TODO.md Phase 18).
 7. No git tag or GitHub release exists for 2.0.x yet (owner's call).
 
+**Owner decisions on record (Marvin, 2026-11-15)**
+- `main` was fast-forwarded to v2.0.1 on 2026-11-15. First CI run and first Node 20 Netlify deploy follow from that push; neither result had been checked when this was written.
+- MIT licence with "Copyright (c) 2025 Marvin Bentley II" is confirmed.
+- Geography follows conventional, reality-based naming: Taiwan is a country (own flag, capital Taipei); if gulf/sea labels are ever added it is "Gulf of Mexico". Palestine, Kosovo and Western Sahara stay separate places. Capitals stay blank only where the capital itself is the dispute (Israel, Palestine, Western Sahara). Russia is listed under Europe.
+- "Feel" calls are delegated to the agent. Current choices: the planet strip wraps to two rows on phones (keeps buttons finger-sized); Neptune's slow orbit is kept because the speed ratios are real.
+- Do not tag, release or open a PR without being asked.
+
 ## 🕰️ OLDER STATUS (v1.0.55)
 
 **Recent Fixes (Config, Stacking, Interactions)**:

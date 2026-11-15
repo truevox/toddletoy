@@ -203,6 +203,11 @@ Each command uses `$ARGUMENTS` for flexibility :contentReference[oaicite:10]{ind
 - Ask for a review or second agent to “verify no over‑fitting” :contentReference[oaicite:13]{index=13}.
 - **Subagents get interrupted by the 5-hour usage limit regularly.** When delegating, always tell each subagent to commit a working, verified stage as it goes (staged priorities, one commit per stage) so an interruption loses little, and resume interrupted agents from their saved worktrees rather than restarting them. (Marvin, 2026-11-14.)
 - Subagent worktrees may be cut from the default branch rather than the working branch: have each subagent merge the current working branch first, and have it merge again before its final commit.
+- **Real-browser tests find what mocks hide.** The v2.0.1 Playwright port found six real bugs that 1,240 green unit tests missed (Back wiping the sandbox, half the objects surviving a reset, a note covering buttons). Run `npm run test:e2e:ci` after touching the sandbox, routing or either toy, and write new toy features with a browser test.
+- Browser tests run against a production build on port 4173 and reuse a server already on that port: stop any old `vite preview` after changing `src/`, or you will test the old build. In cloud sessions where Playwright cannot download browsers, prefix with `PW_CHROMIUM_PATH=/opt/pw-browsers/chromium`.
+- On a phone-sized viewport, fixed tap points land on earlier objects and labels get nudged inward; use the `tapFreeSpot` helper and assert order/bounds rather than exact positions. Default auto-cleanup (10 s) can remove early objects during a long test.
+- A unit test that pins a mechanism (e.g. "calls `replaceState`") can lock in a bug; prefer asserting the outcome, and let the browser test be the judge.
+- When merging a subagent branch, use `git merge --no-commit --no-ff` and do not `git stash` mid-merge (it drops the merge state).
 
 ---
 
