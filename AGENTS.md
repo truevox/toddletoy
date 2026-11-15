@@ -56,7 +56,7 @@ Repeat until the feature is complete:
 ## 📦 Versioning & Releases
 - Bump the project version whenever shipped behavior or assets change.
 - `package.json` is the single source of the version: the service worker cache name and the startup log are built from it at build time. The web manifest has no version field.
-- The project is past `1.0.0`; use patch bumps (`1.0.x`) unless Marvin asks otherwise.
+- Versions are `x.y.z`: **x** for major changes or overhauls, **y** for new features, **z** for fixes and chores. Pick the smallest part that honestly describes the commit.
 
 ## 🧪 Testing & Quality Gates
 - Use existing npm scripts: `npm test`, `npm run lint`, `npm run test:e2e` (or `npm run test:e2e:chromium`), etc. See `CONTRIBUTING.md` for the full list.

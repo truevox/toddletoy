@@ -164,9 +164,8 @@ gemini -p "@src/payment/ @tests/ Is the payment processing module fully tested? 
 - **MANDATORY**: Bump version numbers with EVERY commit
 - Update version in relevant files (main.js, game.js, package.json, etc.)
 - Ensure version is announced in console logs for debugging
-- **Pre-1.0 Development**: Use 0.x.x versioning (e.g., 0.2.13 → 0.2.14)
-- Stay below 1.0.0 until explicit launch approval from Marvin
-- **Post-1.0 Launch**: Switch to semantic versioning (MAJOR.MINOR.PATCH)
+- **Version scheme (Marvin, 2026-11-14)**: `x.y.z` — **x** for major changes or overhauls, **y** for new features, **z** for fixes and chores (tests, docs-adjacent code, refactors, dependency updates). Nothing ToddleToy offers can "break" for a consumer today; if that ever changes, reserve **x** for breaking changes.
+- 2.0.0 marks the November 2026 overhaul (rebuilt Solar System and World Globe, sandbox reliability pass, new test suite and docs).
 - This ensures all team members know exactly which code version is running
 
 ---

@@ -1,7 +1,7 @@
 # PICK-UP-HERE.md
 **Context Recovery Document for Next Session**
 
-## 🟢 CURRENT STATUS (v1.0.87, branch `claude/optimistic-brown-xmf2t5`)
+## 🟢 CURRENT STATUS (v2.0.0, branch `claude/optimistic-brown-xmf2t5`)
 
 Rehabilitation pass in progress. Integrated, browser-verified and pushed:
 

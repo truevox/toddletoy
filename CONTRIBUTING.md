@@ -83,7 +83,7 @@ sw.js                  service worker source; vite-plugin-pwa (injectManifest) b
 
 - `package.json` `"version"` is the app version. It is shown in logs and used for the service worker cache name.
 - Bump it with every commit that changes code. The Husky pre-commit hook (`.husky/pre-commit` running `scripts/verify-version-bump.js`) fails the commit if code under `src/`, `tests/` or `package.json` changed without a higher version. Docs-only commits are exempt.
-- The project is past 1.0.0. Use patch bumps (1.0.x) unless the maintainer asks for something else.
+- Versions are `x.y.z`: **x** for major changes or overhauls, **y** for new features, **z** for fixes and chores. Pick the smallest part that honestly describes the commit.
 
 ## Adding content
 

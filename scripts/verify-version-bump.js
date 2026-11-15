@@ -76,7 +76,7 @@ if (currentVersion === lastCommittedVersion) {
     console.error(`   Last commit version: ${lastCommittedVersion}`);
     console.error('\n   CLAUDE.md requires version bump with EVERY code commit.');
     console.error('   Please update version in package.json before committing.\n');
-    console.error('   Example: 1.0.45 → 1.0.46\n');
+    console.error('   Example: 2.0.0 → 2.0.1 (fix/chore), 2.1.0 (feature)\n');
     process.exit(1);
 }
 
