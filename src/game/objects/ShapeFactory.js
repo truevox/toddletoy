@@ -6,17 +6,17 @@
  * heart is a sampled-point polygon: Phaser's Graphics has no bezierCurveTo.
  */
 import Phaser from 'phaser';
+import { viewWidth, viewHeight, sizesFor } from '../systems/DisplayScale.js';
 
-const MIN_SHAPE_SIZE = 48;
-const MAX_SHAPE_SIZE = 72;
+const SHAPE_FILL = 1; // shapes are as tall as the glyph unit (square and diamond are a little smaller by shape)
 
 /**
- * Shape size in px, comparable to the 64px emoji glyphs.
- * ~64px at 800px, modest scaling with screen, never tiny on a phone.
+ * Shape size in px: the same screen-relative unit as every other main glyph
+ * (about 20% of the short edge, clamped).
  */
 export function calculateShapeSize(minDimension) {
     const dimension = Number.isFinite(minDimension) && minDimension > 0 ? minDimension : 800;
-    return Math.max(MIN_SHAPE_SIZE, Math.min(MAX_SHAPE_SIZE, Math.round(dimension * 0.08)));
+    return Math.round(sizesFor(dimension, dimension).glyph * SHAPE_FILL);
 }
 
 /** Scale points to fit `size` and translate so the minimum corner is (0, 0). */
@@ -62,14 +62,12 @@ export function calculateShapeLabelOffset(scene, size) {
     const styleInfo = scene.renderManager?.textLayoutManager?.calculateResponsiveTextStyle?.();
     if (!styleInfo) return Math.round(size * 0.2);
     const labelFont = parseInt(styleInfo.fontSize, 10) || 24;
-    const desiredCentreOffset = size / 2 + labelFont / 2 + 10;
+    const desiredCentreOffset = size / 2 + labelFont / 2 + Math.round(labelFont * 0.4);
     return Math.round(desiredCentreOffset - styleInfo.labelOffset);
 }
 
 export function createShapeObject(scene, itemData, x, y, labelText = '') {
-    const fallbackWidth = typeof window !== 'undefined' ? window.innerWidth : 800;
-    const fallbackHeight = typeof window !== 'undefined' ? window.innerHeight : 600;
-    const minDimension = Math.min(scene.scale?.width || fallbackWidth, scene.scale?.height || fallbackHeight);
+    const minDimension = Math.min(viewWidth(scene), viewHeight(scene));
     const size = calculateShapeSize(minDimension);
     const container = scene.add.container(x, y);
 
@@ -104,7 +102,8 @@ export function createShapeObject(scene, itemData, x, y, labelText = '') {
             addShape(scene.add.polygon(0, 0, polygonPoints(size, [[size / 2, 0], [size, size], [0, size]]), fillColorInt));
             break;
         case 'star':
-            addShape(scene.add.star(0, 0, 5, size * 0.55, size * 0.26, fillColorInt));
+            // star(x, y, points, innerRadius, outerRadius): outer radius is half the shape size
+            addShape(scene.add.star(0, 0, 5, size * 0.24, size * 0.5, fillColorInt));
             break;
         case 'diamond':
             addShape(scene.add.polygon(0, 0, polygonPoints(size, [[size / 2, 0], [size, size / 2], [size / 2, size], [0, size / 2]]), fillColorInt));
@@ -123,7 +122,7 @@ export function createShapeObject(scene, itemData, x, y, labelText = '') {
     container.text = labelText || itemData?.value || '';
     container.componentLayout = container.componentLayout || {};
     container.componentLayout.labelVerticalOffset = calculateShapeLabelOffset(scene, size);
-    const hitSize = size + 12;
+    const hitSize = size + Math.round(size * 0.15);
     container.setSize(hitSize, hitSize);
     container.setInteractive(new Phaser.Geom.Rectangle(-hitSize / 2, -hitSize / 2, hitSize, hitSize), Phaser.Geom.Rectangle.Contains);
 

@@ -93,15 +93,27 @@ describe('ShapeFactory', () => {
         });
     });
 
-    test('shape size is emoji-comparable (~64px on a desktop) and sensible on a phone', () => {
-        expect(calculateShapeSize(800)).toBe(64);
-        expect(calculateShapeSize(1000)).toBeGreaterThanOrEqual(64);
-        expect(calculateShapeSize(1000)).toBeLessThanOrEqual(72);
-        expect(calculateShapeSize(393)).toBeGreaterThanOrEqual(44);
-        expect(calculateShapeSize(393)).toBeLessThanOrEqual(56);
+    test('shape size follows the screen-relative glyph unit (about 20% of the short edge, clamped)', () => {
+        expect(calculateShapeSize(800)).toBeGreaterThanOrEqual(800 * 0.19);
+        expect(calculateShapeSize(800)).toBeLessThanOrEqual(800 * 0.21);
+        expect(calculateShapeSize(393)).toBeGreaterThanOrEqual(393 * 0.19);
+        expect(calculateShapeSize(393)).toBeLessThanOrEqual(393 * 0.21);
+        expect(calculateShapeSize(200)).toBe(72);      // never tiny
+        expect(calculateShapeSize(3000)).toBe(220);    // never huge
         const scene = makeScene(1280, 800);
         const obj = createShapeObject(scene, { value: 'Star', color: { hex: '#ffffff' } }, 0, 0);
-        expect(obj.shapeSize).toBe(64);
+        expect(obj.shapeSize).toBe(calculateShapeSize(800));
+    });
+
+    test('star takes (points, innerRadius, outerRadius) and is as big as the other shapes', () => {
+        const scene = makeScene(1280, 800);
+        const obj = createShapeObject(scene, { value: 'Star', color: { hex: '#ffffff' } }, 0, 0);
+        const [, , points, inner, outer] = scene.add.star.mock.calls[0];
+        expect(points).toBe(5);
+        expect(inner).toBeLessThan(outer);
+        // outer radius ~ half the shape size, so the star spans about the same box as a circle
+        expect(outer * 2).toBeGreaterThanOrEqual(obj.shapeSize * 0.9);
+        expect(outer * 2).toBeLessThanOrEqual(obj.shapeSize * 1.1);
     });
 
     test('label sits just below the shape (not far below)', () => {

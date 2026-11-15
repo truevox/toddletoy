@@ -1,3 +1,4 @@
+import { sizes, MIN_CAPTION } from './DisplayScale.js';
 /**
  * TextLayoutManager - Handles text layout and word object creation
  * Manages responsive text sizing and multi-language word positioning
@@ -50,23 +51,27 @@ export class TextLayoutManager {
         return wordObjects;
     }
 
+    /**
+     * Caption style and offsets, all derived from the screen-relative size unit
+     * (DisplayScale): captions are clearly secondary to the glyph, never below 15px.
+     * @param {number} [scaleFactor] - optional multiplier on the caption size
+     */
     calculateResponsiveTextStyle(scaleFactor = null) {
-        const screenWidth = this.scene.scale.width || window.innerWidth || 800;
-        const screenHeight = this.scene.scale.height || window.innerHeight || 600;
-        const minDimension = Math.min(screenWidth, screenHeight);
-        const calculatedScaleFactor = scaleFactor || Math.max(0.4, Math.min(1.2, minDimension / 600));
-        const labelFontSize = Math.floor(24 * calculatedScaleFactor);
-        
+        const sz = sizes(this.scene);
+        const m = scaleFactor || 1;
+        const font = Math.max(MIN_CAPTION, Math.round(sz.captionFont * m));
+
         return {
-            fontSize: `${labelFontSize}px`,
+            fontSize: `${font}px`,
             fill: '#ffffff',
             fontFamily: 'Arial',
             align: 'center',
             stroke: '#000000',
-            strokeThickness: Math.max(1, Math.floor(2 * calculatedScaleFactor)),
-            scaleFactor: calculatedScaleFactor,
-            labelOffset: Math.floor(60 * calculatedScaleFactor),
-            lineSpacing: Math.floor(30 * calculatedScaleFactor)
+            strokeThickness: Math.max(1, Math.round(font / 10)),
+            scaleFactor: sz.k * m,
+            labelOffset: Math.round(sz.glyph / 2 + font * 0.85),
+            lineSpacing: Math.round(font * 1.3),
+            glyph: sz.glyph
         };
     }
 

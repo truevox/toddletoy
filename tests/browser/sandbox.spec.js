@@ -3,7 +3,7 @@ import {
     collectErrors, skipOnboarding, enterConfig, startPlaying, enterSandbox, tapSpawn, objectCount, allObjects,
     sceneSize, waitForObjectCount, waitForSpawnReady, canvasPoint,
 } from './helpers/app.js';
-import { dragScene, attachmentOffsets } from './helpers/scene.js';
+import { dragScene, attachmentOffsets, expectDraggedTo } from './helpers/scene.js';
 
 /**
  * Behavioural smoke suite for the sandbox (replaces the old screenshot-based
@@ -95,10 +95,7 @@ test.describe('Sandbox smoke', () => {
             await dragScene(page, pos, to);
             pos = to;
             const after = await attachmentOffsets(page);
-            if (!isMobile) { // phones clamp objects away from the edges
-                expect(after.x).toBeCloseTo(to.x, 0);
-                expect(after.y).toBeCloseTo(to.y, 0);
-            }
+            await expectDraggedTo(page, after, to);
             expect(after.x).toBeGreaterThan(0); expect(after.x).toBeLessThan(width);
             expect(after.text).toBe(before.text);
             after.words.forEach((w, i) => {
@@ -159,7 +156,7 @@ test.describe('Grid mode', () => {
                 const s = window.appRoutes.getGameScene();
                 const o = s.objects.at(-1);
                 const gm = s.gridMode.gridManager;
-                const tapped = gm.getGridCell(s.scale.width * fx, s.scale.height * fy);
+                const tapped = gm.getGridCell(s.debugSnapshot().width * fx, s.debugSnapshot().height * fy);
                 // the scene's own occupancy map says which cell the object belongs to
                 return { tapped, registered: s.gridMode.occupiedCells.get(`${tapped.row},${tapped.col}`) === o };
             }, [fx, fy]));

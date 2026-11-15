@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { GameScene } from '../game.js'
+import { deviceDpr } from './systems/DisplayScale.js'
 
 /**
  * ResponsiveGameManager - Creates the Phaser game and handles lifecycle (visibility, WebGL, resize).
@@ -24,9 +25,13 @@ class ResponsiveGameManager {
 
     initGame() {
         // Calculate responsive dimensions
-        // Scale.RESIZE fills the container, so start at the real window size (no caps)
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+        // Canvas backing store = CSS size x device pixel ratio (capped at 3); the CSS rule in
+        // index.html stretches the canvas to the window. The scene zooms its camera by the ratio
+        // so game logic stays in CSS pixels (see DisplayScale.js).
+        const cssW = window.innerWidth;
+        const cssH = window.innerHeight;
+        const width = Math.round(cssW * deviceDpr());
+        const height = Math.round(cssH * deviceDpr());
 
         this.config = {
             type: Phaser.AUTO,
@@ -36,12 +41,14 @@ class ResponsiveGameManager {
             scene: GameScene,
             // Hand the app's ConfigManager to the scene before it is created
             callbacks: {
-                preBoot: (game) => { if (this.configManager) game.registry.set('configManager', this.configManager); }
+                preBoot: (game) => {
+                    game.displayInfo = { cssW, cssH };
+                    if (this.configManager) game.registry.set('configManager', this.configManager);
+                }
             },
             transparent: true, // the soft backdrop is a DOM layer behind the canvas (see Backdrop.js)
             scale: {
-                mode: Phaser.Scale.RESIZE,
-                autoCenter: Phaser.Scale.CENTER_BOTH
+                mode: Phaser.Scale.NONE
             },
             input: {
                 gamepad: true
@@ -62,7 +69,7 @@ class ResponsiveGameManager {
         //     console.log('🔍 GLOBAL CLICK DETECTED:', e.clientX, e.clientY, e.target.tagName, e.target.className);
         // });
 
-        console.log('🎮 Responsive game initialized:', width, 'x', height);
+        console.log('🎮 Responsive game initialized:', cssW, 'x', cssH, '@', deviceDpr(), 'x');
     }
 
     setupLifecycleHandlers() {
@@ -106,6 +113,7 @@ class ResponsiveGameManager {
             this.gameInstance.loop.resetDelta();
         }
         this.gameInstance.scene.resume('GameScene');
+        this.handleResize(); // the window may have been resized or rotated while away
         const audioConfig = this.configManager?.getAudioConfig();
         const shouldRemainMuted = Boolean(audioConfig?.mute);
         this.gameInstance.sound.mute = shouldRemainMuted;
@@ -126,7 +134,11 @@ class ResponsiveGameManager {
 
     handleResize() {
         if (this.gameInstance && this.gameInstance.scene.scenes[0]) {
-            this.gameInstance.scale.resize(window.innerWidth, window.innerHeight);
+            const cssW = window.innerWidth;
+            const cssH = window.innerHeight;
+            const dpr = deviceDpr();
+            this.gameInstance.displayInfo = { cssW, cssH };
+            this.gameInstance.scale.resize(Math.round(cssW * dpr), Math.round(cssH * dpr));
         }
     }
 

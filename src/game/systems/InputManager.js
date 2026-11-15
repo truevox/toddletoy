@@ -1,3 +1,5 @@
+import { viewWidth, viewHeight, toLogical } from './DisplayScale.js'
+
 /**
  * InputManager - Unified input handling for pointer, keyboard, and gamepad
  * Manages all user input events and emits standardized events for the game
@@ -8,8 +10,8 @@ export class InputManager {
         this.gamepadDeadzone = 0.1;
         this.gamepadButtonStates = new Map();
         this.currentGamepadPosition = {
-            x: (scene.scale?.width || 800) / 2,
-            y: (scene.scale?.height || 600) / 2
+            x: viewWidth(scene) / 2,
+            y: viewHeight(scene) / 2
         };
         this.holdTimer = null;
         this.holdDuration = 500; // 500ms hold to start auto-drag
@@ -47,16 +49,16 @@ export class InputManager {
         this.holdTimer = this.scene.time.delayedCall(this.holdDuration, () => {
             if (this.pointerIsDown) {
                 this.isHolding = true;
-                this.emit('holdStart', { x: pointer.x, y: pointer.y });
+                this.emit('holdStart', toLogical(this.scene, pointer));
             }
         });
 
-        this.emit('pointerDown', { x: pointer.x, y: pointer.y });
+        this.emit('pointerDown', toLogical(this.scene, pointer));
     }
 
     onPointerMove(pointer) {
         if (this.pointerIsDown) {
-            this.emit('pointerMove', { x: pointer.x, y: pointer.y });
+            this.emit('pointerMove', toLogical(this.scene, pointer));
         }
     }
 
@@ -70,7 +72,7 @@ export class InputManager {
             this.holdTimer = null;
         }
 
-        this.emit('pointerUp', { x: pointer.x, y: pointer.y });
+        this.emit('pointerUp', toLogical(this.scene, pointer));
     }
 
     /**
@@ -89,8 +91,8 @@ export class InputManager {
             { key: 'C', gridX: 2, gridY: 2 }
         ];
 
-        const screenWidth = this.scene.scale.width;
-        const screenHeight = this.scene.scale.height;
+        const screenWidth = viewWidth(this.scene);
+        const screenHeight = viewHeight(this.scene);
         const gridWidth = screenWidth * 0.8;
         const gridHeight = screenHeight * 0.8;
         const startX = (screenWidth - gridWidth) / 2;
@@ -117,8 +119,8 @@ export class InputManager {
      * @param {{width:number,height:number}} [previous] - size before the resize
      */
     handleResize(previous) {
-        const width = this.scene.scale.width;
-        const height = this.scene.scale.height;
+        const width = viewWidth(this.scene);
+        const height = viewHeight(this.scene);
 
         this.computeKeyPositions();
 
@@ -137,8 +139,8 @@ export class InputManager {
 
     /** Random on-screen position (away from the extreme edges) for ungridded keys. */
     getRandomKeyPosition() {
-        const width = this.scene.scale.width;
-        const height = this.scene.scale.height;
+        const width = viewWidth(this.scene);
+        const height = viewHeight(this.scene);
         return {
             x: width * (0.1 + Math.random() * 0.8),
             y: height * (0.1 + Math.random() * 0.8)
@@ -296,8 +298,8 @@ export class InputManager {
         const avgY = (leftStickY + rightStickY) / 2;
 
         if (Math.abs(avgX) > 0.01 || Math.abs(avgY) > 0.01) {
-            const screenWidth = this.scene.scale.width;
-            const screenHeight = this.scene.scale.height;
+            const screenWidth = viewWidth(this.scene);
+            const screenHeight = viewHeight(this.scene);
             
             this.currentGamepadPosition.x = Math.max(50, Math.min(screenWidth - 50, 
                 this.currentGamepadPosition.x + avgX * 5));

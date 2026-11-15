@@ -4,6 +4,8 @@
  * number-mode components; `overlaps` counts object pairs whose bounds intersect.
  */
 
+import { viewWidth, viewHeight, dpr } from './DisplayScale.js';
+
 export function boxOf(o) {
     if (!o) return null;
     const b = typeof o.getBounds === 'function' ? o.getBounds() : o;
@@ -53,13 +55,16 @@ export function buildSnapshot(scene) {
         if (!obj || !obj.active) continue;
         const glyph = boxOf(obj);
         const bounds = unionBox([glyph, ...componentObjects(obj).map(boxOf)]);
-        objects.push({ id: obj.id, type: obj.type, x: obj.x, y: obj.y, glyph, bounds });
+        const firstWord = (obj.allLanguageWords || []).flatMap(g => g.words || [])[0];
+        const captionFont = firstWord && firstWord.style ? parseFloat(firstWord.style.fontSize) : null;
+        objects.push({ id: obj.id, type: obj.type, x: obj.x, y: obj.y, glyph, bounds, captionFont: Number.isFinite(captionFont) ? captionFont : null });
     }
     const canvas = (scene.game && scene.game.canvas) || {};
     return {
-        width: scene.scale.width,
-        height: scene.scale.height,
+        width: viewWidth(scene),            // logical (CSS) px; the canvas below is the backing store
+        height: viewHeight(scene),
         dpr: window.devicePixelRatio,
+        renderScale: dpr(scene),
         canvas: { width: canvas.width, height: canvas.height },
         objects,
         overlaps: countOverlaps(objects.map(o => o.bounds))

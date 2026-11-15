@@ -265,7 +265,8 @@ describe('colour outline for numerals and letters', () => {
         f.createPrimaryDisplayObject('number', { color: { hex: '#0000ff' } }, '1', 0, 0);
         f.createPrimaryDisplayObject('letter', { color: { hex: '#800080' } }, 'A', 0, 0);
         f.createPrimaryDisplayObject('emoji', { emoji: 'x' }, 'x', 0, 0);
-        expect(added[0]).toMatchObject({ fill: '#0000ff', stroke: '#7373ff', strokeThickness: 3 });
+        expect(added[0]).toMatchObject({ fill: '#0000ff', stroke: '#7373ff' });
+        expect(added[0].strokeThickness).toBe(outlineThicknessFor(added[0].fontSize)); // thickness follows the (screen-relative) font size
         expect(added[1].stroke).toBe(outlineColorFor('#800080'));
         expect(added[2].stroke).toBeUndefined();
     });

@@ -1,4 +1,9 @@
 import { EffectRenderer } from './EffectRenderer.js';
+import { sizes } from './DisplayScale.js';
+
+// The particle texture is drawn big so it stays sharp when scaled up on high-density screens
+const PARTICLE_TEX = 64;
+const PARTICLE_TEX_SCALE = 16 / PARTICLE_TEX; // old sizes were authored for a 16px texture
 
 /**
  * ParticleManager - Handles all particle effects including spawn bursts, drag trails, and word sparkles
@@ -27,8 +32,8 @@ export class ParticleManager {
         // Create a simple white circle texture for particles
         const graphics = this.scene.add.graphics();
         graphics.fillStyle(0xffffff);
-        graphics.fillCircle(8, 8, 8);
-        graphics.generateTexture('particle', 16, 16);
+        graphics.fillCircle(PARTICLE_TEX / 2, PARTICLE_TEX / 2, PARTICLE_TEX / 2);
+        graphics.generateTexture('particle', PARTICLE_TEX, PARTICLE_TEX);
         graphics.destroy();
         console.log('Particle texture created by ParticleManager');
     }
@@ -64,9 +69,10 @@ export class ParticleManager {
         
         try {
             // Create trail particle emitter using the particle texture
+            const k = sizes(this.scene).k;
             const trailEmitter = this.scene.add.particles(0, 0, 'particle', {
-                scale: { start: 0.3, end: 0 },
-                speed: { min: 20, max: 40 },
+                scale: { start: 0.3 * PARTICLE_TEX_SCALE * k, end: 0 },
+                speed: { min: 20 * k, max: 40 * k },
                 lifespan: 300,
                 blendMode: 'ADD',
                 tint: [0xff6b6b, 0x4ecdc4, 0x45b7d1, 0xf7b731, 0x5f27cd]
@@ -128,9 +134,10 @@ export class ParticleManager {
         
         try {
             // Create sparkle particle emitter around the word
+            const k = sizes(this.scene).k;
             const sparkleEmitter = this.scene.add.particles(wordObj.x, wordObj.y, 'particle', {
-                scale: { start: 0.8, end: 0.1 },
-                speed: { min: 50, max: 100 },
+                scale: { start: 0.8 * PARTICLE_TEX_SCALE * k, end: 0.1 * PARTICLE_TEX_SCALE * k },
+                speed: { min: 50 * k, max: 100 * k },
                 lifespan: duration * 0.8, // Sparkles last most of the word duration
                 frequency: 30, // Emit every 30ms for continuous effect
                 quantity: 2, // 2 particles per emission

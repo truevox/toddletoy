@@ -1,5 +1,6 @@
 import GridManager from './GridManager.js'
 import { fitObjectToCell } from './GridFit.js'
+import { viewSize } from './DisplayScale.js'
 
 /**
  * GridModeController - Grid mode lifecycle, overlay and per-cell spawning.
@@ -25,11 +26,7 @@ export class GridModeController {
 
     /** Real canvas size (the scale manager, not the initial game config). */
     getViewSize() {
-        const scale = this.scene.scale;
-        return {
-            width: (scale && scale.width) || this.scene.sys.game.config.width,
-            height: (scale && scale.height) || this.scene.sys.game.config.height
-        };
+        return viewSize(this.scene);
     }
 
     /**

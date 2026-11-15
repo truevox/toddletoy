@@ -109,8 +109,8 @@ export class SceneInputHandler {
         // Visual feedback: scale up slightly for modern feel
         this.scene.tweens.add({
             targets: obj,
-            scaleX: 1.15,
-            scaleY: 1.15,
+            scaleX: 1.15 * (obj.baseScale || 1),
+            scaleY: 1.15 * (obj.baseScale || 1),
             duration: 100,
             ease: 'Back.easeOut'
         });
@@ -131,8 +131,8 @@ export class SceneInputHandler {
         // Visual feedback: scale back to normal
         this.scene.tweens.add({
             targets: obj,
-            scaleX: 1.0,
-            scaleY: 1.0,
+            scaleX: obj.baseScale || 1,
+            scaleY: obj.baseScale || 1,
             duration: 150,
             ease: 'Back.easeOut'
         });
