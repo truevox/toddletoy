@@ -1,3 +1,5 @@
+import { viewWidth, viewHeight } from './DisplayScale.js'
+
 /**
  * AudioManager - Handles Web Audio API tone generation and management
  * Manages position-based audio tones with continuous playback
@@ -143,7 +145,7 @@ export class AudioManager {
     getFrequencyFromPosition(x, y) {
         // Map Y position to frequency range (200Hz - 800Hz)
         // Higher Y = lower frequency (like a piano)
-        const normalizedY = 1 - (y / this.scene.scale.height);
+        const normalizedY = 1 - (y / viewHeight(this.scene));
         const minFreq = 200;
         const maxFreq = 800;
         return minFreq + (normalizedY * (maxFreq - minFreq));
@@ -151,8 +153,8 @@ export class AudioManager {
 
     getWaveformFromPosition(x, y) {
         // Map screen quadrants to different waveforms
-        const midX = this.scene.scale.width / 2;
-        const midY = this.scene.scale.height / 2;
+        const midX = viewWidth(this.scene) / 2;
+        const midY = viewHeight(this.scene) / 2;
         
         if (x < midX && y < midY) return 'sine';        // Top-left
         if (x >= midX && y < midY) return 'square';     // Top-right  

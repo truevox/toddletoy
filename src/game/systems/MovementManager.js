@@ -2,6 +2,7 @@
  * MovementManager - Handles smooth object movement and positioning
  * Extracted from GameScene to follow "wide and shallow" principle
  */
+import { viewSize } from './DisplayScale.js';
 import { clampPositionToBounds, defaultKeepOutRects, DEFAULT_EDGE_MARGIN } from '../../positioning/BoundsClamp.js';
 
 export class MovementManager {
@@ -34,7 +35,7 @@ export class MovementManager {
     clampPosition(obj, x, y, margin = DEFAULT_EDGE_MARGIN) {
         const scale = this.scene && this.scene.scale;
         if (!scale) return { x, y };
-        const bounds = { width: scale.width, height: scale.height };
+        const bounds = viewSize(this.scene);
         // Canvas-space rectangles objects must stay out of (default: under the parent exit button)
         const keepOut = Array.isArray(this.scene.keepOutRects) ? this.scene.keepOutRects : defaultKeepOutRects(bounds);
         return clampPositionToBounds(obj, x, y, bounds, margin, keepOut);

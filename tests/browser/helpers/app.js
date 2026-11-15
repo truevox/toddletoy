@@ -204,7 +204,8 @@ export async function allObjects(page) {
 export async function sceneSize(page) {
     return page.evaluate(() => {
         const s = window.appRoutes.getGameScene();
-        return { width: s.scale.width, height: s.scale.height };
+        const { width, height } = s.debugSnapshot(); // logical (CSS px); scale.width is the device-pixel backing store
+        return { width, height };
     });
 }
 

@@ -4,6 +4,8 @@
  * number-mode components; `overlaps` counts object pairs whose bounds intersect.
  */
 
+import { viewWidth, viewHeight, dpr } from './DisplayScale.js';
+
 export function boxOf(o) {
     if (!o) return null;
     const b = typeof o.getBounds === 'function' ? o.getBounds() : o;
@@ -57,9 +59,10 @@ export function buildSnapshot(scene) {
     }
     const canvas = (scene.game && scene.game.canvas) || {};
     return {
-        width: scene.scale.width,
-        height: scene.scale.height,
+        width: viewWidth(scene),            // logical (CSS) px; the canvas below is the backing store
+        height: viewHeight(scene),
         dpr: window.devicePixelRatio,
+        renderScale: dpr(scene),
         canvas: { width: canvas.width, height: canvas.height },
         objects,
         overlaps: countOverlaps(objects.map(o => o.bounds))

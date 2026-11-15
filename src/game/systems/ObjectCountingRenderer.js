@@ -1,3 +1,5 @@
+import { viewWidth } from './DisplayScale.js'
+
 /**
  * ObjectCountingRenderer - Smart dynamic stacking for place value visualization
  * Handles intelligent layout of counting objects (apples, bags, boxes, trucks)
@@ -94,7 +96,7 @@ export class ObjectCountingRenderer {
         
         // Adjust to prefer slightly wider than tall (more stable appearance)
         // and stay within reasonable screen bounds
-        const screenWidth = this.scene.scale.width || 800;
+        const screenWidth = viewWidth(this.scene);
         const maxColumns = Math.floor(screenWidth * 0.5 / this.emojiSize); // Max 50% of screen width
         
         if (columns > maxColumns) {

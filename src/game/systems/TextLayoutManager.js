@@ -1,3 +1,4 @@
+import { viewWidth, viewHeight } from './DisplayScale.js';
 /**
  * TextLayoutManager - Handles text layout and word object creation
  * Manages responsive text sizing and multi-language word positioning
@@ -51,8 +52,8 @@ export class TextLayoutManager {
     }
 
     calculateResponsiveTextStyle(scaleFactor = null) {
-        const screenWidth = this.scene.scale.width || window.innerWidth || 800;
-        const screenHeight = this.scene.scale.height || window.innerHeight || 600;
+        const screenWidth = viewWidth(this.scene);
+        const screenHeight = viewHeight(this.scene);
         const minDimension = Math.min(screenWidth, screenHeight);
         const calculatedScaleFactor = scaleFactor || Math.max(0.4, Math.min(1.2, minDimension / 600));
         const labelFontSize = Math.floor(24 * calculatedScaleFactor);

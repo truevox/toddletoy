@@ -6,6 +6,7 @@
  * heart is a sampled-point polygon: Phaser's Graphics has no bezierCurveTo.
  */
 import Phaser from 'phaser';
+import { viewWidth, viewHeight } from '../systems/DisplayScale.js';
 
 const MIN_SHAPE_SIZE = 48;
 const MAX_SHAPE_SIZE = 72;
@@ -67,9 +68,7 @@ export function calculateShapeLabelOffset(scene, size) {
 }
 
 export function createShapeObject(scene, itemData, x, y, labelText = '') {
-    const fallbackWidth = typeof window !== 'undefined' ? window.innerWidth : 800;
-    const fallbackHeight = typeof window !== 'undefined' ? window.innerHeight : 600;
-    const minDimension = Math.min(scene.scale?.width || fallbackWidth, scene.scale?.height || fallbackHeight);
+    const minDimension = Math.min(viewWidth(scene), viewHeight(scene));
     const size = calculateShapeSize(minDimension);
     const container = scene.add.container(x, y);
 

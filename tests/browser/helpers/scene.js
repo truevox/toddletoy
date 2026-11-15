@@ -73,7 +73,7 @@ export async function tapFreeSpot(page) {
     await waitForSpawnReady(page);
     const spot = await page.evaluate(() => {
         const s = window.appRoutes.getGameScene();
-        const W = s.scale.width, H = s.scale.height, m = 60;
+        const { width: W, height: H } = s.debugSnapshot(), m = 60;
         let best = null;
         for (let gy = 0; gy < 14; gy++) {
             for (let gx = 0; gx < 8; gx++) {
@@ -95,7 +95,7 @@ export async function tapFreeSpot(page) {
         const st = await page.evaluate(() => {
             const s = window.appRoutes.getGameScene();
             return { n: s.objects.length, speaking: s.speechManager.getIsSpeaking(), dragging: s.isDragging,
-                paused: s.scene.isPaused(), W: s.scale.width, H: s.scale.height };
+                paused: s.scene.isPaused(), size: s.debugSnapshot().width + 'x' + s.debugSnapshot().height };
         });
         throw new Error(`free-spot tap at ${JSON.stringify(spot)} did not spawn (had ${before}): ${JSON.stringify(st)}`);
     }

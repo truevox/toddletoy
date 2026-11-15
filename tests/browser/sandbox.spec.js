@@ -159,7 +159,7 @@ test.describe('Grid mode', () => {
                 const s = window.appRoutes.getGameScene();
                 const o = s.objects.at(-1);
                 const gm = s.gridMode.gridManager;
-                const tapped = gm.getGridCell(s.scale.width * fx, s.scale.height * fy);
+                const tapped = gm.getGridCell(s.debugSnapshot().width * fx, s.debugSnapshot().height * fy);
                 // the scene's own occupancy map says which cell the object belongs to
                 return { tapped, registered: s.gridMode.occupiedCells.get(`${tapped.row},${tapped.col}`) === o };
             }, [fx, fy]));

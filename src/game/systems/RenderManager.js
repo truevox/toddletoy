@@ -1,3 +1,4 @@
+import { viewWidth, viewHeight } from './DisplayScale.js';
 import { FontManager } from './FontManager.js';
 import { createCistercianNumeral, CELL_SIZE } from './CistercianNumeral.js';
 import { TextLayoutManager } from './TextLayoutManager.js';
@@ -145,8 +146,8 @@ export class RenderManager {
     renderCistercianNumeral(number, x, y) {
         if (!Number.isFinite(number) || number < 0) return null;
 
-        const screenWidth = this.scene.scale.width || window.innerWidth || 800;
-        const screenHeight = this.scene.scale.height || window.innerHeight || 600;
+        const screenWidth = viewWidth(this.scene);
+        const screenHeight = viewHeight(this.scene);
         const minDimension = Math.min(screenWidth, screenHeight);
         const scaleFactor = Math.max(0.5, Math.min(1.2, minDimension / 600));
 
@@ -170,8 +171,8 @@ export class RenderManager {
         }
         
         // Create text object with Kaktovik font and responsive sizing
-        const screenWidth = this.scene.scale.width || window.innerWidth || 800;
-        const screenHeight = this.scene.scale.height || window.innerHeight || 600;
+        const screenWidth = viewWidth(this.scene);
+        const screenHeight = viewHeight(this.scene);
         const minDimension = Math.min(screenWidth, screenHeight);
         const scaleFactor = Math.max(0.4, Math.min(1.2, minDimension / 600));
         const fontSize = Math.floor(32 * scaleFactor);
@@ -213,8 +214,8 @@ export class RenderManager {
         }
         
         // Create text object with heart emojis and responsive sizing
-        const screenWidth = this.scene.scale.width || window.innerWidth || 800;
-        const screenHeight = this.scene.scale.height || window.innerHeight || 600;
+        const screenWidth = viewWidth(this.scene);
+        const screenHeight = viewHeight(this.scene);
         const minDimension = Math.min(screenWidth, screenHeight);
         const scaleFactor = Math.max(0.4, Math.min(1.2, minDimension / 600));
         const fontSize = Math.floor(16 * scaleFactor);

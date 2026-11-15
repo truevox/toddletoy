@@ -22,6 +22,8 @@ import { remapPosition, defaultKeepOutRects } from './positioning/BoundsClamp.js
 import { ContentSelector } from './game/systems/ContentSelector.js'
 import { createSceneReady, adoptAppConfigManager } from './game/systems/SceneReadiness.js'
 import { buildSnapshot } from './game/systems/DebugSnapshot.js'
+import { viewSize, renderKey, syncCamera, installTextResolution } from './game/systems/DisplayScale.js'
+import { rebuildObjectsForResize } from './game/systems/ResizeRebuild.js'
 
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -48,6 +50,10 @@ class GameScene extends Phaser.Scene {
         // Version logging for troubleshooting
         console.log(`🎯 TODDLER TOY v${packageJson.version} - Build:`, new Date().toISOString());
 
+        // Device-pixel rendering: zoomed camera (world stays in CSS px) and crisp text everywhere
+        syncCamera(this);
+        installTextResolution(this);
+
         // Use the app's ConfigManager (handed over via the game registry before boot)
         adoptAppConfigManager(this, () => new ConfigManager());
 
@@ -65,7 +71,8 @@ class GameScene extends Phaser.Scene {
         this.setupInputHandlers();
 
         // Keep objects reachable when the viewport changes (resize / rotation)
-        this.lastKnownSize = { width: this.scale.width, height: this.scale.height };
+        this.lastKnownSize = viewSize(this);
+        this.lastRenderKey = renderKey(this);
         if (this.updateKeepOutRects) this.updateKeepOutRects();
         this.scale.on('resize', this.handleScaleResize, this);
         this.events.once('shutdown', () => this.scale.off('resize', this.handleScaleResize, this));
@@ -277,7 +284,7 @@ class GameScene extends Phaser.Scene {
      * the DOM parent exit button in the top-right corner (data only; no DOM query).
      */
     updateKeepOutRects() {
-        this.keepOutRects = defaultKeepOutRects({ width: this.scale.width, height: this.scale.height });
+        this.keepOutRects = defaultKeepOutRects(viewSize(this));
     }
 
     /**
@@ -285,20 +292,30 @@ class GameScene extends Phaser.Scene {
      * bounds (proportional remap, then clamp so components stay attached).
      */
     handleScaleResize() {
-        const width = this.scale?.width;
-        const height = this.scale?.height;
+        syncCamera(this);
+        const { width, height } = viewSize(this);
         if (!width || !height) return;
 
         const previous = this.lastKnownSize || { width, height };
         this.lastKnownSize = { width, height };
         if (this.updateKeepOutRects) this.updateKeepOutRects();
+        const key = renderKey(this);
 
         // Grid mode: refit the grid to the new size and rebuild each cell's object inside its cell
         if (this.gridMode && this.gridMode.enabled) {
+            this.lastRenderKey = key;
             this.gridModeController.handleResize();
             if (this.inputManager && this.inputManager.handleResize) this.inputManager.handleResize(previous);
             return;
         }
+
+        if (this.lastRenderKey !== undefined && key !== this.lastRenderKey) {
+            this.lastRenderKey = key;
+            rebuildObjectsForResize(this, previous, { width, height });
+            if (this.inputManager && this.inputManager.handleResize) this.inputManager.handleResize(previous);
+            return;
+        }
+        this.lastRenderKey = key;
 
         (this.objects || []).forEach(obj => {
             if (!obj || !obj.active) return;

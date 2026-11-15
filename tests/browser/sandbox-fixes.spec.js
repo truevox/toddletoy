@@ -108,7 +108,8 @@ test.describe('Sandbox regressions', () => {
         await page.setViewportSize({ width: 500, height: 400 });
         await page.waitForFunction(() => {
             const s = window.appRoutes.getGameScene();
-            return s.scale.width <= 500 && s.scale.height <= 400;
+            const d = s.debugSnapshot();
+            return d.width <= 500 && d.height <= 400;
         });
         const { width, height } = await sceneSize(page);
         for (const o of await allObjects(page)) {
