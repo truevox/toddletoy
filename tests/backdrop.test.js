@@ -1,73 +1,53 @@
-import { Backdrop, BACKDROP_DEPTH } from '../src/game/systems/Backdrop.js';
+/**
+ * @jest-environment jsdom
+ */
+import { Backdrop, BACKDROP_CLASS, REDRAW_MS, gradientCss, blobState, hueMix } from '../src/game/systems/Backdrop.js';
 import {
     PALETTES, DEFAULT_PALETTE, BACKDROP_BASE_COLOR, MAX_LUMINANCE, MIN_LUMINANCE,
     worstCaseColours, relativeLuminance, contrastWithWhite, hexToRgb, shiftHue,
 } from '../src/game/systems/BackdropPalettes.js';
 
-function makeImage(key) {
-    const img = {
-        key, x: 0, y: 0, alpha: 1, depth: 0, destroyed: false, displayWidth: 0, displayHeight: 0, originX: 0.5, originY: 0.5,
-        setDepth(d) { this.depth = d; return this; },
-        setScrollFactor() { return this; },
-        setTint(t) { this.tint = t; return this; },
-        setAlpha(a) { this.alpha = a; return this; },
-        setOrigin(x, y) { this.originX = x; this.originY = y; return this; },
-        setPosition(x, y) { this.x = x; this.y = y; return this; },
-        setDisplaySize(w, h) { this.displayWidth = w; this.displayHeight = h; return this; },
-        setScale(x, y) { this.scaleX = x; this.scaleY = y; return this; },
-        resize(w, h) { this.rtWidth = w; this.rtHeight = h; return this; },
-        beginDraw() { this.draws = (this.draws || 0) + 1; },
-        batchDraw(entries) { this.lastEntries = entries; },
-        endDraw() {},
-        destroy() { this.destroyed = true; },
+function fakeContext() {
+    const calls = [];
+    const grad = { addColorStop: jest.fn() };
+    return {
+        calls, globalAlpha: 1, fillStyle: null,
+        createLinearGradient: jest.fn(() => grad), createRadialGradient: jest.fn(() => grad),
+        fillRect(...a) { calls.push({ op: 'fillRect', alpha: this.globalAlpha, a }); },
+        drawImage(img, ...a) { calls.push({ op: 'drawImage', alpha: this.globalAlpha, a }); },
     };
-    return img;
 }
 
-function makeScene(width = 800, height = 600) {
-    const textures = new Map();
-    const listeners = {};
-    const scene = {
-        images: [],
-        tweenList: [],
-        scale: {
-            width, height,
-            on: jest.fn((e, fn) => { (listeners[e] = listeners[e] || []).push(fn); }),
-            off: jest.fn((e, fn) => { listeners[e] = (listeners[e] || []).filter((f) => f !== fn); }),
-        },
-        events: {
-            once: jest.fn(),
-            on: jest.fn((e, fn) => { (listeners['ev:' + e] = listeners['ev:' + e] || []).push(fn); }),
-            off: jest.fn((e, fn) => { listeners['ev:' + e] = (listeners['ev:' + e] || []).filter((f) => f !== fn); }),
-        },
-        textures: {
-            exists: (k) => textures.has(k),
-            remove: (k) => textures.delete(k),
-            createCanvas: jest.fn((k) => {
-                if (textures.has(k)) throw new Error(`Texture key already in use: ${k}`);
-                textures.set(k, true);
-                const grad = { addColorStop: jest.fn() };
-                return {
-                    refresh: jest.fn(),
-                    getContext: () => ({
-                        createLinearGradient: () => grad, createRadialGradient: () => grad,
-                        fillRect: jest.fn(),
-                    }),
-                };
-            }),
-        },
-        add: { renderTexture: jest.fn((x, y, w, h) => { const i = makeImage('rt'); i.rtWidth = w; i.rtHeight = h; scene.layers.push(i); return i; }) },
-        make: { image: jest.fn(({ key }) => { const i = makeImage(key); scene.images.push(i); return i; }) },
-        layers: [],
-        tweens: {
-            add: jest.fn((cfg) => { const t = { cfg, removed: false, remove() { this.removed = true; } }; scene.tweenList.push(t); return t; }),
-        },
+let contexts;
+beforeEach(() => {
+    contexts = new Map();
+    // jsdom has no 2D canvas: give every canvas a recording fake
+    HTMLCanvasElement.prototype.getContext = function () {
+        if (!contexts.has(this)) contexts.set(this, fakeContext());
+        return contexts.get(this);
     };
-    scene.textureKeys = () => [...textures.keys()];
-    scene.emitUpdate = (delta) => (listeners['ev:update'] || []).forEach((f) => f(0, delta));
-    scene.updateListeners = () => (listeners['ev:update'] || []).length;
-    scene.emitResize = (w, h) => { scene.scale.width = w; scene.scale.height = h; (listeners.resize || []).forEach((f) => f({ width: w, height: h })); };
-    return scene;
+});
+
+function makeScene(width = 800, height = 600) {
+    document.body.innerHTML = '<div id="game-container"><canvas id="game"></canvas></div>';
+    const container = document.getElementById('game-container');
+    Object.defineProperty(container, 'clientWidth', { value: width, configurable: true });
+    Object.defineProperty(container, 'clientHeight', { value: height, configurable: true });
+    const listeners = {};
+    const hub = {
+        once: jest.fn((e, fn) => { (listeners[e] = listeners[e] || []).push(fn); }),
+        on: jest.fn((e, fn) => { (listeners[e] = listeners[e] || []).push(fn); }),
+        off: jest.fn((e, fn) => { listeners[e] = (listeners[e] || []).filter((f) => f !== fn); }),
+    };
+    const scene = { game: { canvas: container.querySelector('#game') }, events: hub, scale: { width, height, on: hub.on, off: hub.off } };
+    scene.emit = (e, ...args) => (listeners[e] || []).slice().forEach((f) => f(...args));
+    scene.count = (e) => (listeners[e] || []).length;
+    scene.setSize = (w, h) => {
+        Object.defineProperty(container, 'clientWidth', { value: w, configurable: true });
+        Object.defineProperty(container, 'clientHeight', { value: h, configurable: true });
+        scene.emit('resize');
+    };
+    return { scene, container };
 }
 
 describe('Backdrop palettes', () => {
@@ -101,139 +81,154 @@ describe('Backdrop palettes', () => {
     });
 });
 
-describe('Backdrop behaviour', () => {
-    const blobCount = PALETTES[DEFAULT_PALETTE].blobs.length;
 
-    test('is one layer far below everything, stretched over the whole canvas', () => {
-        const scene = makeScene(800, 600);
-        const b = new Backdrop(scene, { reducedMotion: false }).create();
-        const layer = scene.layers[0];
-        expect(scene.layers.length).toBe(1);
-        expect(layer.depth).toBe(BACKDROP_DEPTH);
-        expect([layer.originX, layer.originY]).toEqual([0, 0]);
-        // covers the canvas (a few px of overscan on each side is fine)
-        expect(layer.x).toBeLessThanOrEqual(0);
-        expect(layer.y).toBeLessThanOrEqual(0);
-        expect(layer.x + layer.rtWidth * layer.scaleX).toBeGreaterThanOrEqual(800);
-        expect(layer.y + layer.rtHeight * layer.scaleY).toBeGreaterThanOrEqual(600);
-        // the layer is a fraction of the screen so the GPU fills the screen once
-        expect(layer.rtWidth * layer.rtHeight).toBeLessThan(800 * 600 / 8);
-        b.destroy();
+describe('Backdrop motion maths', () => {
+    const palette = PALETTES[DEFAULT_PALETTE];
+
+    test('breathing keeps every blob between 70% and 100% of its designed alpha, at any time', () => {
+        palette.blobs.forEach((def, i) => {
+            for (let t = 0; t < 400; t += 1.7) {
+                const s = blobState(def, i, t);
+                expect(s.alpha).toBeLessThanOrEqual(def.alpha + 1e-9);
+                expect(s.alpha).toBeGreaterThanOrEqual(def.alpha * 0.7 - 1e-9);
+                expect(s.scale).toBeGreaterThanOrEqual(1);
+                expect(s.scale).toBeLessThanOrEqual(1.18 + 1e-9);
+            }
+        });
     });
 
-    test('draws the gradient first (opaque cover), then crossfade partner, then every blob', () => {
-        const scene = makeScene();
-        new Backdrop(scene, { reducedMotion: true }).create();
-        const entries = scene.layers[0].lastEntries;
-        expect(entries.length).toBe(2 + blobCount);
-        expect(entries[0].key).toMatch(/grad$/);
-        expect([entries[0].x, entries[0].y]).toEqual([0, 0]);
-        expect(entries[0].displayWidth).toBe(scene.layers[0].rtWidth);
-        expect(entries[0].displayHeight).toBe(scene.layers[0].rtHeight);
-        expect(entries[1].alpha).toBe(0);
+    test('blobs drift slowly and never further than their designed range', () => {
+        palette.blobs.forEach((def, i) => {
+            for (let t = 0; t < 200; t += 0.9) {
+                const a = blobState(def, i, t), b = blobState(def, i, t + REDRAW_MS / 1000);
+                expect(Math.abs(a.x - def.x)).toBeLessThanOrEqual(Math.abs(def.dx) + 1e-9);
+                expect(Math.abs(a.y - def.y)).toBeLessThanOrEqual(Math.abs(def.dy) + 1e-9);
+                expect(Math.hypot(b.x - a.x, b.y - a.y)).toBeLessThan(0.002); // under 0.2% of the screen per repaint
+            }
+        });
     });
 
-    test.each([[390, 844], [844, 390], [1920, 1080], [3440, 1440]])('resize to %ix%i covers the screen again', (w, h) => {
-        const scene = makeScene(800, 600);
-        const b = new Backdrop(scene, { reducedMotion: false }).create();
-        scene.emitResize(w, h);
-        const layer = scene.layers[0];
-        expect(layer.x).toBeLessThanOrEqual(0);
-        expect(layer.y).toBeLessThanOrEqual(0);
-        expect(layer.x + layer.rtWidth * layer.scaleX).toBeGreaterThanOrEqual(w);
-        expect(layer.y + layer.rtHeight * layer.scaleY).toBeGreaterThanOrEqual(h);
-        expect(scene.layers.length).toBe(1);
-        const [grad] = layer.lastEntries;
-        expect([grad.displayWidth, grad.displayHeight]).toEqual([layer.rtWidth, layer.rtHeight]);
-        // blobs are huge relative to the layer and centred near it
-        for (const img of scene.images.slice(2)) {
-            expect(img.displayWidth).toBeGreaterThan(Math.max(layer.rtWidth, layer.rtHeight) * 0.8);
-            expect(img.x).toBeGreaterThan(-layer.rtWidth * 0.5);
-            expect(img.x).toBeLessThan(layer.rtWidth * 1.5);
+    test('hue mix starts at 0 and stays within 0..1', () => {
+        expect(hueMix(0)).toBe(0);
+        for (let t = 0; t < 500; t += 3) {
+            expect(hueMix(t)).toBeGreaterThanOrEqual(0);
+            expect(hueMix(t)).toBeLessThanOrEqual(1);
         }
-        b.resize(w, h);
-        b.destroy();
     });
+});
 
-    test('resize replaces running tweens and update listeners instead of stacking them', () => {
-        const scene = makeScene();
-        new Backdrop(scene, { reducedMotion: false }).create();
-        const before = scene.tweenList.length;
-        scene.emitResize(500, 900);
-        scene.emitResize(900, 500);
-        expect(scene.tweenList.filter((t) => !t.removed).length).toBe(before);
-        expect(scene.updateListeners()).toBe(1);
-    });
-
-    test('redraws are throttled while animating', () => {
-        const scene = makeScene();
-        new Backdrop(scene, { reducedMotion: false }).create();
-        const layer = scene.layers[0];
-        const start = layer.draws;
-        for (let i = 0; i < 10; i++) scene.emitUpdate(16); // 160 ms
-        expect(layer.draws - start).toBeGreaterThanOrEqual(2);
-        expect(layer.draws - start).toBeLessThanOrEqual(4);
-    });
-
-    test('reduced motion: drawn once, no tweens, no update listener', () => {
-        const scene = makeScene();
+describe('Backdrop behaviour', () => {
+    test('is one small canvas behind the game canvas, stretched over the container, ignoring touches', () => {
+        const { scene, container } = makeScene(1280, 800);
         const b = new Backdrop(scene, { reducedMotion: true }).create();
-        expect(scene.tweens.add).not.toHaveBeenCalled();
-        expect(scene.updateListeners()).toBe(0);
-        expect(scene.layers[0].draws).toBe(1);
-        scene.emitResize(400, 700);
-        expect(scene.tweens.add).not.toHaveBeenCalled();
-        expect(scene.updateListeners()).toBe(0);
-        expect(scene.images.length).toBe(2 + blobCount);
-        b.destroy();
+        expect(container.firstElementChild).toBe(b.root);
+        expect(container.lastElementChild.id).toBe('game');
+        expect(container.querySelectorAll('.' + BACKDROP_CLASS)).toHaveLength(1);
+        expect(b.root.style.width).toBe('100%');
+        expect(b.root.style.height).toBe('100%');
+        expect(b.root.style.pointerEvents).toBe('none');
+        expect(b.root.getAttribute('aria-hidden')).toBe('true');
+        // tiny backing store with the container's shape
+        expect(Math.max(b.root.width, b.root.height)).toBeLessThanOrEqual(256);
+        expect(b.root.width / b.root.height).toBeCloseTo(1280 / 800, 1);
+    });
+
+    test('paints the opaque gradient over everything first, then every blob at its alpha', () => {
+        const { scene } = makeScene();
+        const b = new Backdrop(scene, { reducedMotion: true }).create();
+        const calls = contexts.get(b.root).calls;
+        expect(calls[0]).toMatchObject({ op: 'fillRect', alpha: 1, a: [0, 0, b.root.width, b.root.height] });
+        const blobs = calls.filter((c) => c.op === 'drawImage');
+        expect(blobs).toHaveLength(PALETTES[DEFAULT_PALETTE].blobs.length);
+        blobs.forEach((c, i) => expect(c.alpha).toBeCloseTo(PALETTES[DEFAULT_PALETTE].blobs[i].alpha));
+    });
+
+    test('gradient CSS fallback lists every stop in order', () => {
+        const cssText = gradientCss([[0, 0xff0000], [0.5, 0x00ff00], [1, 0x0000ff]]);
+        expect(cssText).toBe('linear-gradient(165deg, rgb(255,0,0) 0%, rgb(0,255,0) 50%, rgb(0,0,255) 100%)');
+    });
+
+    test('repaints are throttled while animating and driven by scene updates (so a paused scene stops them)', () => {
+        const { scene } = makeScene();
+        const b = new Backdrop(scene, { reducedMotion: false }).create();
+        const calls = contexts.get(b.root).calls;
+        const paints = () => calls.filter((c) => c.op === 'fillRect' && c.alpha === 1).length;
+        const before = paints();
+        for (let i = 0; i < 4; i++) scene.emit('update', 0, 16); // 64 ms: not yet
+        expect(paints()).toBe(before);
+        scene.emit('update', 0, 20); // 84 ms
+        expect(paints()).toBe(before + 1);
+        expect(b.time).toBeCloseTo(0.084, 3);
+    });
+
+    test('reduced motion: painted once, no update listener', () => {
+        const { scene } = makeScene();
+        const b = new Backdrop(scene, { reducedMotion: true }).create();
+        expect(scene.count('update')).toBe(0);
+        expect(b.animating).toBe(false);
     });
 
     test('honours prefers-reduced-motion from the browser by default', () => {
         const original = window.matchMedia;
         window.matchMedia = jest.fn(() => ({ matches: true }));
         try {
-            const scene = makeScene();
+            const { scene } = makeScene();
             new Backdrop(scene).create();
-            expect(scene.tweens.add).not.toHaveBeenCalled();
+            expect(scene.count('update')).toBe(0);
         } finally {
             window.matchMedia = original;
         }
     });
 
-    test('destroy releases images, layer, tweens, textures and listeners', () => {
-        const scene = makeScene();
-        const b = new Backdrop(scene, { reducedMotion: false }).create();
-        expect(scene.textureKeys().length).toBe(3);
-        expect(scene.tweenList.length).toBeGreaterThan(0);
-        b.destroy();
-        expect(scene.images.every((i) => i.destroyed)).toBe(true);
-        expect(scene.layers.every((i) => i.destroyed)).toBe(true);
-        expect(scene.tweenList.every((t) => t.removed)).toBe(true);
-        expect(scene.textureKeys()).toEqual([]);
-        expect(scene.updateListeners()).toBe(0);
-        expect(scene.scale.off).toHaveBeenCalledWith('resize', b.onResize);
-        b.destroy(); // idempotent
-        scene.emitResize(100, 100); // no listener left, must not throw
+    test('resize re-shapes the small canvas to the new screen and repaints', () => {
+        const { scene } = makeScene(800, 600);
+        const b = new Backdrop(scene, { reducedMotion: true }).create();
+        scene.setSize(400, 900);
+        expect(b.root.width / b.root.height).toBeCloseTo(400 / 900, 1);
+        const calls = contexts.get(b.root).calls;
+        expect(calls[calls.length - 1].op).toBe('drawImage');
     });
 
-    test('creating twice (scene restart) does not collide on texture keys', () => {
-        const scene = makeScene();
-        const first = new Backdrop(scene).create();
-        expect(() => new Backdrop(scene).create()).not.toThrow();
-        first.destroy();
-        expect(scene.textureKeys().length).toBe(3);
+    test('destroy removes the canvas and drops every listener', () => {
+        const { scene, container } = makeScene();
+        const b = new Backdrop(scene, { reducedMotion: false }).create();
+        b.destroy();
+        expect(container.querySelector('.' + BACKDROP_CLASS)).toBeNull();
+        expect(scene.count('update') + scene.count('resize') + scene.count('shutdown')).toBe(0);
+        expect(() => { b.destroy(); b.resize(); }).not.toThrow();
+    });
+
+    test('creating twice (scene restart) leaves exactly one backdrop', () => {
+        const { scene, container } = makeScene();
+        new Backdrop(scene, { reducedMotion: true }).create();
+        new Backdrop(scene, { reducedMotion: true }).create();
+        expect(container.querySelectorAll('.' + BACKDROP_CLASS)).toHaveLength(1);
     });
 
     test('shuts down with the scene', () => {
-        const scene = makeScene();
-        const b = new Backdrop(scene).create();
-        expect(scene.events.once).toHaveBeenCalledWith('shutdown', b.onShutdown);
-        b.onShutdown();
-        expect(scene.textureKeys()).toEqual([]);
+        const { scene, container } = makeScene();
+        new Backdrop(scene, { reducedMotion: true }).create();
+        scene.emit('shutdown');
+        expect(container.querySelector('.' + BACKDROP_CLASS)).toBeNull();
+    });
+
+    test('a scene with no container (unit-test scenes) is a safe no-op', () => {
+        document.body.innerHTML = '';
+        const b = new Backdrop({}, { reducedMotion: false });
+        expect(() => { b.create(); b.resize(); b.destroy(); }).not.toThrow();
+    });
+
+    test('without a 2D canvas the CSS colour still shows and nothing throws', () => {
+        HTMLCanvasElement.prototype.getContext = () => null;
+        const { scene } = makeScene();
+        const b = new Backdrop(scene, { reducedMotion: false }).create();
+        expect(b.root.style.backgroundColor).toBe('rgb(16, 107, 120)');
+        expect(scene.count('update')).toBe(0);
     });
 
     test('unknown palette falls back to the default', () => {
-        expect(new Backdrop(makeScene(), { palette: 'nope' }).palette.name).toBe(DEFAULT_PALETTE);
-        expect(new Backdrop(makeScene(), { palette: 'dawn' }).palette.name).toBe('dawn');
+        const { scene } = makeScene();
+        const b = new Backdrop(scene, { palette: 'nope', reducedMotion: true }).create();
+        expect(b.root.dataset.palette).toBe(DEFAULT_PALETTE);
     });
 });
