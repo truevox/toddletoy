@@ -287,7 +287,7 @@ export class GridModeController {
             if (obj.x !== undefined && obj.y !== undefined) {
                 this.scene.particleManager.createSpawnBurst(obj.x, obj.y);
                 // Add a small pop sound effect
-                this.scene.audioManager.generateContinuousTone(obj.x, obj.y, obj.id, 100); // Short 100ms tone
+                this.scene.audioManager.generateContinuousTone(obj.x, obj.y, obj.id); // Short pop tone
             }
 
             // Clear from occupied cells BEFORE removing (prevents double-respawn)
