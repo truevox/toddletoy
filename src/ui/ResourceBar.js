@@ -107,7 +107,7 @@ export class ResourceBar extends Phaser.GameObjects.Container {
                 const sprite = this.getSprite(key);
                 sprite.setPosition(rowX, cursorY);
                 sprite.setVisible(true);
-                sprite.setScale(this.cfg.iconSize.w / 32); // Normalize to 32px base size
+                sprite.setScale(1); // the icon's font size already is iconSize.w
 
                 // Move right for next icon in this row
                 rowX += this.cfg.iconSize.w + this.cfg.iconGapX;
@@ -119,7 +119,7 @@ export class ResourceBar extends Phaser.GameObjects.Container {
             }
 
             // Move down to next row
-            cursorY += this.cfg.iconSize.h + 4;
+            cursorY += this.cfg.iconSize.h + Math.max(2, Math.round(this.cfg.iconSize.h * 0.12));
         }
     }
 
@@ -157,7 +157,7 @@ export class ResourceBar extends Phaser.GameObjects.Container {
                 fontFamily: 'Arial, sans-serif',
                 fill: '#ffffff',
                 stroke: '#000000',
-                strokeThickness: 2
+                strokeThickness: Math.max(2, Math.round(this.cfg.fontSize / 8))
             }).setOrigin(0, 0.5);
             this.add(this.countLabels[key]);
         }

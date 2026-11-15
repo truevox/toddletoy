@@ -1,4 +1,4 @@
-import { viewWidth } from './DisplayScale.js'
+import { viewWidth, sizes } from './DisplayScale.js'
 
 /**
  * ObjectCountingRenderer - Smart dynamic stacking for place value visualization
@@ -16,7 +16,14 @@ export class ObjectCountingRenderer {
     }
 
 
+    /** Icon size and row spacing follow the screen-relative unit (about 35% of the glyph). */
+    refreshSizes() {
+        this.emojiSize = sizes(this.scene).countIcon;
+        this.spacing.vertical = Math.round(this.emojiSize * 1.125);
+    }
+
     renderStackedApples(count, centerX, centerY) {
+        this.refreshSizes();
         // Cap at educationally meaningful maximum (100 apples)
         // Toddlers can't count 1000s of objects - this keeps it useful
         const MAX_APPLES = 100;

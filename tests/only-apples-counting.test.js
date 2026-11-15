@@ -190,7 +190,7 @@ describe('Only Apples Counting Mode', () => {
             // Check horizontal spacing is consistent
             if (uniqueX.length > 1) {
                 const spacing = uniqueX[1] - uniqueX[0];
-                expect(spacing).toBe(32); // emojiSize
+                expect(spacing).toBe(renderer.emojiSize); // icon size follows the screen-relative unit
 
                 // All horizontal spacing should be equal
                 for (let i = 2; i < uniqueX.length; i++) {
@@ -300,7 +300,7 @@ describe('Only Apples Counting Mode', () => {
             apples.forEach(apple => {
                 expect(apple.style).toEqual(
                     expect.objectContaining({
-                        fontSize: '32px',
+                        fontSize: `${renderer.emojiSize}px`,
                         fontFamily: 'Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif'
                     })
                 );
@@ -378,7 +378,7 @@ describe('Only Apples Counting Mode', () => {
             const overflow = components.find(c => c.text === '(101 total)');
             expect(overflow).toBeDefined();
             expect(overflow.style.color).toBe('#666666');
-            expect(overflow.style.fontSize).toBe('19px'); // 60% of 32px emojiSize
+            expect(overflow.style.fontSize).toBe(`${Math.floor(renderer.emojiSize * 0.6)}px`); // 60% of the icon size
         });
 
         test('caps at 100 apples for extremely large numbers (8510)', () => {

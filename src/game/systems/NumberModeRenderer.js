@@ -1,5 +1,6 @@
 import { ResourceBar } from '../../ui/ResourceBar.js'
-import { computeAboveStackOffsets, KAKTOVIK_LIFT, CISTERCIAN_LIFT } from './NumberModeLayout.js'
+import { computeAboveStackOffsets, KAKTOVIK_LIFT, CISTERCIAN_LIFT, ROW_GAP } from './NumberModeLayout.js'
+import { sizes } from './DisplayScale.js'
 
 /**
  * NumberModeRenderer - Renders the alternate numeral systems (binary, Kaktovik, Cistercian, object counting)
@@ -15,6 +16,8 @@ export class NumberModeRenderer {
 
         const numberModes = this.scene.configManager ? this.scene.configManager.getNumberModes() : {};
         const components = [];
+        const sz = sizes(this.scene);   // every row below scales from the same screen-relative unit
+        const k = sz.k;
 
         // VERTICAL LAYOUT STACK (from top to bottom):
         // 1. Cistercian numerals (top, above main object)
@@ -47,8 +50,8 @@ export class NumberModeRenderer {
 
             // Mode-specific buffer (also responsive to screen size)
             const buffer = numberModes.onlyApples
-                ? Math.floor(20 * styleInfo.scaleFactor)  // Smaller buffer for apples (scaled 20px)
-                : Math.floor(10 * styleInfo.scaleFactor); // Minimal buffer for compact bar (scaled 10px)
+                ? Math.floor(20 * k)   // buffer for apples (20px at a 64px glyph)
+                : Math.floor(10 * k);  // minimal buffer for the compact bar
 
             objectCountingYOffset = totalLabelArea + buffer;
 
@@ -65,18 +68,19 @@ export class NumberModeRenderer {
         }
         if (numberModes.kaktovik) {
             const kaktovikObj = rm.renderKaktovikNumeral(numberValue, centerX, centerY);
-            if (kaktovikObj) aboveRows.push({ type: 'kaktovik', object: kaktovikObj, lift: KAKTOVIK_LIFT });
+            if (kaktovikObj) aboveRows.push({ type: 'kaktovik', object: kaktovikObj, lift: KAKTOVIK_LIFT * k });
         }
         if (numberModes.cistercian) {
             const cistercianObj = rm.renderCistercianNumeral(numberValue, centerX, centerY);
-            if (cistercianObj) aboveRows.push({ type: 'cistercian', object: cistercianObj, lift: CISTERCIAN_LIFT });
+            if (cistercianObj) aboveRows.push({ type: 'cistercian', object: cistercianObj, lift: CISTERCIAN_LIFT * k });
         }
 
         if (aboveRows.length > 0) {
             const mainHalfHeight = (obj.displayHeight || obj.height || 32) / 2;
             const offsets = computeAboveStackOffsets(
                 aboveRows.map(row => ({ type: row.type, lift: row.lift, height: row.object.displayHeight || row.object.height || 0 })),
-                mainHalfHeight
+                mainHalfHeight,
+                Math.round(ROW_GAP * k)
             );
             aboveRows.forEach(row => {
                 const offsetY = offsets[row.type];
@@ -98,11 +102,11 @@ export class NumberModeRenderer {
             const resourceBar = new ResourceBar(this.scene, {
                 x: centerX,
                 y: centerY + objectCountingYOffset,
-                iconSize: { w: 32, h: 32 },
-                iconGapX: 4,
-                groupGapX: 12,
+                iconSize: { w: sz.countIcon, h: sz.countIcon },
+                iconGapX: Math.round(4 * k),
+                groupGapX: Math.round(12 * k),
                 maxIconsPerType: Infinity,
-                fontSize: 16
+                fontSize: sz.countFont
             });
 
             resourceBar.setCounts({

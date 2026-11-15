@@ -1,6 +1,6 @@
-import { viewWidth, viewHeight } from './DisplayScale.js';
+import { sizes, fitTextWidth, viewWidth } from './DisplayScale.js';
 import { FontManager } from './FontManager.js';
-import { createCistercianNumeral, CELL_SIZE } from './CistercianNumeral.js';
+import { createCistercianNumeral } from './CistercianNumeral.js';
 import { TextLayoutManager } from './TextLayoutManager.js';
 import { buildColorizedLabel } from '../utils/localization.js';
 
@@ -57,7 +57,12 @@ export class RenderManager {
         };
 
         // Apply dynamic vertical offset for object counting layout adjustment
-        const labelOffset = styleInfo.labelOffset + verticalOffset;
+        // Text glyphs are measured (a wide numeral may have been shrunk); shapes use their own offset
+        const glyphH = obj.mainShape ? 0 : (obj.displayHeight || 0);
+        const baseOffset = glyphH > 0
+            ? Math.round(glyphH / 2 + parseInt(styleInfo.fontSize, 10) * 0.85)
+            : styleInfo.labelOffset;
+        const labelOffset = baseOffset + verticalOffset;
         const lineSpacing = styleInfo.lineSpacing;
         
         // Store word objects for all enabled languages
@@ -146,13 +151,8 @@ export class RenderManager {
     renderCistercianNumeral(number, x, y) {
         if (!Number.isFinite(number) || number < 0) return null;
 
-        const screenWidth = viewWidth(this.scene);
-        const screenHeight = viewHeight(this.scene);
-        const minDimension = Math.min(screenWidth, screenHeight);
-        const scaleFactor = Math.max(0.5, Math.min(1.2, minDimension / 600));
-
         return createCistercianNumeral(this.scene, x, y, Math.floor(number), {
-            cell: Math.max(8, Math.round(CELL_SIZE * scaleFactor))
+            cell: sizes(this.scene).cistercianCell
         });
     }
 
@@ -171,20 +171,14 @@ export class RenderManager {
         }
         
         // Create text object with Kaktovik font and responsive sizing
-        const screenWidth = viewWidth(this.scene);
-        const screenHeight = viewHeight(this.scene);
-        const minDimension = Math.min(screenWidth, screenHeight);
-        const scaleFactor = Math.max(0.4, Math.min(1.2, minDimension / 600));
-        const fontSize = Math.floor(32 * scaleFactor);
-        
         const textObj = this.scene.add.text(x, y, kaktovikString, {
-            fontSize: `${fontSize}px`,
+            fontSize: `${sizes(this.scene).kaktovikFont}px`,
             fontFamily: 'Kaktovik, monospace',
             fill: '#ffffff',
             align: 'center'
         }).setOrigin(0.5);
-        
-        return textObj;
+
+        return fitTextWidth(textObj, viewWidth(this.scene) * 0.9);
     }
     
     convertToBase20(number) {
@@ -214,20 +208,14 @@ export class RenderManager {
         }
         
         // Create text object with heart emojis and responsive sizing
-        const screenWidth = viewWidth(this.scene);
-        const screenHeight = viewHeight(this.scene);
-        const minDimension = Math.min(screenWidth, screenHeight);
-        const scaleFactor = Math.max(0.4, Math.min(1.2, minDimension / 600));
-        const fontSize = Math.floor(16 * scaleFactor);
-        
         const textObj = this.scene.add.text(x, y, heartString, {
-            fontSize: `${fontSize}px`,
+            fontSize: `${sizes(this.scene).heartsFont}px`,
             fontFamily: 'Arial, sans-serif',
             fill: '#ffffff',
             align: 'center'
         }).setOrigin(0.5);
-        
-        return textObj;
+
+        return fitTextWidth(textObj, viewWidth(this.scene) * 0.9);
     }
 
     convertToBinary(number) {

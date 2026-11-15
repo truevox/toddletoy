@@ -1,3 +1,5 @@
+import { sizes } from './DisplayScale.js';
+
 /**
  * EffectRenderer - Handles specialized visual effects rendering
  * Manages cleanup effects, spawn bursts, and fallback graphics
@@ -15,17 +17,18 @@ export class EffectRenderer {
             this.transient.add(graphics);
             
             // Create colorful burst circles
+            const k = sizes(this.scene).k; // effect sizes follow the screen-relative unit
             const colors = [0xff6b6b, 0x4ecdc4, 0x45b7d1, 0xf9ca24, 0xf0932b, 0xeb4d4b, 0x6c5ce7];
             
             for (let i = 0; i < 8; i++) {
                 const angle = (i / 8) * Math.PI * 2;
-                const distance = 30 + Math.random() * 20;
+                const distance = (30 + Math.random() * 20) * k;
                 const particleX = x + Math.cos(angle) * distance;
                 const particleY = y + Math.sin(angle) * distance;
                 
                 const color = colors[Math.floor(Math.random() * colors.length)];
                 graphics.fillStyle(color);
-                graphics.fillCircle(particleX, particleY, 3 + Math.random() * 3);
+                graphics.fillCircle(particleX, particleY, (3 + Math.random() * 3) * k);
             }
 
             // Fade out the burst effect
@@ -51,17 +54,18 @@ export class EffectRenderer {
             this.transient.add(graphics);
             
             // Create colorful celebration circles
+            const k = sizes(this.scene).k;
             const colors = [0xFFD700, 0xFF69B4, 0x00CED1, 0xFF6347, 0x32CD32, 0x9370DB];
             
             for (let i = 0; i < 12; i++) {
                 const angle = (i / 12) * Math.PI * 2;
-                const distance = 25 + Math.random() * 15;
+                const distance = (25 + Math.random() * 15) * k;
                 const particleX = x + Math.cos(angle) * distance;
                 const particleY = y + Math.sin(angle) * distance;
                 
                 const color = colors[Math.floor(Math.random() * colors.length)];
                 graphics.fillStyle(color);
-                graphics.fillCircle(particleX, particleY, 4 + Math.random() * 2);
+                graphics.fillCircle(particleX, particleY, (4 + Math.random() * 2) * k);
             }
 
             // Fade out with slight expand
@@ -86,7 +90,7 @@ export class EffectRenderer {
         const graphics = this.scene.add.graphics();
         this.transient.add(graphics);
         graphics.fillStyle(0xff6b6b);
-        graphics.fillCircle(object.x, object.y, 3);
+        graphics.fillCircle(object.x, object.y, 3 * sizes(this.scene).k);
         
         this.scene.tweens.add({
             targets: graphics,

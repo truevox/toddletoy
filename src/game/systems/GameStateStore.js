@@ -1,4 +1,5 @@
 import { safeStorage } from '../../utils/safeStorage.js';
+import { fitCompositeToView } from './CompositeFit.js';
 
 /**
  * GameStateStore - Persists/restores spawned objects (localStorage) and resets toy state.
@@ -121,6 +122,7 @@ export class GameStateStore {
         // Display text labels with dynamic vertical offset (for object counting layout)
         const verticalOffset = obj.componentLayout?.labelVerticalOffset || 0;
         this.scene.renderManager.displayTextLabels(obj, verticalOffset);
+        fitCompositeToView(this.scene, obj);
         if (this.scene.keepObjectInBounds) this.scene.keepObjectInBounds(obj);
 
         console.log(`✨ Restored ${objData.type}:`, displayText, 'at', objData.x, objData.y);

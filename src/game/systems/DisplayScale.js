@@ -110,6 +110,25 @@ export function installTextResolution(scene) {
     factory.__textResolutionInstalled = true;
 }
 
+/** Shrink a Text object's font until it is no wider than maxWidth (never grows it). */
+export function fitTextWidth(obj, maxWidth, minFont = 10) {
+    if (!obj || typeof obj.setFontSize !== 'function' || !(obj.width > maxWidth) || !(maxWidth > 0)) return obj;
+    const font = fontPxOf(obj.style);
+    if (font > 0) obj.setFontSize(Math.max(minFont, Math.floor(font * maxWidth / obj.width)));
+    return obj;
+}
+
+/**
+ * Text boxes are taller than their font size by a font-dependent factor, so
+ * re-size once against the measured height to make the glyph box ~target px tall.
+ */
+export function calibrateTextHeight(obj, target) {
+    if (!obj || typeof obj.setFontSize !== 'function' || !(obj.height > 0) || !(target > 0)) return obj;
+    const font = fontPxOf(obj.style);
+    if (font > 0 && Math.abs(obj.height / target - 1) > 0.03) obj.setFontSize(Math.max(8, Math.round(font * target / obj.height)));
+    return obj;
+}
+
 /** Size table (logical px) for a play area of the given size. Pure. */
 export function sizesFor(width, height) {
     const short = Math.min(width, height);

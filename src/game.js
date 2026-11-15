@@ -22,7 +22,7 @@ import { remapPosition, defaultKeepOutRects } from './positioning/BoundsClamp.js
 import { ContentSelector } from './game/systems/ContentSelector.js'
 import { createSceneReady, adoptAppConfigManager } from './game/systems/SceneReadiness.js'
 import { buildSnapshot } from './game/systems/DebugSnapshot.js'
-import { viewSize, renderKey, syncCamera, installTextResolution } from './game/systems/DisplayScale.js'
+import { viewSize, sizes, renderKey, syncCamera, installTextResolution } from './game/systems/DisplayScale.js'
 import { rebuildObjectsForResize } from './game/systems/ResizeRebuild.js'
 
 class GameScene extends Phaser.Scene {
@@ -79,7 +79,7 @@ class GameScene extends Phaser.Scene {
 
         // Create text style with emoji support  
         this.textStyle = {
-            fontSize: '32px',
+            fontSize: `${sizes(this).glyphFont}px`,
             fill: '#ffffff',
             fontFamily: 'Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
             align: 'center'
@@ -87,7 +87,7 @@ class GameScene extends Phaser.Scene {
 
         // Create emoji-specific style (larger size)
         this.emojiStyle = {
-            fontSize: '64px',
+            fontSize: `${sizes(this).glyphFont}px`,
             fill: '#ffffff',
             fontFamily: 'Arial, "Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", sans-serif',
             align: 'center'

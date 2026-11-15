@@ -7,6 +7,7 @@
 import fs from 'fs';
 import path from 'path';
 import { RenderManager } from '../src/game/systems/RenderManager.js';
+import { sizesFor } from '../src/game/systems/DisplayScale.js';
 import { FontManager } from '../src/game/systems/FontManager.js';
 
 const root = path.resolve(__dirname, '..');
@@ -50,8 +51,10 @@ describe('RenderManager.renderCistercianNumeral (procedural)', () => {
 
     test('returned object reports a height usable by the numeral stack layout', () => {
         const obj = rm.renderCistercianNumeral(8814, 0, 0);
-        expect(obj.displayHeight).toBeGreaterThan(30);
-        expect(obj.displayHeight).toBeLessThan(60);
+        // outcome: the numeral is a secondary row, clearly smaller than the main glyph of the same screen
+        const glyph = sizesFor(1200, 800).glyph;
+        expect(obj.displayHeight).toBeGreaterThan(glyph * 0.3);
+        expect(obj.displayHeight).toBeLessThan(glyph * 0.9);
     });
 
     test('handles zero, 9999 and numbers beyond one glyph', () => {

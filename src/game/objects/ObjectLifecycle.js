@@ -2,6 +2,8 @@
  * ObjectLifecycle - Spawning, announcing and removing scene objects.
  * State stays on the scene; calls go back through the scene so spies intercept.
  */
+import { fitCompositeToView } from '../systems/CompositeFit.js';
+
 export class ObjectLifecycle {
     constructor(scene) {
         this.scene = scene;
@@ -80,7 +82,8 @@ export class ObjectLifecycle {
             const verticalOffset = obj.componentLayout?.labelVerticalOffset || 0;
             this.scene.renderManager.displayTextLabels(obj, verticalOffset);
 
-            // Keep the whole composite (glyph, labels, rows) inside the visible area
+            // Shrink an oversized composite to the screen, then keep it inside the visible area
+            fitCompositeToView(this.scene, obj);
             this.scene.keepObjectInBounds(obj);
 
             // Track spawn time to prevent accidental immediate interaction

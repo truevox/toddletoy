@@ -55,7 +55,9 @@ export function buildSnapshot(scene) {
         if (!obj || !obj.active) continue;
         const glyph = boxOf(obj);
         const bounds = unionBox([glyph, ...componentObjects(obj).map(boxOf)]);
-        objects.push({ id: obj.id, type: obj.type, x: obj.x, y: obj.y, glyph, bounds });
+        const firstWord = (obj.allLanguageWords || []).flatMap(g => g.words || [])[0];
+        const captionFont = firstWord && firstWord.style ? parseFloat(firstWord.style.fontSize) : null;
+        objects.push({ id: obj.id, type: obj.type, x: obj.x, y: obj.y, glyph, bounds, captionFont: Number.isFinite(captionFont) ? captionFont : null });
     }
     const canvas = (scene.game && scene.game.canvas) || {};
     return {
