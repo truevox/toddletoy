@@ -24,6 +24,7 @@ import { createSceneReady, adoptAppConfigManager } from './game/systems/SceneRea
 import { buildSnapshot } from './game/systems/DebugSnapshot.js'
 import { viewSize, sizes, renderKey, syncCamera, installTextResolution } from './game/systems/DisplayScale.js'
 import { rebuildObjectsForResize } from './game/systems/ResizeRebuild.js'
+import { Backdrop } from './game/systems/Backdrop.js'
 
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -66,6 +67,8 @@ class GameScene extends Phaser.Scene {
         this.inputManager = new InputManager(this);
         this.movementManager = new MovementManager(this);
         this.autoCleanupManager = new AutoCleanupManager(this);
+
+        this.backdrop = new Backdrop(this).create(); // soft living background, depth far below everything
 
         // Set up input event handlers from InputManager
         this.setupInputHandlers();

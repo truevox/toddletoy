@@ -46,6 +46,7 @@ class ResponsiveGameManager {
                     if (this.configManager) game.registry.set('configManager', this.configManager);
                 }
             },
+            transparent: true, // the soft backdrop is a DOM layer behind the canvas (see Backdrop.js)
             scale: {
                 mode: Phaser.Scale.NONE
             },

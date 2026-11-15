@@ -17,7 +17,7 @@ export async function dragScene(page, from, to) {
 }
 
 /**
- * Does the page region (CSS px rect) show anything other than a flat colour?
+ * Does the page region (CSS px rect) show anything other than the backdrop colour?
  * Decodes a real screenshot inside the page, so it works for WebGL canvases
  * and needs no stored baseline.
  */
@@ -32,7 +32,14 @@ export async function regionHasContent(page, clip, minPixels = 30) {
         const ctx = c.getContext('2d');
         ctx.drawImage(img, 0, 0);
         const d = ctx.getImageData(0, 0, c.width, c.height).data;
-        const ref = [d[0], d[1], d[2]];
+        // The backdrop is a smooth gradient, not flat black: compare against the
+        // region's median colour per channel (objects never fill most of a probe).
+        const med = (ch) => {
+            const v = [];
+            for (let i = ch; i < d.length; i += 4) v.push(d[i]);
+            return v.sort((a, b) => a - b)[v.length >> 1];
+        };
+        const ref = [med(0), med(1), med(2)];
         let diff = 0;
         for (let i = 0; i < d.length; i += 4) {
             if (Math.abs(d[i] - ref[0]) + Math.abs(d[i + 1] - ref[1]) + Math.abs(d[i + 2] - ref[2]) > 40) diff++;
