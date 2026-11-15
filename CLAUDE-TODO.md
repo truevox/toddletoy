@@ -30,6 +30,16 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - Cell highlighting animations
 - Visual focus indicators
 
+### Phase 26: Sandbox 10x (ACTIVE — plan in docs/SANDBOX-10X-PLAN.md)
+
+- [ ] Stage 0 — Clear the ground: dead code, ready-promise, config races, debug hook (v2.0.2)
+- [ ] Stage 1 — Sharp and big: device-pixel rendering, screen-relative sizes, backdrop (v2.1.0)
+- [ ] Stage 2 — It feels alive: spawn/despawn/idle motion, tap reactions, throw and settle, no overlap (v2.2.0)
+- [ ] Stage 3 — It sounds good: musical sound engine, event sounds, speech queue/voices/word order (v2.3.0)
+- [ ] Stage 4 — Many fingers, many keys: multi-touch, baby keyboard, gamepads, object cap (v2.4.0)
+- [ ] Stage 5 — Something to discover: calm numbers, surprises, attract mode, ~250 emoji (v2.5.0)
+- [ ] Stage 6 — Parents: presets, live preview, docs (v2.6.0)
+
 ### Phase 13.999: Implement some kind of analytics
 
 **Problem**
