@@ -1,5 +1,6 @@
 import Phaser from 'phaser'
 import { GameScene } from '../game.js'
+import { BACKDROP_BASE_COLOR } from './systems/BackdropPalettes.js'
 
 /**
  * ResponsiveGameManager - Creates the Phaser game and handles lifecycle (visibility, WebGL, resize).
@@ -33,6 +34,7 @@ class ResponsiveGameManager {
             width: width,
             height: height,
             parent: 'game-container',
+            backgroundColor: BACKDROP_BASE_COLOR, // no black flash before the backdrop draws
             scene: GameScene,
             // Hand the app's ConfigManager to the scene before it is created
             callbacks: {

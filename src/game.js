@@ -22,6 +22,7 @@ import { remapPosition, defaultKeepOutRects } from './positioning/BoundsClamp.js
 import { ContentSelector } from './game/systems/ContentSelector.js'
 import { createSceneReady, adoptAppConfigManager } from './game/systems/SceneReadiness.js'
 import { buildSnapshot } from './game/systems/DebugSnapshot.js'
+import { Backdrop } from './game/systems/Backdrop.js'
 
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -60,6 +61,8 @@ class GameScene extends Phaser.Scene {
         this.inputManager = new InputManager(this);
         this.movementManager = new MovementManager(this);
         this.autoCleanupManager = new AutoCleanupManager(this);
+
+        this.backdrop = new Backdrop(this).create(); // soft living background, depth far below everything
 
         // Set up input event handlers from InputManager
         this.setupInputHandlers();
