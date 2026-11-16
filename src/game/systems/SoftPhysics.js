@@ -7,13 +7,14 @@
  */
 import { viewSize } from './DisplayScale.js';
 import { defaultKeepOutRects, getObjectExtents } from '../../positioning/BoundsClamp.js';
-import { resolvePair, endBody, EASE_K, MAX_PUSH_SPEED, EDGE_MARGIN, PAIR_GAP, ENGAGE_GAP, penetration } from './Separation.js';
-import { enforceCapacity } from './ScreenCapacity.js';
+import { solveLayout, stillEngaged, overlaps, EASE_K, MAX_PUSH_SPEED, EDGE_MARGIN, PAIR_GAP, ENGAGE_GAP, penetration } from './Separation.js';
+import { findFreeSpot } from './FreeSpot.js';
+import { enforceCapacity, sceneCapacity } from './ScreenCapacity.js';
 import { DragSamples, stepGlide, MAX_THROW_SPEED } from './ThrowMotion.js';
 
 const NEWBORN_MS = 600, NEWBORN_MOB = 0.25, DROP_MOB = 0.35;
 const STILL_TICKS = 12, HEARTBEAT_MS = 1000, FAST_MEASURE_MS = 1000, MEASURE_EVERY = 100;
-const MAX_DT = 0.05;
+const MAX_DT = 0.05, MIN_EASE = 30, MIN_CROWD = 3;
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
 export class SoftPhysics {
@@ -28,6 +29,8 @@ export class SoftPhysics {
         this.sizeW = 0; this.sizeH = 0; this.seq = 0;
         this.reduced = false;
         this.keepOut = { x: 0, y: 0, width: 0, height: 0 };
+        this.crowdCap = Infinity; this.crowdUntil = 0;
+        this.bodies = []; this.spot = { x: 0, y: 0 };
 
         const mq = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
         this.reduced = !!(mq && mq.matches);
@@ -44,6 +47,9 @@ export class SoftPhysics {
             if (scene.events.once) scene.events.once('shutdown', () => this.destroy());
         }
     }
+
+    /** Current object capacity (automatic from body sizes, or advanced.maxObjects). */
+    capacity() { return sceneCapacity(this.scene, this.ctx.width, this.ctx.height, this.maxObjects(), this.crowdCap); }
 
     wake() { this.awake = true; this.stillTicks = 0; }
 
@@ -80,7 +86,7 @@ export class SoftPhysics {
         if (s) return s;
         const fresh = this.scene.lastSpawnTime && Date.now() - this.scene.lastSpawnTime < 400;
         s = obj.__soft = { x: obj.x, y: obj.y, l: -1, r: 1, t: -1, b: 1, mob: 1, fixed: false, seq: this.seq++,
-            vx: 0, vy: 0, moved: false, absX: 0, absY: 0, netX: 0, netY: 0, biasX: 0, biasY: 0, born: t, measuredAt: -1e9, lowMobUntil: fresh ? t + NEWBORN_MS : 0, lowMob: NEWBORN_MOB };
+            vx: 0, vy: 0, moved: false, absX: 0, absY: 0, netX: 0, netY: 0, biasX: 0, biasY: 0, glide: false, born: t, measuredAt: -1e9, lowMobUntil: fresh ? t + NEWBORN_MS : 0, lowMob: NEWBORN_MOB };
         if (!this.measure(obj, s, t)) { /* keep defaults when unmeasurable (mocks) */ }
         this.wake();
         return s;
@@ -98,7 +104,7 @@ export class SoftPhysics {
         if (scene.gridMode && scene.gridMode.enabled) { this.clearVelocities(); return; }
 
         const n = objs.length;
-        if (n === 0) { this.samples.clear(); this.prevDragged = null; this.lastN = 0; return; }
+        if (n === 0) { this.crowdCap = Infinity; this.samples.clear(); this.prevDragged = null; this.lastN = 0; return; }
 
         this.refreshCtx();
         this.trackDrag(t);
@@ -118,9 +124,10 @@ export class SoftPhysics {
             }
         }
 
+        if (this.crowdCap !== Infinity && t > this.crowdUntil) this.crowdCap = Infinity;
         if (n !== this.lastN) { this.lastN = n; this.capacityUntil = t + 1000; this.wake(); }
         if (t < this.capacityUntil) {
-            if (enforceCapacity(scene, this.ctx.width, this.ctx.height, this.maxObjects()) > 0) { this.lastN = scene.objects.length; this.wake(); }
+            if (enforceCapacity(scene, this.ctx.width, this.ctx.height, this.maxObjects(), this.crowdCap) > 0) { this.lastN = scene.objects.length; this.wake(); }
         }
         if (!this.awake) return;
         this.step(dt, t);
@@ -150,42 +157,54 @@ export class SoftPhysics {
 
     step(dt, t) {
         const objs = this.scene.objects, n = objs.length, mm = this.scene.movementManager, ctx = this.ctx;
+        const bodies = this.bodies;
+        bodies.length = n;
         let activity = 0;
+        // 1. read positions, integrate throws (gliding bodies are fixed for the solver: they push, they are not pushed)
         for (let i = 0; i < n; i++) {
             const o = objs[i], s = o.__soft;
+            bodies[i] = s && o.active ? s : null;
             if (!s || !o.active) continue;
-            s.moved = false;
+            s.moved = false; s.glide = false;
             s.x = o.x; s.y = o.y;
             s.fixed = o === this.scene.draggedObject || (mm.hasMovingObject && mm.hasMovingObject(o.id));
             s.mob = t < s.lowMobUntil ? s.lowMob : 1;
             if (s.fixed) { s.vx = 0; s.vy = 0; }
             else if (s.vx !== 0 || s.vy !== 0) {
                 const hit = stepGlide(ctx, s, dt);
-                activity += 1;
+                s.glide = true; s.fixed = true; activity += 1;
                 if (hit > 150 && this.scene.objectMotion && this.scene.objectMotion.bump) this.scene.objectMotion.bump(o, Math.min(1, hit / MAX_THROW_SPEED));
             }
         }
-        for (let i = 0; i < n; i++) {
-            const a = objs[i] && objs[i].__soft;
-            if (!a || !objs[i].active) continue;
-            for (let j = i + 1; j < n; j++) {
-                const b = objs[j] && objs[j].__soft;
-                if (!b || !objs[j].active) continue;
-                const moved = resolvePair(ctx, a, b, dt);
-                if (moved > 0.01) {
-                    activity += moved;
-                    if (moved / dt > 300 && this.scene.objectMotion && this.scene.objectMotion.bump) {
-                        this.scene.objectMotion.bump(a.moved ? objs[i] : objs[j], 0.4);
-                    }
+        // 2. solve where everyone should be; bodies the pushes cannot untangle go to the nearest free spot
+        for (let round = 0; round < 3; round++) {
+            solveLayout(ctx, bodies, n);
+            let stuck = null;
+            for (let i = 0; i < n && !stuck; i++) {
+                for (let j = i + 1; j < n; j++) {
+                    if (bodies[i] && bodies[j] && stillEngaged(bodies[i], bodies[j])) { stuck = bodies[j].fixed ? bodies[i] : bodies[j]; break; }
                 }
             }
+            if (!stuck) break;
+            if (!findFreeSpot(ctx, stuck, bodies, n, this.spot)) { this.noteCrowded(bodies, n, t); break; }
+            stuck.x = this.spot.x; stuck.y = this.spot.y; stuck.moved = true;
         }
+        // 3. ease the real positions toward the solution (gliding bodies already moved)
         for (let i = 0; i < n; i++) {
-            const o = objs[i], s = o.__soft;
-            if (s) endBody(s);
-            if (!s || !o.active || !s.moved) continue;
-            if (Math.abs(s.x - o.x) > 1e-6 || Math.abs(s.y - o.y) > 1e-6) {
-                mm.setObjectPosition(o, s.x, s.y);
+            const s = bodies[i];
+            if (!s) continue;
+            const o = objs[i];
+            let nx = s.x, ny = s.y;
+            if (!s.glide) {
+                const dx = s.x - o.x, dy = s.y - o.y, d = Math.hypot(dx, dy);
+                if (d > 0) {
+                    const step = d < 0.25 ? d : Math.min(d, Math.max(d * (1 - Math.exp(-ctx.k * dt)), MIN_EASE * dt), ctx.maxSpeed * dt);
+                    nx = o.x + dx / d * step; ny = o.y + dy / d * step;
+                    activity += step;
+                }
+            }
+            if (Math.abs(nx - o.x) > 1e-6 || Math.abs(ny - o.y) > 1e-6) {
+                mm.setObjectPosition(o, nx, ny);
                 this.dirty = true;
             }
         }
@@ -193,6 +212,21 @@ export class SoftPhysics {
         else if (++this.stillTicks >= STILL_TICKS && !this.scene.draggedObject) {
             this.awake = false;
             this.save();
+        }
+    }
+
+    /** The pushes and free-spot search could not untangle a real overlap: the screen is too full for these sizes. */
+    noteCrowded(bodies, n, t) {
+        if (this.scene.draggedObject) return;
+        for (let i = 0; i < n; i++) {
+            const a = bodies[i];
+            if (!a || a.glide) continue;
+            for (let j = i + 1; j < n; j++) {
+                if (bodies[j] && !bodies[j].glide && overlaps(a, bodies[j])) {
+                    this.crowdCap = Math.max(MIN_CROWD, n - 1); this.crowdUntil = t + 10000; this.capacityUntil = t + 1000;
+                    return;
+                }
+            }
         }
     }
 

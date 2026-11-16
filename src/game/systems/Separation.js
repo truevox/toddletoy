@@ -66,7 +66,7 @@ function pushAxis(ctx, a, b, horizontal, pen, dt) {
     const total = pen + PAIR_GAP;
     const ease = total * (1 - Math.exp(-ctx.k * dt));
     let step = Math.min(Math.max(ease, Math.min(total, MIN_PUSH_SPEED * dt)), ctx.maxSpeed * dt);
-    if (total <= 0.25) step = total;
+    if (total <= 0.25 || ctx.instant) step = total;
     lastStep = step;
     const wa = a.fixed ? 0 : a.mob, wb = b.fixed ? 0 : b.mob;
     if (wa + wb <= 0) return 0;
@@ -116,4 +116,36 @@ export function resolvePair(ctx, a, b, dt) {
 /** Hard overlap test with no gap (what the debug snapshot counts). */
 export function overlaps(a, b) {
     return penetration(a, b, true) > 0 && penetration(a, b, false) > 0;
+}
+
+/** True when the pair is engaged (closer than ENGAGE_GAP on both axes) and at least one can move. */
+export function stillEngaged(a, b) {
+    if (a.fixed && b.fixed) return false;
+    return penetration(a, b, true) > -ENGAGE_GAP && penetration(a, b, false) > -ENGAGE_GAP;
+}
+
+/**
+ * Settle the whole layout instantly (working positions x/y; fixed bodies stay):
+ * Gauss-Seidel passes of full pair pushes until nothing moves. Returns passes used.
+ * Callers ease the real positions toward the result so motion stays calm.
+ */
+export function solveLayout(ctx, bodies, n, maxPasses = 48) {
+    const saved = ctx.instant;
+    ctx.instant = true;
+    let pass = 0;
+    for (; pass < maxPasses; pass++) {
+        let moved = 0;
+        for (let i = 0; i < n; i++) {
+            const a = bodies[i];
+            if (!a) continue;
+            for (let j = i + 1; j < n; j++) {
+                const b = bodies[j];
+                if (b) moved += resolvePair(ctx, a, b, 1 / 60);
+            }
+        }
+        endTick(bodies, n);
+        if (moved < 0.05) { pass++; break; }
+    }
+    ctx.instant = saved;
+    return pass;
 }

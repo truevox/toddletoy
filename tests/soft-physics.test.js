@@ -1,4 +1,4 @@
-import { resolvePair, overlaps, clampBody, endTick, PAIR_GAP } from '../src/game/systems/Separation.js';
+import { resolvePair, overlaps, clampBody, endTick, solveLayout, PAIR_GAP } from '../src/game/systems/Separation.js';
 import { computeCapacity, enforceCapacity, MIN_CAPACITY } from '../src/game/systems/ScreenCapacity.js';
 import { DragSamples, stepGlide, MAX_THROW_SPEED, MIN_THROW_SPEED } from '../src/game/systems/ThrowMotion.js';
 import { SoftPhysics } from '../src/game/systems/SoftPhysics.js';
@@ -72,9 +72,18 @@ describe('Separation', () => {
     });
 });
 
+describe('solveLayout', () => {
+    test('a crowded row against a wall is untangled instantly into a valid layout', () => {
+        const bs = []; for (let i = 0; i < 8; i++) bs.push(body(180 + i, 320, 80, 90, { seq: i }));
+        const c = ctx(); const passes = solveLayout(c, bs, 8);
+        expect(passes).toBeLessThan(48);
+        for (let i = 0; i < 8; i++) for (let j = i + 1; j < 8; j++) expect(overlaps(bs[i], bs[j])).toBe(false);
+    });
+});
+
 describe('ScreenCapacity', () => {
     test('formula: area based, minimum 3, override wins', () => {
-        expect(computeCapacity(360, 640, 14000)).toBe(Math.floor(0.58 * 360 * 640 / 14000));
+        expect(computeCapacity(360, 640, 14000)).toBe(Math.floor(0.55 * 360 * 640 / 14000));
         expect(computeCapacity(360, 640, 1e9)).toBe(MIN_CAPACITY);
         expect(computeCapacity(360, 640, 14000, 20)).toBe(20);
         expect(computeCapacity(360, 640, 0)).toBe(Infinity);
