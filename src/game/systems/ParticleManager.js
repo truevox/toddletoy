@@ -1,5 +1,6 @@
 import { EffectRenderer } from './EffectRenderer.js';
 import { sizes } from './DisplayScale.js';
+import { palette, toColorInt, defaultColor } from './EffectColors.js';
 
 // The particle texture is drawn big so it stays sharp when scaled up on high-density screens
 const PARTICLE_TEX = 64;
@@ -38,8 +39,8 @@ export class ParticleManager {
         console.log('Particle texture created by ParticleManager');
     }
 
-    createSpawnBurst(x, y) {
-        return this.effectRenderer.createSpawnBurst(x, y);
+    createSpawnBurst(x, y, opts) {
+        return this.effectRenderer.createSpawnBurst(x, y, opts);
     }
 
     cleanupParticles(objId) {
@@ -71,11 +72,13 @@ export class ParticleManager {
             // Create trail particle emitter using the particle texture
             const k = sizes(this.scene).k;
             const trailEmitter = this.scene.add.particles(0, 0, 'particle', {
-                scale: { start: 0.3 * PARTICLE_TEX_SCALE * k, end: 0 },
-                speed: { min: 20 * k, max: 40 * k },
-                lifespan: 300,
-                blendMode: 'ADD',
-                tint: [0xff6b6b, 0x4ecdc4, 0x45b7d1, 0xf7b731, 0x5f27cd]
+                scale: { start: 0.2 * PARTICLE_TEX_SCALE * k, end: 0 },
+                alpha: { start: 0.7, end: 0 },
+                speed: { min: 8 * k, max: 24 * k },
+                lifespan: 220,
+                frequency: 45,
+                quantity: 1,
+                tint: palette(toColorInt(object.itemData && object.itemData.color && object.itemData.color.hex) ?? defaultColor())
             });
             
             trailEmitter.setPosition(object.x, object.y);
@@ -117,7 +120,7 @@ export class ParticleManager {
             
             // Schedule destruction after fade-out
             this.scene.time.addEvent({
-                delay: 500,
+                delay: 300,
                 callback: () => {
                     if (trailEmitter) {
                         trailEmitter.destroy();
@@ -183,8 +186,8 @@ export class ParticleManager {
         // intentionally empty
     }
 
-    createCleanupParticleEffect(x, y) {
-        return this.effectRenderer.createCleanupParticleEffect(x, y);
+    createCleanupParticleEffect(x, y, opts) {
+        return this.effectRenderer.createCleanupParticleEffect(x, y, opts);
     }
 
     /** Destroy every short-lived effect right now (used when the toy is reset). */
@@ -196,7 +199,7 @@ export class ParticleManager {
             set.clear();
         };
         destroyAll(this.transientEffects);
-        if (this.effectRenderer && this.effectRenderer.transient) destroyAll(this.effectRenderer.transient);
+        if (this.effectRenderer && this.effectRenderer.clear) this.effectRenderer.clear();
     }
 
     // Cleanup all particle systems
