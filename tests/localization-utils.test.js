@@ -13,7 +13,7 @@ describe('Localization utilities', () => {
         };
 
         const label = buildColorizedLabel(itemData, 'es');
-        expect(label).toBe('Azul Triángulo');
+        expect(label).toBe('Triángulo azul');
     });
 
     test('getLocalizedString falls back to value when language missing', () => {
