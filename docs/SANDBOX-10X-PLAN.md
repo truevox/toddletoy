@@ -117,6 +117,22 @@ Stage 5 (so the emoji set is at its full size before anyone records) and Stage 6
   (this environment has no GPU), and a check of model licences against the MIT licence, language
   coverage (major languages only; Esperanto, Klingon and Lojban will need recording), download
   size, and quality on single isolated words.
+- **Candidate engine: Kyutai Pocket TTS** (owner's pointer, 2026-11-16;
+  https://github.com/kyutai-labs/pocket-tts). What its README says, as read on that date:
+  - Code is MIT. Small English-only models released October 2026 (1.9M, 6.9M and 18.2M
+    parameters) that clone a voice and run on CPU. The main models also cover French, German,
+    Portuguese, Italian, Spanish and Dutch.
+  - No official browser support yet, but community builds exist (WebAssembly, ONNX Runtime Web).
+    Reported speeds: about 6x real time on a MacBook Air M4 using two cores; a community Android
+    port reports about real time on a Pixel 8a. At that rate the whole vocabulary is minutes of
+    work, not an hour, which makes cloning on the phone (way 3) realistic.
+  - A cloned voice can be exported to a file and reloaded quickly, which is what top-ups need.
+  - Its terms prohibit cloning a voice without explicit and lawful consent: the recording screen
+    must make clear that the speaker is the one recording.
+  - Still to check before building: the licence of the model weights (on a separate Hugging Face
+    page, not yet read), download size per model, memory use in a phone browser, and quality on
+    single isolated words. Languages outside its list (Chinese, Hindi, Arabic, Bengali, Russian,
+    Indonesian, Esperanto, Klingon, Lojban) stay on recording or the system voice.
 - **Not doing:** cloud cloning. It would send a family member's voice to a third party and add an
   account, a cost and a network dependency to an offline toy with no backend.
 
