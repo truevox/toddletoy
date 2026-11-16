@@ -88,7 +88,7 @@ export function composeLabelTokens(parts, languageCode) {
 
 /** How tokens are glued into the label string (Chinese runs a colour and a non-Latin noun together). */
 export function joinTokens(tokens, languageCode) {
-    if (tokens.length === 2 && orderFor(languageCode) === 'joined' && !/^[\x00-\x7f]/.test(tokens[1].text)) {
+    if (tokens.length === 2 && orderFor(languageCode) === 'joined' && !/^[\u0021-\u007e]/.test(tokens[1].text)) {
         return tokens[0].text + tokens[1].text;
     }
     return tokens.map(t => t.text).join(' ');

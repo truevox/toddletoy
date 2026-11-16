@@ -105,18 +105,24 @@ describe('SpeechManager graceful degradation', () => {
         expect(manager.getIsSpeaking()).toBe(false);
     });
 
-    test('a stale timer from a cancelled sequence does not unlock the new one', () => {
+    test('a stale watchdog from a finished request does not unlock the next one', () => {
         global.speechSynthesis = { speak: jest.fn(), cancel: jest.fn() };
         global.SpeechSynthesisUtterance = jest.fn(function (text) { this.text = text; });
         const scene = makeScene();
         const manager = new SpeechManager(scene);
-        const obj = makeObj(scene);
-        manager.speakText(obj, 'en');
+        const first = makeObj(scene);
+        const second = makeObj(scene);
+        manager.speakText(first, 'en');
+        const firstUtterance = global.speechSynthesis.speak.mock.calls[0][0];
         jest.advanceTimersByTime(500);
-        manager.speakText(obj, 'en');
-        // old timer would fire here; the new utterance has not ended yet
-        jest.advanceTimersByTime(1000);
+        manager.speakText(second, 'en'); // queued: the word being spoken is not cut off
+        expect(global.speechSynthesis.speak).toHaveBeenCalledTimes(1);
+        expect(global.speechSynthesis.cancel).not.toHaveBeenCalled();
+        firstUtterance.onend(); // first finishes: second starts
         expect(global.speechSynthesis.speak).toHaveBeenCalledTimes(2);
+        // the first request's watchdog would fire here; the second utterance has not ended yet
+        jest.advanceTimersByTime(1000);
         expect(manager.getIsSpeaking()).toBe(true);
+        expect(manager.getCurrentSpeakingObject()).toBe(second);
     });
 });

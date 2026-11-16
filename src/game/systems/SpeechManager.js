@@ -1,358 +1,256 @@
 /**
- * SpeechManager - Handles speech synthesis with multilingual support
- * Manages speech queue, highlighting animations, and language sequencing
+ * SpeechManager: the facade the scene calls to voice an object.
+ *
+ * Requests go through a short queue (SpeechQueue): a new tap never cuts off the
+ * word being spoken; at most two requests wait, the oldest is dropped (latest wins).
+ * Each language of a request is one "segment" handed to a voice source
+ * (SystemVoiceSource today; see speech/SystemVoiceSource.js for the interface), which
+ * reports start, per-word progress and end. A watchdog guarantees the queue never jams.
  */
-import { buildColorizedLabel } from '../utils/localization.js';
+import { buildColorizedLabel, getLocalizedString } from '../utils/localization.js';
+import { composeLabelTokens, detectKind, getLabelWords, joinTokens } from '../speech/labelGrammar.js';
+import { SpeechQueue } from '../speech/SpeechQueue.js';
+import { WordHighlighter } from '../speech/WordHighlighter.js';
+import { SystemVoiceSource, readSpeechSettings } from '../speech/SystemVoiceSource.js';
+
+const MAX_WAITING = 2;
 
 export class SpeechManager {
     constructor(scene) {
         this.scene = scene;
-        this.currentSpeech = null;
+        this.queue = new SpeechQueue(MAX_WAITING);
+        this.highlighter = new WordHighlighter(scene);
+        this.source = new SystemVoiceSource();
+        this.session = null;          // the request being spoken: { request, index, skipRest, token }
+        this.currentSpeech = null;    // handle of the segment in flight (null when silent)
         this.isSpeaking = false;
         this.currentSpeakingObject = null;
         this.currentLanguage = null;
         this.currentLanguageCodes = [];
-        this.speechTimeoutId = null;
-        this.sequenceId = 0; // Guards against stale timers/callbacks of cancelled sequences
+        this.speechTimeoutId = null;  // watchdog / silent pacing timer
+        this.tokenCounter = 0;        // guards late callbacks of finished segments
 
+        this.onVisibilityChange = () => {
+            if (typeof document !== 'undefined' && document.visibilityState === 'visible') this.source.resumeIfPaused();
+        };
+        if (typeof document !== 'undefined' && document.addEventListener) {
+            document.addEventListener('visibilitychange', this.onVisibilityChange);
+        }
         this.initSpeech();
     }
 
     initSpeech() {
-        // Check if speech synthesis is available
         if (!this.isSpeechAvailable()) {
             console.warn('Speech synthesis not supported in this browser - toy will run silently');
             return;
         }
-
         console.log('Speech synthesis initialized');
     }
 
-    /** True when both speechSynthesis and the utterance constructor exist. */
     isSpeechAvailable() {
-        return typeof speechSynthesis !== 'undefined' && speechSynthesis !== null &&
-            typeof SpeechSynthesisUtterance === 'function';
+        return SystemVoiceSource.isAvailable();
     }
 
-    safeCancelSynthesis() {
-        try {
-            if (typeof speechSynthesis !== 'undefined' && speechSynthesis && speechSynthesis.cancel) {
-                speechSynthesis.cancel();
-            }
-        } catch (error) {
-            console.warn('speechSynthesis.cancel failed:', error);
-        }
-    }
-
-    clearSpeechTimeout() {
-        if (this.speechTimeoutId) {
-            clearTimeout(this.speechTimeoutId);
-            this.speechTimeoutId = null;
-        }
-    }
-
-    releaseSpeechLock() {
-        if (this.currentSpeakingObject && this.scene.particleManager) {
-            try {
-                this.scene.particleManager.cleanupWordSparkles(this.currentSpeakingObject);
-            } catch (error) {
-                console.warn('Failed to clean up word sparkles:', error);
-            }
-        }
-        this.currentSpeech = null;
-        this.isSpeaking = false;
-        this.currentSpeakingObject = null;
-        this.clearSpeechTimeout();
-    }
+    // ---- requests -------------------------------------------------------------------
 
     speakText(obj, language = 'en') {
         if (!obj || !obj.itemData) {
             console.warn('Invalid object for speech');
             return;
         }
-
-        // Check if speech is muted in config
         const speechConfig = this.scene.configManager ? this.scene.configManager.getSpeechConfig() : null;
-        if (speechConfig && speechConfig.mute) {
-            return;
-        }
+        if (speechConfig && speechConfig.mute) return;
 
         // Reset auto-cleanup timer when object is voiced
-        if (this.scene.updateObjectTouchTime) {
-            this.scene.updateObjectTouchTime(obj);
-        }
+        if (this.scene.updateObjectTouchTime) this.scene.updateObjectTouchTime(obj);
 
-        // Invalidate any in-flight sequence and cancel its speech
-        this.sequenceId++;
-        this.clearSpeechTimeout();
-        if (this.currentSpeech) {
-            this.safeCancelSynthesis();
-        }
+        // Already speaking or waiting: a repeat tap must not add a duplicate
+        if (this.queue.has(obj)) return;
 
         try {
-            const data = obj.itemData;
-            let textsToSpeak = [];
-
-            // Get enabled languages from config
-            const config = this.scene.configManager ? this.scene.configManager.getConfig() : null;
-            const enabledLanguages = config?.languages?.enabled || [{ code: 'en' }];
-
-            // Determine what to speak based on language parameter
-            const fallbackValue = data.value !== undefined && data.value !== null
-                ? String(data.value)
-                : '';
-
-            const getTextForLanguage = (code) => {
-                const composed = buildColorizedLabel(data, code) || buildColorizedLabel(data, 'en');
-                if (composed && composed.trim()) {
-                    return composed;
-                }
-                return fallbackValue;
-            };
-
-            if (language === 'both' || language === 'all') {
-                // Use all enabled languages in order
-                this.currentLanguageCodes = []; // Store corresponding language codes
-                enabledLanguages.forEach(lang => {
-                    const text = getTextForLanguage(lang.code);
-                    if (text) {
-                        textsToSpeak.push(text);
-                        this.currentLanguageCodes.push(lang.code);
-                    }
-                });
-            } else {
-                // Use specific language
-                textsToSpeak = [getTextForLanguage(language)];
-                this.currentLanguageCodes = [language];
-            }
-
-            // Store current language for speech synthesis
-            this.currentLanguage = language === 'both' || language === 'all' ? 'multilingual' : language;
-
-            // Set speaking state only once we know the sequence can start
-            this.isSpeaking = true;
-            this.currentSpeakingObject = obj;
-
-            // Speak each text in sequence
-            this.speakTextSequence(textsToSpeak, 0, this.sequenceId);
+            const request = { obj, segments: this.buildSegments(obj, language), language };
+            if (request.segments.length === 0) return;
+            const result = this.queue.enqueue(request);
+            if (result.start) this.startRequest(request);
         } catch (error) {
-            // Never leave the toy locked because speech failed
             console.error('Speech failed, continuing silently:', error);
-            this.releaseSpeechLock();
+            this.finishRequest();
         }
     }
 
-    speakTextSequence(texts, index, sequenceId = this.sequenceId) {
-        if (sequenceId !== this.sequenceId) return; // Stale sequence (cancelled/replaced)
+    /** One segment per language: ordered tokens and the label words for the caption. */
+    buildSegments(obj, language) {
+        const data = obj.itemData;
+        const config = this.scene.configManager ? this.scene.configManager.getConfig() : null;
+        const enabled = config?.languages?.enabled || [{ code: 'en' }];
+        const codes = (language === 'both' || language === 'all') ? enabled.map(l => l.code) : [language];
+        const fallbackValue = data.value !== undefined && data.value !== null ? String(data.value) : '';
+        const segments = [];
+        codes.forEach(code => {
+            const tokens = this.tokensFor(data, code);
+            let text = joinTokens(tokens, code);
+            if (!text || !text.trim()) text = buildColorizedLabel(data, 'en') || fallbackValue;
+            if (!text) return;
+            segments.push({ languageCode: code, tokens, text, words: getLabelWords(text) });
+        });
+        return segments;
+    }
 
-        if (index >= texts.length) {
-            // Speech sequence complete - unlock the queue and cleanup sparkles
-            this.releaseSpeechLock();
+    tokensFor(data, code) {
+        const noun = getLocalizedString(data, code) || getLocalizedString(data, 'en') ||
+            (data.value !== undefined && data.value !== null ? String(data.value) : '');
+        let colorWord = '';
+        if (data.color) colorWord = getLocalizedString(data.color, code) || getLocalizedString(data.color, 'en');
+        return composeLabelTokens({
+            kind: detectKind(data),
+            nounKey: data.value !== undefined && data.value !== null ? String(data.value) : '',
+            noun,
+            colorKey: data.color ? String(data.color.value || getLocalizedString(data.color, 'en')) : '',
+            colorWord
+        }, code);
+    }
+
+    // ---- playback -------------------------------------------------------------------
+
+    startRequest(request) {
+        this.session = { request, index: 0, skipRest: false };
+        this.isSpeaking = true;
+        this.currentSpeakingObject = request.obj;
+        this.currentLanguage = request.language === 'both' || request.language === 'all' ? 'multilingual' : request.language;
+        this.currentLanguageCodes = request.segments.map(s => s.languageCode);
+        this.playSegment(this.session);
+    }
+
+    playSegment(session) {
+        if (session !== this.session) return;
+        if (session.index >= session.request.segments.length || session.skipRest) {
+            this.finishRequest();
             return;
         }
-
-        const text = texts[index];
-
-        // Trigger word highlighting animation (runs even when speech is unavailable)
-        this.startWordHighlight(texts, index);
-
-        let speechCompleted = false;
-        const completeAndNext = () => {
-            if (speechCompleted || sequenceId !== this.sequenceId) return; // Prevent double-firing / stale
-            speechCompleted = true;
-            this.clearSpeechTimeout();
-            this.speakTextSequence(texts, index + 1, sequenceId);
-        };
-
-        let utterance = null;
-        try {
-            if (this.isSpeechAvailable()) {
-                utterance = this.buildUtterance(text, index);
-                utterance.onend = completeAndNext;
-                utterance.onerror = (error) => {
-                    console.warn('Speech error:', error && error.error ? error.error : error);
-                    completeAndNext(); // Continue even on error
-                };
-            }
-        } catch (error) {
-            console.warn('Could not create utterance, continuing silently:', error);
-            utterance = null;
-        }
-
-        // Timeout fallback: Android sometimes never fires onend, and with no
-        // speech API at all this paces the silent highlight animation.
-        const estimatedDuration = (text.length * 100) + (utterance ? 1000 : 500);
-        this.clearSpeechTimeout();
-        this.speechTimeoutId = setTimeout(completeAndNext, estimatedDuration);
-
-        if (!utterance) {
+        const segment = session.request.segments[session.index];
+        const token = ++this.tokenCounter;
+        const alive = () => token === this.tokenCounter && session === this.session;
+        let ended = false;
+        const endSegment = () => {
+            if (ended || !alive()) return;
+            ended = true;
+            this.clearWatchdog();
             this.currentSpeech = null;
-            return;
-        }
-
-        this.currentSpeech = utterance;
-        try {
-            speechSynthesis.speak(utterance);
-        } catch (error) {
-            console.warn('speechSynthesis.speak failed, continuing silently:', error);
-            this.currentSpeech = null; // timeout above still releases the lock
-        }
-    }
-
-    buildUtterance(text, index) {
-        const utterance = new SpeechSynthesisUtterance(text);
-
-        // Map language codes to Web Speech API language tags
-        const languageMap = {
-            'en': 'en-US',
-            'es': 'es-ES',
-            'zh': 'zh-CN',
-            'hi': 'hi-IN',
-            'ar': 'ar-SA',
-            'fr': 'fr-FR',
-            'bn': 'bn-BD',
-            'pt': 'pt-PT',
-            'ru': 'ru-RU',
-            'id': 'id-ID',
-            'tlh': 'en-US', // Klingon falls back to English
-            'jbo': 'en-US', // Lojban falls back to English
-            'eo': 'eo'      // Esperanto
+            this.highlighter.clear();
+            session.index++;
+            this.playSegment(session);
         };
 
-        // Use the language code for this specific text
-        const currentLangCode = this.currentLanguageCodes && this.currentLanguageCodes[index]
-            ? this.currentLanguageCodes[index]
-            : (this.currentLanguage === 'multilingual' ? 'en' : this.currentLanguage);
+        const { rate, volume } = readSpeechSettings(this.scene.configManager ? this.scene.configManager.getSpeechConfig() : null);
+        const estimate = (segment.text.length * 100 + 500) / Math.max(rate, 0.25);
+        this.highlighter.begin(session.request.obj, this.captionWords(session.request.obj, segment.languageCode), estimate);
 
-        utterance.lang = languageMap[currentLangCode] || 'en-US';
-
-        // Get speech config for volume and rate
-        const speechConfig = this.scene.configManager ? this.scene.configManager.getSpeechConfig() : null;
-
-        // Ensure rate is a valid finite number (Android fix)
-        let rate = 1.0;
-        if (speechConfig && speechConfig.rate !== undefined && speechConfig.rate !== null) {
-            const configRate = Number(speechConfig.rate);
-            if (isFinite(configRate) && configRate > 0) {
-                rate = configRate;
-            } else {
-                console.warn('Invalid speech rate in config:', speechConfig.rate, '- using default 1.0');
-            }
-        }
-        utterance.rate = rate;
-
-        // Ensure volume is a valid finite number
-        let volume = 0.7;
-        if (speechConfig && speechConfig.volume !== undefined && speechConfig.volume !== null) {
-            const configVolume = Number(speechConfig.volume);
-            if (isFinite(configVolume) && configVolume >= 0 && configVolume <= 100) {
-                volume = configVolume / 100;
-            } else {
-                console.warn('Invalid speech volume in config:', speechConfig.volume, '- using default 70');
-            }
-        }
-        utterance.volume = volume;
-
-        return utterance;
-    }
-
-    startWordHighlight(texts, index) {
-        const obj = this.currentSpeakingObject;
-        if (!obj) return;
-
-        let wordObjects = null;
-
-        // Get the appropriate word objects based on current language being spoken
-        if (obj.allLanguageWords && this.currentLanguageCodes && this.currentLanguageCodes[index]) {
-            const currentLangCode = this.currentLanguageCodes[index];
-            const langGroup = obj.allLanguageWords.find(group => group.languageCode === currentLangCode);
-            if (langGroup && langGroup.words) {
-                wordObjects = langGroup.words;
-            }
-        } else {
-            // Fallback to old structure for backward compatibility
-            if (index === 0 && obj.englishWords) {
-                wordObjects = obj.englishWords;
-            } else if (index === 1 && obj.spanishWords) {
-                wordObjects = obj.spanishWords;
-            }
-        }
-
-        // Estimate speech duration and animate words
-        if (wordObjects && wordObjects.length > 0) {
-            const estimatedDuration = (texts[index].length * 100) + 500; // Rough estimate
-            this.animateWordsSequentially(wordObjects, estimatedDuration);
-        }
-    }
-
-    animateWordsSequentially(wordObjects, totalDuration) {
-        if (!wordObjects || wordObjects.length === 0) return;
-
-        const wordDuration = totalDuration / wordObjects.length;
-
-        wordObjects.forEach((wordObj, index) => {
-            const delay = index * wordDuration;
-
-            // Schedule word highlighting with sparkle effects
-            this.scene.time.delayedCall(delay, () => {
-                if (wordObj && wordObj.active) {
-                    // Highlight word with yellow tint
-                    wordObj.setTint(0xffff00);
-
-                    // Create sparkle effect if available
-                    if (this.scene.particleManager && this.scene.particleManager.createWordSparkleEffect) {
-                        this.scene.particleManager.createWordSparkleEffect(wordObj, wordDuration);
-                    }
-
-                    // Reset tint after highlighting
-                    this.scene.time.delayedCall(wordDuration * 0.8, () => {
-                        if (wordObj && wordObj.active) {
-                            wordObj.clearTint();
-                        }
-                    });
+        let handle = null;
+        try {
+            handle = this.source.speak({ ...segment, rate, volume }, {
+                onStart: () => {},
+                onWord: (index) => { if (alive()) this.highlighter.onWord(index); },
+                onEnd: endSegment,
+                onError: (error) => {
+                    console.warn('Speech error:', error && error.error ? error.error : error);
+                    endSegment(); // keep going even on error
                 }
             });
-        });
-    }
-
-    // Check if currently speaking
-    getIsSpeaking() {
-        return this.isSpeaking;
-    }
-
-    // Get current speaking object
-    getCurrentSpeakingObject() {
-        return this.currentSpeakingObject;
-    }
-
-    // Get current language being spoken
-    getCurrentLanguage() {
-        return this.currentLanguage;
-    }
-
-    // Cancel current speech
-    cancelSpeech() {
-        this.sequenceId++; // Invalidate pending callbacks
-        if (this.currentSpeech) {
-            this.safeCancelSynthesis();
+        } catch (error) {
+            console.warn('Voice source failed, continuing silently:', error);
+            handle = null;
         }
+        this.currentSpeech = handle;
+
+        // Watchdog: some browsers never fire `end`. With no sound at all this paces the silent highlight.
+        const limit = handle ? estimate * 2 + 2000 : estimate;
+        this.clearWatchdog();
+        this.speechTimeoutId = setTimeout(() => {
+            if (!alive()) return;
+            if (handle) {
+                console.warn('Speech watchdog fired: no end event, moving on');
+                try { handle.cancel(); } catch (error) { /* ignore */ }
+            }
+            endSegment();
+        }, limit);
+    }
+
+    captionWords(obj, code) {
+        const group = obj.allLanguageWords && obj.allLanguageWords.find(g => g.languageCode === code);
+        return group && group.words ? group.words : [];
+    }
+
+    clearWatchdog() {
+        if (this.speechTimeoutId) {
+            clearTimeout(this.speechTimeoutId);
+            this.speechTimeoutId = null;
+        }
+    }
+
+    /** The current request is done (or abandoned): unlock and start the next waiting one. */
+    finishRequest() {
+        this.tokenCounter++;
+        this.clearWatchdog();
+        this.highlighter.clear();
+        this.session = null;
+        this.currentSpeech = null;
         this.isSpeaking = false;
         this.currentSpeakingObject = null;
-        this.currentSpeech = null;
-        this.clearSpeechTimeout();
+        let next = this.queue.advance();
+        while (next && this.isGone(next.obj)) next = this.queue.advance();
+        if (next) this.startRequest(next);
     }
 
-    // Check if an object is currently being spoken
-    isObjectSpeaking(obj) {
-        return this.currentSpeakingObject === obj;
+    isGone(obj) {
+        return !obj || obj.active === false;
+    }
+
+    /**
+     * Called when an object is removed (popped, cleaned up, reset). Waiting: dropped.
+     * Speaking: the current language finishes, the remaining languages are skipped.
+     */
+    objectRemoved(obj) {
+        if (!obj) return;
+        this.queue.removeWaiting(obj);
+        if (this.session && this.session.request.obj === obj) {
+            this.session.skipRest = true;
+            this.highlighter.clear(); // its captions are going away
+        }
+    }
+
+    // ---- state ----------------------------------------------------------------------
+
+    getIsSpeaking() { return this.isSpeaking; }
+
+    getCurrentSpeakingObject() { return this.currentSpeakingObject; }
+
+    getCurrentLanguage() { return this.currentLanguage; }
+
+    isObjectSpeaking(obj) { return this.currentSpeakingObject === obj; }
+
+    /** Waiting requests, oldest first (for tests and debugging). */
+    getWaitingObjects() { return this.queue.waiting.map(r => r.obj); }
+
+    /** Stop everything immediately: the current word, the queue, the highlight. */
+    cancelSpeech() {
+        const hadSound = !!this.currentSpeech;
+        this.tokenCounter++;
+        this.session = null;
+        this.queue.clear();
+        this.clearWatchdog();
+        this.highlighter.clear();
+        if (hadSound || this.isSpeaking) this.source.cancelAll();
+        this.currentSpeech = null;
+        this.isSpeaking = false;
+        this.currentSpeakingObject = null;
     }
 
     destroy() {
-        // Cancel any active speech
         this.cancelSpeech();
-        
-        // Clear references
-        this.currentSpeakingObject = null;
+        if (typeof document !== 'undefined' && document.removeEventListener) {
+            document.removeEventListener('visibilitychange', this.onVisibilityChange);
+        }
+        this.source.destroy();
         this.currentLanguageCodes = [];
     }
 }
