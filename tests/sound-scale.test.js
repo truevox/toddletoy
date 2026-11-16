@@ -50,6 +50,9 @@ describe('timbre by kind of object', () => {
         expect(kindOfType('largeNumbers')).toBe('number');
         expect(kindOfType('uppercaseLetters')).toBe('letter');
         expect(kindOfType('lowercaseLetters')).toBe('letter');
+        expect(kindOfType('shape')).toBe('shape');
+        expect(kindOfType('number')).toBe('number');
+        expect(kindOfType('letter')).toBe('letter');
         expect(kindOfType('mystery')).toBe('emoji');
         expect(kindOfType(undefined)).toBe('emoji');
     });

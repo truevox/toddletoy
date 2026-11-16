@@ -16,8 +16,12 @@ export const TIMBRES = {
     shape:  { wave: 'sine', attack: 0.014, partials: [{ r: 1, g: 1, d: 0.5 }, { r: 3, g: 0.22, d: 0.3 }, { r: 5, g: 0.07, d: 0.15 }] },
 };
 
+// obj.type holds the singular names (emoji, shape, number, letter); the plural spawn types are accepted too
 const KIND_OF_TYPE = {
     emoji: 'emoji',
+    shape: 'shape',
+    number: 'number',
+    letter: 'letter',
     shapes: 'shape',
     smallNumbers: 'number',
     largeNumbers: 'number',

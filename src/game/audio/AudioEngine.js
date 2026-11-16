@@ -5,6 +5,7 @@
  */
 import { buildVoice } from './VoiceBuilder.js';
 import { volumeToGain } from './Volume.js';
+import { buildMasterChain } from './MasterChain.js';
 
 export const MAX_VOICES = 12;
 const GESTURES = ['pointerdown', 'keydown', 'touchend'];
@@ -58,16 +59,7 @@ export class AudioEngine {
             const Ctor = typeof AudioContext !== 'undefined' ? AudioContext : (typeof webkitAudioContext !== 'undefined' ? webkitAudioContext : null);
             if (!Ctor) return null;
             const ctx = new Ctor();
-            const master = ctx.createGain();
-            master.gain.value = volumeToGain((this.getConfig() || {}).volume);
-            const limiter = ctx.createDynamicsCompressor();
-            limiter.threshold.value = -14;
-            limiter.knee.value = 12;
-            limiter.ratio.value = 8;
-            limiter.attack.value = 0.002;
-            limiter.release.value = 0.2;
-            master.connect(limiter);
-            limiter.connect(ctx.destination);
+            const { master, limiter } = buildMasterChain(ctx, volumeToGain((this.getConfig() || {}).volume));
             this.ctx = ctx; this.master = master; this.limiter = limiter;
             this.lastGain = master.gain.value;
         } catch (error) {

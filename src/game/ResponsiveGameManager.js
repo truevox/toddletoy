@@ -50,6 +50,8 @@ class ResponsiveGameManager {
             scale: {
                 mode: Phaser.Scale.NONE
             },
+            // the toy makes its own sound (src/game/audio/): no second, unused Phaser AudioContext
+            audio: { noAudio: true },
             input: {
                 gamepad: true
             },
