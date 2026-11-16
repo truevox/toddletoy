@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import {
     collectErrors, skipOnboarding, enterConfig, startPlaying, enterSandbox, tapSpawn, objectCount, allObjects,
-    sceneSize, waitForObjectCount, waitForSpawnReady, canvasPoint,
+    sceneSize, lastObject, waitForObjectCount, waitForSpawnReady, canvasPoint,
 } from './helpers/app.js';
 import { dragScene, attachmentOffsets, expectDraggedTo } from './helpers/scene.js';
 
@@ -39,13 +39,16 @@ test.describe('Sandbox smoke', () => {
     test('keyboard Q, W and E spawn at the top row (left, centre, right)', async ({ page }) => {
         await enterSandbox(page);
         const { width, height } = await sceneSize(page);
+        const objs = [];
         for (const key of ['KeyQ', 'KeyW', 'KeyE']) {
             await waitForSpawnReady(page);
             const before = await objectCount(page);
             await page.keyboard.press(key);
             await waitForObjectCount(page, before + 1);
+            // where each one is born: on a narrow phone three big objects do not fit
+            // side by side, so neighbours make room afterwards
+            objs.push(await lastObject(page));
         }
-        const objs = await allObjects(page);
         // Left, centre, right, in that order. Exact x depends on the label width:
         // objects are nudged inward so their labels stay on a narrow screen.
         expect(objs[0].x).toBeGreaterThanOrEqual(width * 0.1 - 1);
@@ -84,7 +87,7 @@ test.describe('Sandbox smoke', () => {
         expect(c.all()).toEqual([]);
     });
 
-    test('dragging moves the object and keeps labels attached with no cumulative drift', async ({ page, isMobile }) => {
+    test('dragging moves the object and keeps labels attached with no cumulative drift', async ({ page }) => {
         await enterSandbox(page);
         const { width, height } = await sceneSize(page);
         await tapSpawn(page, 0.5, 0.4);

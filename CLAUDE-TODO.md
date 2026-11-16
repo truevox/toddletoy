@@ -34,11 +34,11 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 
 - [x] Stage 0 — Clear the ground: dead code, ready-promise, config races, debug hook (v2.0.2–2.0.3)
 - [x] Stage 1 — Sharp and big: backdrop (v2.1.0–2.1.3), device-pixel rendering and screen-relative sizes (v2.2.0); calm number default brought forward from Stage 5 (v2.3.0–2.3.1)
-- [ ] Stage 2 — It feels alive: spawn/despawn/idle motion, tap reactions, throw and settle, no overlap (v2.2.0)
-- [ ] Stage 3 — It sounds good: musical sound engine, event sounds, speech queue/voices/word order (v2.3.0)
-- [ ] Stage 4 — Many fingers, many keys: multi-touch, baby keyboard, gamepads, object cap (v2.4.0)
-- [ ] Stage 5 — Something to discover: calm numbers, surprises, attract mode, ~250 emoji (v2.5.0)
-- [ ] Stage 6 — Parents: presets, live preview, docs (v2.6.0)
+- [x] Stage 2 — It feels alive: coloured pooled particles (v2.4.0), pop-in/idle/tap reactions/pop-out (v2.5.0), throw and bounce, no overlap, screen capacity (v2.6.0–2.6.2)
+- [ ] Stage 3 — It sounds good: musical sound engine, event sounds, speech queue/voices/word order
+- [ ] Stage 4 — Many fingers, many keys: multi-touch, baby keyboard, gamepads (object cap done in Stage 2)
+- [ ] Stage 5 — Something to discover: tap a number to cycle its displays, surprises, attract mode, ~250 emoji (calm default done in v2.3)
+- [ ] Stage 6 — Parents: presets, live preview, docs
 
 ### Phase 13.999: Implement some kind of analytics
 
@@ -507,4 +507,4 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 
 ---
 
-**🎯 Current Focus**: See PICK-UP-HERE.md for the current state (v2.0.1) and the list of known gaps.
+**🎯 Current Focus**: Phase 26 (Sandbox 10x), Stage 3 next. See PICK-UP-HERE.md for the 2.0 baseline and known gaps.
