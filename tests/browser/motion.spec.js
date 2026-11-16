@@ -69,7 +69,8 @@ test.describe('Object motion', () => {
             await page.waitForTimeout(100);
             const early = await restState(page);
             expect(early.scale).toBeLessThan(early.base * 1.3); // mid-pop
-            await page.waitForTimeout(900);
+            await page.waitForFunction(() => window.appRoutes.getGameScene().objects.at(-1).motionState.popMs === -1, null, { timeout: 8000 });
+            await page.waitForTimeout(100);
             let r = await restState(page);
             expect(Math.abs(r.scale / r.base - 1)).toBeLessThan(0.01);
             expect(Math.abs(r.angle)).toBeLessThan(0.01);
@@ -78,7 +79,8 @@ test.describe('Object motion', () => {
             const rows = await sampleGlyph(page, 380);
             const moved = rows.some((q) => Math.abs(q.angle) > 2 || Math.abs(q.scale / r.base - 1) > 0.03 || Math.abs(q.by - rows[0].by) > 3);
             expect(moved).toBe(true);
-            await page.waitForTimeout(500);
+            await page.waitForFunction(() => window.appRoutes.getGameScene().objects.at(-1).motionState.reactMs === -1, null, { timeout: 8000 });
+            await page.waitForTimeout(100);
             r = await restState(page);
             expect(Math.abs(r.scale / r.base - 1)).toBeLessThan(0.01);
             expect(Math.abs(r.angle)).toBeLessThan(0.01);
@@ -112,14 +114,15 @@ test.describe('Object motion', () => {
             s.objectMotion.react = (...a) => { window.__reacts++; return re(...a); };
         });
         await page.waitForTimeout(700);
+        await waitForSpawnReady(page); // speech finished, input locks released
         await waitForMoveReady(page);
+        expect(await page.evaluate(([x, y]) => !!window.appRoutes.getGameScene().getObjectUnderPointer(x, y), [o.x + 3, o.y + 2])).toBe(true);
         const before = await objectCount(page);
         const org = await canvasPoint(page, 0, 0);
 
         await page.mouse.move(org.x + o.x + 3, org.y + o.y + 2);
         await page.mouse.down();
-        await page.mouse.move(org.x + o.x + 6, org.y + o.y + 3);
-        await page.mouse.up();
+        await page.mouse.up(); // (the 10 px slop is covered by the unit tests; keep the press short on a starved box)
         await page.waitForTimeout(100);
         const tapped = await page.evaluate(() => {
             const s = window.appRoutes.getGameScene(); const ob = s.objects.at(-1);
@@ -156,12 +159,21 @@ test.describe('Object motion', () => {
             const before = s.children.list.length;
             s.removeObject(ob);
             const immediate = { n: s.objects.length, ghosts: s.objectMotion.ghosts.count, stillThere: s.children.list.includes(ob) };
-            setTimeout(() => resolve({ immediate, after: { ghosts: s.objectMotion.ghosts.count, stillThere: s.children.list.includes(ob), active: ob.scene != null } }), 600);
+            // Ghost time is wall-clock (frame deltas capped at 200 ms), so on a starved software-GL
+            // box poll up to 3 s instead of trusting one 600 ms timer; report how long it took.
+            const t0 = performance.now();
+            const poll = () => {
+                if (s.objectMotion.ghosts.count === 0 || performance.now() - t0 > 3000) {
+                    resolve({ immediate, ms: performance.now() - t0, after: { ghosts: s.objectMotion.ghosts.count, stillThere: s.children.list.includes(ob) } });
+                } else setTimeout(poll, 20);
+            };
+            poll();
         }));
         expect(r.immediate.n).toBe(0);
         expect(r.immediate.ghosts).toBe(1);
         expect(r.immediate.stillThere).toBe(true);
         expect(r.after.ghosts).toBe(0);
+        expect(r.ms).toBeLessThan(1500);
         expect(r.after.stillThere).toBe(false);
 
         await spawnOf(page, 'emoji');

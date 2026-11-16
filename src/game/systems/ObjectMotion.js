@@ -104,10 +104,11 @@ export class ObjectMotion {
     // ---- tick ----
 
     update(time, delta) {
-        let dt = Number.isFinite(delta) ? delta : 16;
-        dt = dt < 0 ? 0 : dt > 50 ? 50 : dt;
+        // A slow frame must not make animations crawl (or jump): motion up to 100 ms/frame, ghosts up to 200
+        const raw = Number.isFinite(delta) && delta > 0 ? delta : (Number.isFinite(delta) ? 0 : 16);
+        const dt = raw > 100 ? 100 : raw;
         this.clock += dt;
-        this.ghosts.update(dt);
+        this.ghosts.update(raw > 200 ? 200 : raw);
         const objs = this.scene && this.scene.objects;
         if (!objs) return;
         for (let i = 0; i < objs.length; i++) {
