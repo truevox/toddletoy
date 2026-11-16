@@ -4,6 +4,15 @@
  */
 import { fitCompositeToView } from '../systems/CompositeFit.js';
 
+/** Colour (0xRRGGBB) and kind for the spawn burst; colour only when the object has one. */
+function burstOptions(obj) {
+    const opts = { kind: obj.type };
+    const hex = obj.itemData && obj.itemData.color && obj.itemData.color.hex;
+    const n = typeof hex === 'string' ? parseInt(hex.replace('#', ''), 16) : NaN;
+    if (Number.isFinite(n)) opts.color = n;
+    return opts;
+}
+
 export class ObjectLifecycle {
     constructor(scene) {
         this.scene = scene;
@@ -86,6 +95,9 @@ export class ObjectLifecycle {
             fitCompositeToView(this.scene, obj);
             this.scene.keepObjectInBounds(obj);
 
+            // Pop in (first applied on the next tick, after any cell fitting)
+            if (this.scene.objectMotion) this.scene.objectMotion.popIn(obj);
+
             // Track spawn time to prevent accidental immediate interaction
             this.scene.lastSpawnTime = Date.now();
             this.scene.awaitingSpawnInputRelease = true;
@@ -129,7 +141,7 @@ export class ObjectLifecycle {
         if (!obj) return;
         this.scene.speechManager.speakText(obj, 'both');
         this.scene.audioManager.generateContinuousTone(x, y, obj.id);
-        this.scene.particleManager.createSpawnBurst(x, y);
+        this.scene.particleManager.createSpawnBurst(x, y, burstOptions(obj));
     }
 
     removeObject(obj) {
@@ -164,34 +176,16 @@ export class ObjectLifecycle {
                 this.scene.gridMode.occupiedCells.delete(cellKey);
             }
 
-            // Clean up component layout objects
-            if (obj.componentLayout) {
-                // Clean up number mode components
-                if (obj.componentLayout.numberModes) {
-                    obj.componentLayout.numberModes.forEach(comp => {
-                        if (comp.object && comp.object.destroy) {
-                            comp.object.destroy();
-                        }
-                    });
-                }
-
-                // Clean up word objects
-                if (obj.allLanguageWords) {
-                    obj.allLanguageWords.forEach(langGroup => {
-                        if (langGroup.words) {
-                            langGroup.words.forEach(wordObj => {
-                                if (wordObj && wordObj.destroy) {
-                                    wordObj.destroy();
-                                }
-                            });
-                        }
-                    });
-                }
+            // Stop any queued smooth move (a removed object must not be nudged again)
+            if (this.scene.movementManager && this.scene.movementManager.clearMovement) {
+                this.scene.movementManager.clearMovement(obj.id);
             }
 
-            // Destroy main object
-            if (obj.destroy) {
-                obj.destroy();
+            // Pop out: hand the display objects to a short-lived ghost that destroys them
+            if (this.scene.objectMotion && this.scene.objectMotion.releaseToGhost(obj)) {
+                // destroyed by the ghost when its animation ends
+            } else {
+                this.destroyDisplayObjects(obj);
             }
 
         } catch (error) {
@@ -200,5 +194,26 @@ export class ObjectLifecycle {
 
         // Save game state after removing object
         this.scene.saveGameState();
+    }
+
+    /** Immediate destruction of a removed object's glyph, captions and number rows. */
+    destroyDisplayObjects(obj) {
+        if (obj.componentLayout) {
+            if (obj.componentLayout.numberModes) {
+                obj.componentLayout.numberModes.forEach(comp => {
+                    if (comp.object && comp.object.destroy) comp.object.destroy();
+                });
+            }
+            if (obj.allLanguageWords) {
+                obj.allLanguageWords.forEach(langGroup => {
+                    if (langGroup.words) {
+                        langGroup.words.forEach(wordObj => {
+                            if (wordObj && wordObj.destroy) wordObj.destroy();
+                        });
+                    }
+                });
+            }
+        }
+        if (obj.destroy) obj.destroy();
     }
 }

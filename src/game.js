@@ -7,6 +7,7 @@ import { RenderManager } from './game/systems/RenderManager.js'
 import { SpeechManager } from './game/systems/SpeechManager.js'
 import { ObjectCountingRenderer } from './game/systems/ObjectCountingRenderer.js'
 import { MovementManager } from './game/systems/MovementManager.js'
+import { ObjectMotion } from './game/systems/ObjectMotion.js'
 import { AutoCleanupManager } from './game/systems/AutoCleanupManager.js'
 import { GridModeController } from './game/systems/GridModeController.js'
 import packageJson from '../package.json'
@@ -67,6 +68,7 @@ class GameScene extends Phaser.Scene {
         this.inputManager = new InputManager(this);
         this.movementManager = new MovementManager(this);
         this.autoCleanupManager = new AutoCleanupManager(this);
+        this.objectMotion = new ObjectMotion(this);
 
         this.backdrop = new Backdrop(this).create(); // soft living background, depth far below everything
 
@@ -208,7 +210,7 @@ class GameScene extends Phaser.Scene {
         this.events.on('input:gamepadButtonUp', this.onInputGamepadButtonUp, this);
     }
 
-    update() {
+    update(time, delta) {
         // Update input manager for gamepad polling
         if (this.inputManager) {
             this.inputManager.update();
@@ -216,6 +218,8 @@ class GameScene extends Phaser.Scene {
 
         // Update object movements (smooth lerping)
         this.movementManager.updateObjectMovements();
+
+        this.objectMotion.update(time, delta);
 
         // Check for auto-cleanup
         this.autoCleanupManager.checkAutoCleanup();
@@ -422,6 +426,7 @@ class GameScene extends Phaser.Scene {
         if (this.speechManager) this.speechManager.destroy();
         if (this.inputManager) this.inputManager.destroy();
         if (this.movementManager) this.movementManager.destroy();
+        if (this.objectMotion) this.objectMotion.destroy();
         if (this.autoCleanupManager) this.autoCleanupManager.destroy();
 
         // Clean up objects
