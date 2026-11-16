@@ -53,7 +53,8 @@ class ResponsiveGameManager {
             // the toy makes its own sound (src/game/audio/): no second, unused Phaser AudioContext
             audio: { noAudio: true },
             input: {
-                gamepad: true
+                gamepad: true,
+                activePointers: 10   // the mouse plus ten fingers (Phaser defaults to one finger)
             },
             physics: {
                 default: 'arcade',

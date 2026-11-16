@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { ObjectLifecycle } from '../src/game/objects/ObjectLifecycle.js';
+import { installPointerState } from '../src/game/input/pointerState.js';
 import { SceneInputHandler } from '../src/game/systems/SceneInputHandler.js';
 import { GameStateStore } from '../src/game/systems/GameStateStore.js';
 import { audioManagerMock } from './helpers/mock-audio-manager.js';
@@ -75,7 +76,7 @@ describe('tap versus drag', () => {
         jest.spyOn(Date, 'now').mockImplementation(() => now);
         obj = glyph();
         scene = {
-            objects: [obj], isFullyInitialized: true, isDragging: false, draggedObject: null,
+            objects: [obj], isFullyInitialized: true,
             gridMode: { enabled: false },
             speechManager: { getIsSpeaking: () => false, speakText: jest.fn(), getCurrentSpeakingObject: () => null },
             autoCleanupManager: { updateObjectTouchTime: jest.fn() },
@@ -86,9 +87,10 @@ describe('tap versus drag', () => {
             getObjectUnderPointer: (x, y) => handler.getObjectUnderPointer(x, y),
             spawnAndAnnounce: jest.fn(), saveGameState: jest.fn(),
             moveObjectTo: jest.fn(),
-            startDragging: (o, x, y) => handler.startDragging(o, x, y),
-            stopDragging: () => handler.stopDragging()
+            startDragging: (o, x, y, id) => handler.startDragging(o, x, y, id),
+            stopDragging: (id, opts) => handler.stopDragging(id, opts)
         };
+        installPointerState(scene); // per-finger state (draggedObject / isDragging are views of it)
         handler = new SceneInputHandler(scene);
     });
     afterEach(() => jest.restoreAllMocks());
