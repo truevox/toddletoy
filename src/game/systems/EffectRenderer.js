@@ -1,4 +1,5 @@
 import { sizes } from './DisplayScale.js';
+import { BurstPool } from './BurstPool.js';
 
 /**
  * EffectRenderer - Handles specialized visual effects rendering
@@ -7,83 +8,18 @@ import { sizes } from './DisplayScale.js';
 export class EffectRenderer {
     constructor(scene) {
         this.scene = scene;
-        this.transient = new Set(); // burst graphics awaiting their fade-out
+        this.transient = new Set(); // fallback trail graphics awaiting their fade-out
+        this.pool = new BurstPool(scene); // pooled spawn/pop bursts
     }
 
-    createSpawnBurst(x, y) {
-        try {
-            // Create a burst effect using simple graphics since we don't have texture assets
-            const graphics = this.scene.add.graphics();
-            this.transient.add(graphics);
-            
-            // Create colorful burst circles
-            const k = sizes(this.scene).k; // effect sizes follow the screen-relative unit
-            const colors = [0xff6b6b, 0x4ecdc4, 0x45b7d1, 0xf9ca24, 0xf0932b, 0xeb4d4b, 0x6c5ce7];
-            
-            for (let i = 0; i < 8; i++) {
-                const angle = (i / 8) * Math.PI * 2;
-                const distance = (30 + Math.random() * 20) * k;
-                const particleX = x + Math.cos(angle) * distance;
-                const particleY = y + Math.sin(angle) * distance;
-                
-                const color = colors[Math.floor(Math.random() * colors.length)];
-                graphics.fillStyle(color);
-                graphics.fillCircle(particleX, particleY, (3 + Math.random() * 3) * k);
-            }
-
-            // Fade out the burst effect
-            this.scene.tweens.add({
-                targets: graphics,
-                alpha: 0,
-                duration: 500,
-                ease: 'Power2',
-                onComplete: () => {
-                    this.release(graphics);
-                }
-            });
-
-        } catch (error) {
-            console.warn('Error creating spawn burst:', error);
-        }
+    /** Soft ring plus pieces in opts.color (0xRRGGBB); opts.kind 'shape' gives stars/diamonds. */
+    createSpawnBurst(x, y, opts) {
+        this.pool.spawn(x, y, opts);
     }
 
-    createCleanupParticleEffect(x, y) {
-        try {
-            // Create festive cleanup burst with celebration colors
-            const graphics = this.scene.add.graphics();
-            this.transient.add(graphics);
-            
-            // Create colorful celebration circles
-            const k = sizes(this.scene).k;
-            const colors = [0xFFD700, 0xFF69B4, 0x00CED1, 0xFF6347, 0x32CD32, 0x9370DB];
-            
-            for (let i = 0; i < 12; i++) {
-                const angle = (i / 12) * Math.PI * 2;
-                const distance = (25 + Math.random() * 15) * k;
-                const particleX = x + Math.cos(angle) * distance;
-                const particleY = y + Math.sin(angle) * distance;
-                
-                const color = colors[Math.floor(Math.random() * colors.length)];
-                graphics.fillStyle(color);
-                graphics.fillCircle(particleX, particleY, (4 + Math.random() * 2) * k);
-            }
-
-            // Fade out with slight expand
-            this.scene.tweens.add({
-                targets: graphics,
-                alpha: 0,
-                scaleX: 1.5,
-                scaleY: 1.5,
-                duration: 800,
-                ease: 'Power2',
-                onComplete: () => {
-                    this.release(graphics);
-                }
-            });
-
-        } catch (error) {
-            console.warn('Error creating cleanup particle effect:', error);
-        }
+    /** Quick "pop" for an object going away: bright ring snap plus a few pieces. */
+    createCleanupParticleEffect(x, y, opts) {
+        this.pool.pop(x, y, opts);
     }
 
     createFallbackTrail(object) {
@@ -101,7 +37,16 @@ export class EffectRenderer {
     }
 
     destroy() {
-        // No cleanup needed for this utility class
+        this.pool.destroy();
+        this.transient.forEach((g) => { try { g.destroy(); } catch (e) { /* gone */ } });
+        this.transient.clear();
+    }
+
+    /** Remove every burst piece and fallback graphic right now. */
+    clear() {
+        this.pool.clear();
+        this.transient.forEach((g) => { try { g.destroy(); } catch (e) { /* gone */ } });
+        this.transient.clear();
     }
 
     /** Destroy a burst graphic and stop tracking it. */
