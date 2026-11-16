@@ -111,35 +111,6 @@ describe('Speech Queue Locking', () => {
         expect(mockScene.speakObjectLabel).toHaveBeenCalled();
     });
 
-    test('should move speaking object during keyboard input while speaking', () => {
-        // Set up speaking state
-        const obj1 = mockScene.spawnObjectAt(100, 100, 'emoji');
-        mockScene.isSpeaking = true;
-        mockScene.currentSpeakingObject = obj1;
-
-        // Mock keyboard handler with speech locking
-        mockScene.onKeyDown.mockImplementation((event) => {
-            const position = { x: 150, y: 150 }; // Mock key position
-            
-            if (!mockScene.isSpeaking) {
-                const obj = mockScene.spawnObjectAt(position.x, position.y, 'random');
-                mockScene.speakObjectLabel(obj, 'both');
-            } else if (mockScene.currentSpeakingObject) {
-                mockScene.moveObjectTo(mockScene.currentSpeakingObject, position.x, position.y);
-            }
-        });
-
-        const initialObjectCount = mockScene.objects.length;
-
-        // Simulate key press during speech
-        mockScene.onKeyDown({ code: 'KeyA' });
-
-        // Should not spawn new object
-        expect(mockScene.objects).toHaveLength(initialObjectCount);
-        // Should move the speaking object
-        expect(mockScene.moveObjectTo).toHaveBeenCalledWith(obj1, 150, 150);
-    });
-
     test('should move speaking object during gamepad input while speaking', () => {
         // Set up speaking state
         const obj1 = mockScene.spawnObjectAt(100, 100, 'emoji');

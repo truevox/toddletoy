@@ -122,6 +122,7 @@ export class AppRoutes {
 
         if (this.game) {
             const scene = this.getGameScene();
+            if (scene && scene.inputManager && scene.inputManager.setInputPaused) scene.inputManager.setInputPaused(false);
             if (scene && scene.scene && scene.scene.isPaused()) scene.scene.resume();
             this.resetToyState();
             // Pick up settings changed since the toy was last entered
@@ -238,6 +239,7 @@ export class AppRoutes {
                     if (scene) {
                         if (scene.speechManager) scene.speechManager.cancelSpeech();
                         if (scene.audioManager && scene.audioManager.stopAllTones) scene.audioManager.stopAllTones();
+                        if (scene.inputManager && scene.inputManager.setInputPaused) scene.inputManager.setInputPaused(true);
                         if (scene.scene) scene.scene.pause();
                     }
                 }

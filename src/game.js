@@ -172,7 +172,7 @@ class GameScene extends Phaser.Scene {
     /**
      * Spawn object in specific grid cell
      */
-    async spawnObjectInGridCell(row, col, type = 'random') { return this.gridModeController.spawnObjectInGridCell(row, col, type); }
+    async spawnObjectInGridCell(row, col, type = 'random', item = null) { return this.gridModeController.spawnObjectInGridCell(row, col, type, item); }
 
     /**
      * Remove object from specific grid cell
@@ -206,7 +206,6 @@ class GameScene extends Phaser.Scene {
         this.events.on('input:pointerMove', this.onInputPointerMove, this);
         this.events.on('input:pointerUp', this.onInputPointerUp, this);
         this.events.on('input:keyPress', this.onInputKeyPress, this);
-        this.events.on('input:keyInterpolate', this.onInputKeyInterpolate, this);
         this.events.on('input:keyRelease', this.onInputKeyRelease, this);
         this.events.on('input:gamepadButtonDown', this.onInputGamepadButtonDown, this);
         this.events.on('input:gamepadButtonUp', this.onInputGamepadButtonUp, this);
@@ -251,8 +250,6 @@ class GameScene extends Phaser.Scene {
     stopDragging() { return this.sceneInputHandler.stopDragging(); }
 
     async onInputKeyPress(data) { return this.sceneInputHandler.onInputKeyPress(data); }
-
-    onInputKeyInterpolate(data) { return this.sceneInputHandler.onInputKeyInterpolate(data); }
 
     onInputKeyRelease(data) { return this.sceneInputHandler.onInputKeyRelease(data); }
 
@@ -370,7 +367,7 @@ class GameScene extends Phaser.Scene {
 
     createShapeObject(itemData, x, y, labelText = '') { return this.objectFactory.createShapeObject(itemData, x, y, labelText); }
 
-    async spawnObjectAt(x, y, type = 'random') { return this.objectLifecycle.spawnObjectAt(x, y, type); }
+    async spawnObjectAt(x, y, type = 'random', item = null) { return this.objectLifecycle.spawnObjectAt(x, y, type, item); }
 
     /**
      * Spawn an object and announce it with speech, audio, and particle effects.
@@ -380,7 +377,7 @@ class GameScene extends Phaser.Scene {
      * @param {string} type - Spawn type (default: 'random')
      * @returns {Promise<Object|null>} The spawned object or null if spawn failed
      */
-    async spawnAndAnnounce(x, y, type = 'random') { return this.objectLifecycle.spawnAndAnnounce(x, y, type); }
+    async spawnAndAnnounce(x, y, type = 'random', item = null) { return this.objectLifecycle.spawnAndAnnounce(x, y, type, item); }
 
     /**
      * Announce an already-spawned object with speech, audio, and particle effects.
@@ -395,6 +392,9 @@ class GameScene extends Phaser.Scene {
 
     // Configuration and content selection methods
     selectSpawnType() { return this.contentSelector.selectSpawnType(); }
+
+    /** A specific letter/number for a baby-keyboard key, or null to fall back to something random. */
+    async resolveKeyContent(kind, value) { return this.contentSelector.resolveKeyContent(kind, value); }
 
     async getRandomEmoji() { return this.contentSelector.getRandomEmoji(); }
 

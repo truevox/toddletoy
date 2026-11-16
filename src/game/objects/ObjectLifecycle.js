@@ -18,7 +18,8 @@ export class ObjectLifecycle {
         this.scene = scene;
     }
 
-    async spawnObjectAt(x, y, type = 'random') {
+    /** @param {Object|null} [item] - a specific item (a chosen letter or number) instead of a random one of `type` */
+    async spawnObjectAt(x, y, type = 'random', item = null) {
         try {
             // Get spawn type based on configuration
             const spawnType = type === 'random' ? this.scene.selectSpawnType() : type;
@@ -32,12 +33,12 @@ export class ObjectLifecycle {
                     break;
                 case 'uppercaseLetters':
                 case 'lowercaseLetters':
-                    selectedItem = await this.scene.getRandomLetter(spawnType);
+                    selectedItem = item ? { ...item } : await this.scene.getRandomLetter(spawnType);
                     actualType = 'letter';
                     break;
                 case 'smallNumbers':
                 case 'largeNumbers':
-                    selectedItem = await this.scene.getRandomNumber(spawnType);
+                    selectedItem = item ? { ...item } : await this.scene.getRandomNumber(spawnType);
                     actualType = 'number';
                     break;
                 case 'shapes':
@@ -121,8 +122,8 @@ export class ObjectLifecycle {
      * @param {string} type - Spawn type (default: 'random')
      * @returns {Promise<Object|null>} The spawned object or null if spawn failed
      */
-    async spawnAndAnnounce(x, y, type = 'random') {
-        const obj = await this.scene.spawnObjectAt(x, y, type);
+    async spawnAndAnnounce(x, y, type = 'random', item = null) {
+        const obj = await this.scene.spawnObjectAt(x, y, type, item);
         if (obj) {
             // Use the (possibly clamped) final position for audio/particles
             this.scene.announceObject(obj, obj.x, obj.y);

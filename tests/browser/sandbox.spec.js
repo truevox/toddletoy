@@ -36,37 +36,36 @@ test.describe('Sandbox smoke', () => {
         expect(a.words.every((w) => w.dy > 0)).toBe(true);
     });
 
-    test('keyboard Q, W and E spawn at the top row (left, centre, right)', async ({ page }) => {
+    test('keyboard Q and P spawn on the letter row (left, right), above the home row', async ({ page }) => {
         await enterSandbox(page);
         const { width, height } = await sceneSize(page);
         const objs = [];
-        for (const key of ['KeyQ', 'KeyW', 'KeyE']) {
+        for (const key of ['KeyQ', 'KeyP']) {
             await waitForSpawnReady(page);
             const before = await objectCount(page);
             await page.keyboard.press(key);
             await waitForObjectCount(page, before + 1);
-            // where each one is born: on a narrow phone three big objects do not fit
-            // side by side, so neighbours make room afterwards
+            // where each one is born: neighbours make room afterwards
             objs.push(await lastObject(page));
         }
-        // Left, centre, right, in that order. Exact x depends on the label width:
+        // Left then right. Exact x depends on the label width:
         // objects are nudged inward so their labels stay on a narrow screen.
         expect(objs[0].x).toBeGreaterThanOrEqual(width * 0.1 - 1);
         expect(objs[0].x).toBeLessThan(objs[1].x);
-        expect(objs[1].x).toBeLessThan(objs[2].x);
-        expect(objs[2].x).toBeLessThanOrEqual(width * 0.9 + 1);
-        // objects may be nudged down so their attached numerals/labels stay on screen
+        expect(objs[1].x).toBeLessThanOrEqual(width * 0.9 + 1);
+        // the letter row is the second row of keys: in the upper half
+        // (objects may be nudged down so their attached numerals/labels stay on screen)
         objs.forEach((o) => { expect(o.y).toBeGreaterThanOrEqual(height * 0.1 - 1); expect(o.y).toBeLessThan(height * 0.5); });
     });
 
-    test('S spawns at the centre', async ({ page }) => {
+    test('S (home row, left hand) spawns left of centre at mid height', async ({ page }) => {
         await enterSandbox(page);
         const { width, height } = await sceneSize(page);
         await waitForSpawnReady(page);
         await page.keyboard.press('KeyS');
         await waitForObjectCount(page, 1);
         const [o] = await allObjects(page);
-        expect(o.x).toBeCloseTo(width / 2, 0);
+        expect(o.x).toBeLessThan(width / 2);
         expect(o.y).toBeCloseTo(height / 2, 0);
     });
 

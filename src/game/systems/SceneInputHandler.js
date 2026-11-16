@@ -2,12 +2,15 @@
  * SceneInputHandler - Reacts to InputManager events (pointer, keyboard, gamepad) and drives dragging.
  * State stays on the scene; calls go back through the scene so spies intercept.
  */
+import { KeyActions } from '../input/KeyActions.js';
+
 const TAP_SLOP = 10;      // logical px a press may wander and still be a tap
 const TAP_MAX_MS = 350;   // longest press that still counts as a tap
 
 export class SceneInputHandler {
     constructor(scene) {
         this.scene = scene;
+        this.keyActions = new KeyActions(scene);
         this.tap = null; // press that may turn out to be a tap: { obj, x, y, t, moved, revoiced }
     }
 
@@ -148,25 +151,9 @@ export class SceneInputHandler {
 
     }
 
+    /** Baby keyboard: see ../input/KeyActions.js */
     async onInputKeyPress(data) {
-        const { position } = data;
-
-        if (!this.scene.speechManager.getIsSpeaking()) {
-            if (!this.scene.canSpawnAfterMovement()) {
-                return;
-            }
-            await this.scene.spawnAndAnnounce(position.x, position.y, 'random');
-        } else if (this.scene.speechManager.getCurrentSpeakingObject() && this.scene.canMoveAfterSpawn()) {
-            this.scene.moveObjectTo(this.scene.speechManager.getCurrentSpeakingObject(), position.x, position.y);
-        }
-    }
-
-    onInputKeyInterpolate(data) {
-        const { position } = data;
-
-        if (this.scene.speechManager.getCurrentSpeakingObject() && this.scene.canMoveAfterSpawn()) {
-            this.scene.moveObjectTo(this.scene.speechManager.getCurrentSpeakingObject(), position.x, position.y);
-        }
+        return this.keyActions.play(data);
     }
 
     onInputKeyRelease() {
