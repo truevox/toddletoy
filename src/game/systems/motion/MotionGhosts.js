@@ -48,14 +48,15 @@ export class MotionGhosts {
             }
             ghostPose(g.t / g.dur, g.reduced, this.pose);
             const p = this.pose;
+            const ax = g.items[0].x, ay = g.items[0].y; // captions shrink toward the glyph, keeping their layout
             for (const s of g.items) {
                 const go = s.go;
                 if (go.active === undefined && !go.setPosition && !go.destroy) continue;
                 go.scaleX = s.sx * p.sx;
                 go.scaleY = s.sy * p.sy;
-                const centreX = s.x + s.cxOff * s.sx;
+                const centreX = ax + (s.x + s.cxOff * s.sx - ax) * p.sx;
                 go.x = centreX - s.cxOff * go.scaleX;
-                go.y = s.y - p.lift * g.size;
+                go.y = ay + (s.y - ay) * p.sy - p.lift * g.size;
                 go.alpha = s.a * p.alpha;
             }
         }

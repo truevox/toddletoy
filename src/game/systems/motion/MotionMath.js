@@ -45,7 +45,7 @@ export function popInPose(ms, reduced, out) {
     const sq = clamp(0.35 * (p - 1), -0.15, 0.15);
     out.sx = p * (1 + sq);
     out.sy = p * (1 - sq);
-    out.alpha = Math.min(1, u * 6);
+    out.alpha = Math.min(1, 0.5 + u * 8); // visible from the very first frame
     return false;
 }
 

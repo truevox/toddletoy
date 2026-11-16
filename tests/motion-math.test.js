@@ -10,7 +10,7 @@ describe('MotionMath curves', () => {
         popInPose(0, false, p);
         expect(p.sx).toBeGreaterThan(0.25);
         expect(p.sx).toBeLessThan(0.5);
-        expect(p.alpha).toBeGreaterThanOrEqual(0);
+        expect(p.alpha).toBeGreaterThanOrEqual(0.4);
         let max = 0;
         for (let ms = 0; ms < POP_IN_MS; ms += 5) { popInPose(ms, false, p); max = Math.max(max, p.sx, p.sy); }
         expect(max).toBeGreaterThan(1.05);
