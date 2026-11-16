@@ -39,6 +39,7 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - [ ] Stage 4 — Many fingers, many keys: multi-touch, baby keyboard, gamepads (object cap done in Stage 2)
 - [ ] Stage 5 — Something to discover: tap a number to cycle its displays, surprises, attract mode, ~250 emoji (calm default done in v2.3)
 - [ ] Stage 6 — Parents: presets, live preview, docs
+- [ ] Stage 7 — Family voices: voice packs (record; clone on a computer; clone on the phone if a real-device trial works), review screen, top-ups for new words
 
 ### Phase 13.999: Implement some kind of analytics
 

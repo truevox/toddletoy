@@ -93,8 +93,36 @@ before merging. Order is by impact per unit of risk.
 - A live miniature preview so a setting change is seen before starting.
 - In-app docs updated for everything above.
 
+### Stage 7 — Family voices (added 2026-11-16, owner's idea)
+The toy speaks in Mom's, Dad's or Grandpa's voice. The vocabulary is closed (colours, shapes,
+letter names, about 30 number words, emoji names), so a voice is a **voice pack**: one short clip
+per word, keyed by a stable word id, played back in the right order for the language. Comes after
+Stage 5 (so the emoji set is at its full size before anyone records) and Stage 6.
+
+- **Pack format and playback.** Clips in IndexedDB, about 1–2 MB a voice; export/import as one
+  file so a grandparent can make a pack on their own device. Playback plugs into the "voice
+  source" seam left in the speech code in Stage 3. Any word a pack lacks falls back to the system
+  voice, so nothing is ever silent.
+- **Way 1: record it.** A guided "say this word" screen; about ten minutes for the whole set.
+  Works on any phone and in any language, including ones with no system voice.
+- **Way 2: clone it on a computer.** Record about 30 seconds; a laptop generates every clip and
+  exports the pack. Realistic today because a laptop has the memory and GPU.
+- **Way 3: clone it on the phone.** The same generator run slowly, once, with progress saved clip
+  by clip (the app must stay open and plugged in; phones do not let a web app compute in the
+  background). Enabled only if a trial on real high-end phones works.
+- **Review screen.** Play every clip; re-record or regenerate any that sound wrong.
+- **Growing vocabulary.** The toy knows which word ids a pack is missing. A cloned pack tops
+  itself up from the kept sample; a recorded pack shows "N new words to record".
+- **Before building ways 2 and 3:** a time-boxed trial page run on the owner's phone and laptop
+  (this environment has no GPU), and a check of model licences against the MIT licence, language
+  coverage (major languages only; Esperanto, Klingon and Lojban will need recording), download
+  size, and quality on single isolated words.
+- **Not doing:** cloud cloning. It would send a family member's voice to a third party and add an
+  account, a cost and a network dependency to an offline toy with no backend.
+
 ### Deliberately not in this plan
-Game modes (Phases 21–24), voice recognition, accelerometer gravity, family photos, analytics. They
+Game modes (Phases 21–24), voice recognition, accelerometer gravity, family photos, analytics.
+(Family voice recording from Phase 25.3 is now Stage 7 above.) They
 build on a sandbox that already feels great; they do not make it feel great.
 
 ## How the work is split
