@@ -38,12 +38,16 @@ export class SoftPhysics {
         if (mq && mq.addEventListener) mq.addEventListener('change', this.onMq);
         this.mq = mq;
 
+        this.upT = 0;
         this.onMove = () => {
             const d = scene.draggedObject;
             if (d && d.active) this.samples.push(now(), d.x, d.y);
         };
+        // stamp the real release time: a slow frame must not make a throw look like a stop
+        this.onUp = () => { this.upT = now(); };
         if (scene.events && scene.events.on) {
             scene.events.on('input:pointerMove', this.onMove);
+            scene.events.on('input:pointerUp', this.onUp);
             if (scene.events.once) scene.events.once('shutdown', () => this.destroy());
         }
     }
@@ -139,10 +143,11 @@ export class SoftPhysics {
             const prev = this.prevDragged;
             this.wake();
             if (prev && prev.active && prev.__soft) {
-                this.samples.push(t, prev.x, prev.y);
+                const rt = this.upT > 0 && t - this.upT < 1000 ? this.upT : t;
+                this.samples.push(rt, prev.x, prev.y);
                 const s = prev.__soft;
                 s.lowMobUntil = t + NEWBORN_MS; s.lowMob = DROP_MOB;
-                this.samples.velocity(t, this.vel);
+                this.samples.velocity(rt, this.vel);
                 if (!this.reduced && (this.vel.vx || this.vel.vy)) { s.vx = this.vel.vx; s.vy = this.vel.vy; s.x = prev.x; s.y = prev.y; }
                 else { s.vx = 0; s.vy = 0; }
                 if (!(this.vel.vx || this.vel.vy)) this.save(); // a plain drop: stopDragging already saved
@@ -247,6 +252,7 @@ export class SoftPhysics {
 
     destroy() {
         if (this.scene.events && this.scene.events.off) this.scene.events.off('input:pointerMove', this.onMove);
+        if (this.scene.events && this.scene.events.off) this.scene.events.off('input:pointerUp', this.onUp);
         if (this.mq && this.mq.removeEventListener) this.mq.removeEventListener('change', this.onMq);
         this.clearVelocities();
     }
