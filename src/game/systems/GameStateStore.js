@@ -146,6 +146,9 @@ export class GameStateStore {
         [...this.scene.objects].forEach(obj => this.scene.removeObject(obj));
         this.scene.objects = [];
 
+        // Pop-out ghosts are display objects too: destroy them now, not in 300 ms
+        if (this.scene.objectMotion) this.scene.objectMotion.clearGhosts();
+
         // Sparkles and spawn bursts normally clean themselves up on scene timers,
         // which do not run once the scene is paused behind another screen.
         if (this.scene.particleManager && this.scene.particleManager.clearTransientEffects) {

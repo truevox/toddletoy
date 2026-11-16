@@ -2,9 +2,13 @@
  * SceneInputHandler - Reacts to InputManager events (pointer, keyboard, gamepad) and drives dragging.
  * State stays on the scene; calls go back through the scene so spies intercept.
  */
+const TAP_SLOP = 10;      // logical px a press may wander and still be a tap
+const TAP_MAX_MS = 350;   // longest press that still counts as a tap
+
 export class SceneInputHandler {
     constructor(scene) {
         this.scene = scene;
+        this.tap = null; // press that may turn out to be a tap: { obj, x, y, t, moved, revoiced }
     }
 
     // Input event handlers
@@ -35,6 +39,7 @@ export class SceneInputHandler {
         }
 
         // Free-form Mode: Check spawn eligibility FIRST, then move/drag
+        this.tap = null;
         const hitObject = this.scene.getObjectUnderPointer(x, y);
         const isSpeaking = this.scene.speechManager.getIsSpeaking();
 
@@ -56,12 +61,14 @@ export class SceneInputHandler {
             // Start dragging existing object when not speaking
             this.scene.startDragging(hitObject, x, y);
             this.scene.autoCleanupManager.updateObjectTouchTime(hitObject);
+            this.tap = { obj: hitObject, x, y, t: Date.now(), moved: false, revoiced: false };
         } else if (hitObject && isSpeaking) {
             // Allow dragging any object even during speech
             this.scene.startDragging(hitObject, x, y);
             this.scene.autoCleanupManager.updateObjectTouchTime(hitObject);
             // Re-voice the object being dragged
             this.scene.speechManager.speakText(hitObject, 'both');
+            this.tap = { obj: hitObject, x, y, t: Date.now(), moved: false, revoiced: true };
         } else if (isSpeaking && this.scene.speechManager.getCurrentSpeakingObject()) {
             // Teleport speaking object to tap location with smooth lerp AND make it draggable
             const speakingObj = this.scene.speechManager.getCurrentSpeakingObject();
@@ -77,6 +84,14 @@ export class SceneInputHandler {
     onInputPointerMove(data) {
         const { x, y } = data;
 
+        // A press that has not wandered yet is still a possible tap: do not shove the object
+        const tap = this.tap;
+        if (tap && !tap.moved) {
+            const far = Math.hypot(x - tap.x, y - tap.y) > TAP_SLOP;
+            if (far || Date.now() - tap.t >= TAP_MAX_MS) tap.moved = true;
+            else return;
+        }
+
         if (this.scene.isDragging && this.scene.draggedObject && this.scene.canMoveAfterSpawn()) {
             // Use immediate positioning during drag (no lerp lag)
             this.scene.moveObjectTo(this.scene.draggedObject, x, y, false); // false = instant, no smooth lerp
@@ -85,11 +100,21 @@ export class SceneInputHandler {
         }
     }
 
-    onInputPointerUp() {
+    onInputPointerUp(data) {
         this.scene.awaitingSpawnInputRelease = false;
+        const tap = this.tap;
+        this.tap = null;
         if (this.scene.isDragging && this.scene.draggedObject) {
             this.scene.stopDragging();
         }
+        if (!tap || tap.moved || !tap.obj.active || Date.now() - tap.t >= TAP_MAX_MS) return;
+        if (data && Number.isFinite(data.x) && Number.isFinite(data.y) &&
+            Math.hypot(data.x - tap.x, data.y - tap.y) > TAP_SLOP) return;
+        if (this.scene.objects && this.scene.objects.indexOf(tap.obj) === -1) return;
+
+        // A tap: react, and say the name again whether or not speech was running
+        if (this.scene.objectMotion) this.scene.objectMotion.react(tap.obj);
+        if (!tap.revoiced) this.scene.speechManager.speakText(tap.obj, 'both');
     }
 
     /**
@@ -106,14 +131,7 @@ export class SceneInputHandler {
         this.scene.isDragging = true;
         this.scene.draggedObject = obj;
 
-        // Visual feedback: scale up slightly for modern feel
-        this.scene.tweens.add({
-            targets: obj,
-            scaleX: 1.15 * (obj.baseScale || 1),
-            scaleY: 1.15 * (obj.baseScale || 1),
-            duration: 100,
-            ease: 'Back.easeOut'
-        });
+        // Lift (1.15x) and tilt are motion factors applied by ObjectMotion while draggedObject is set
 
         // Start particle trail
         this.scene.particleManager.startDragTrail(obj);
@@ -121,21 +139,13 @@ export class SceneInputHandler {
     }
 
     /**
-     * Stop dragging with smooth scale-down animation
+     * Stop dragging (ObjectMotion eases the lift back down)
      */
     stopDragging() {
         if (!this.scene.draggedObject) return;
 
         const obj = this.scene.draggedObject;
 
-        // Visual feedback: scale back to normal
-        this.scene.tweens.add({
-            targets: obj,
-            scaleX: obj.baseScale || 1,
-            scaleY: obj.baseScale || 1,
-            duration: 150,
-            ease: 'Back.easeOut'
-        });
 
         // Stop particle trail
         this.scene.particleManager.stopDragTrail(obj);

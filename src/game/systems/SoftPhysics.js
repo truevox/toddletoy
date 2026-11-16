@@ -6,7 +6,7 @@
  * Per-object state lives on obj.__soft (see Separation.js for the body shape).
  */
 import { viewSize } from './DisplayScale.js';
-import { defaultKeepOutRects, getObjectExtents } from '../../positioning/BoundsClamp.js';
+import { defaultKeepOutRects, getObjectExtents, getCompositeComponents } from '../../positioning/BoundsClamp.js';
 import { solveLayout, stillEngaged, overlaps, EASE_K, MAX_PUSH_SPEED, EDGE_MARGIN, PAIR_GAP, ENGAGE_GAP, penetration } from './Separation.js';
 import { findFreeSpot } from './FreeSpot.js';
 import { enforceCapacity, sceneCapacity } from './ScreenCapacity.js';
@@ -14,6 +14,7 @@ import { DragSamples, stepGlide, MAX_THROW_SPEED } from './ThrowMotion.js';
 
 const NEWBORN_MS = 600, NEWBORN_MOB = 0.25, DROP_MOB = 0.35;
 const STILL_TICKS = 12, HEARTBEAT_MS = 1000, FAST_MEASURE_MS = 1000, MEASURE_EVERY = 100;
+const GLYPH_PAD = 1.1;
 const MAX_DT = 0.05, MIN_EASE = 30, MIN_CROWD = 3;
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
@@ -76,8 +77,32 @@ export class SoftPhysics {
         if (width !== this.sizeW || height !== this.sizeH) { this.sizeW = width; this.sizeH = height; this.wake(); }
     }
 
+    /**
+     * Extents of the composite with the main glyph at its REST size and angle, so idle
+     * breathing, tilt and pop-in never change a body (settled objects stay still).
+     */
+    restExtents(obj) {
+        // rest size plus room for idle breathing (3%) and bobbing (3%) so neighbours never touch
+        const rest = (obj.baseScale || 1) * (obj.gridFitScale || 1) * GLYPH_PAD;
+        let gw, gh, ox = 0.5, oy = 0.5;
+        if (obj.mainShape) { gw = gh = (obj.shapeSize || 0) * rest; }
+        else { gw = (obj.width || 0) * rest; gh = (obj.height || 0) * rest; if (Number.isFinite(obj.originX)) ox = obj.originX; if (Number.isFinite(obj.originY)) oy = obj.originY; }
+        if (!(gw > 0) || !(gh > 0)) return getObjectExtents(obj);
+        let l = -ox * gw, r = (1 - ox) * gw, t = -oy * gh, b = (1 - oy) * gh;
+        const parts = getCompositeComponents(obj);
+        for (let i = 1; i < parts.length; i++) {
+            const go = parts[i];
+            if (!go || go.active === false || go.visible === false || typeof go.getBounds !== 'function') continue;
+            const bb = go.getBounds();
+            if (!Number.isFinite(bb.x) || !Number.isFinite(bb.width)) continue;
+            l = Math.min(l, bb.x - obj.x); r = Math.max(r, bb.x + bb.width - obj.x);
+            t = Math.min(t, bb.y - obj.y); b = Math.max(b, bb.y + bb.height - obj.y);
+        }
+        return { left: l, right: r, top: t, bottom: b };
+    }
+
     measure(obj, s, t) {
-        const e = getObjectExtents(obj);
+        const e = this.restExtents(obj);
         if (!e) return false;
         const changed = Math.abs(e.left - s.l) > 1 || Math.abs(e.right - s.r) > 1 || Math.abs(e.top - s.t) > 1 || Math.abs(e.bottom - s.b) > 1;
         s.l = e.left; s.r = e.right; s.t = e.top; s.b = e.bottom;
