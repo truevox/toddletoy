@@ -1,3 +1,4 @@
+import { isDragged } from '../input/dragAccess.js';
 /**
  * ScreenCapacity - how many objects a screen holds. Big objects mean fewer.
  * Target: total body area <= FILL of the screen, never fewer than MIN_CAPACITY.
@@ -41,7 +42,7 @@ export function enforceCapacity(scene, width, height, maxObjects, crowdCap = Inf
         let victim = null;
         for (let i = 0; i < n - 1; i++) {
             const o = objs[i];
-            if (!o || !o.active || o === scene.draggedObject) continue;
+            if (!o || !o.active || isDragged(scene, o)) continue;
             if (scene.speechManager && scene.speechManager.isObjectSpeaking && scene.speechManager.isObjectSpeaking(o)) continue;
             victim = o; break;
         }

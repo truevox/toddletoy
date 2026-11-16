@@ -54,7 +54,8 @@ class ResponsiveGameManager {
             audio: { noAudio: true },
             // gamepads are read by src/game/input/GamepadInput.js (only once one connects): no Phaser gamepad plugin polling
             input: {
-                gamepad: false
+                gamepad: false,
+                activePointers: 10   // the mouse plus ten fingers (Phaser defaults to one finger)
             },
             physics: {
                 default: 'arcade',

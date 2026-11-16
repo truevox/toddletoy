@@ -1,4 +1,4 @@
-import { toLogical } from './DisplayScale.js'
+import { PointerInput } from '../input/PointerInput.js'
 import { KeyboardInput } from '../input/KeyboardInput.js'
 import { GamepadInput } from '../input/GamepadInput.js'
 
@@ -9,10 +9,8 @@ import { GamepadInput } from '../input/GamepadInput.js'
 export class InputManager {
     constructor(scene) {
         this.scene = scene;
-        this.holdTimer = null;
-        this.holdDuration = 500; // 500ms hold to start auto-drag
-        this.isHolding = false;
-        this.pointerIsDown = false;
+        this.pointerIsDown = false; // any pointer down
+        this.pointerInput = new PointerInput(this); // the mouse and up to 10 fingers
         
         this.keyboard = null; // baby keyboard, created by initKeyboardInput()
         this.gamepad = null;  // pads and their cursors, created by initGamepadInput()
@@ -33,39 +31,11 @@ export class InputManager {
         this.initGamepadInput();
     }
 
-    onPointerDown(pointer) {
-        this.pointerIsDown = true;
-        this.isHolding = false;
+    onPointerDown(pointer) { this.pointerInput.onDown(pointer); }
 
-        // Start hold timer for auto-drag
-        this.holdTimer = this.scene.time.delayedCall(this.holdDuration, () => {
-            if (this.pointerIsDown) {
-                this.isHolding = true;
-                this.emit('holdStart', toLogical(this.scene, pointer));
-            }
-        });
+    onPointerMove(pointer) { this.pointerInput.onMove(pointer); }
 
-        this.emit('pointerDown', toLogical(this.scene, pointer));
-    }
-
-    onPointerMove(pointer) {
-        if (this.pointerIsDown) {
-            this.emit('pointerMove', toLogical(this.scene, pointer));
-        }
-    }
-
-    onPointerUp(pointer) {
-        this.pointerIsDown = false;
-        this.isHolding = false;
-
-        // Clear hold timer
-        if (this.holdTimer) {
-            this.holdTimer.remove();
-            this.holdTimer = null;
-        }
-
-        this.emit('pointerUp', toLogical(this.scene, pointer));
-    }
+    onPointerUp(pointer) { this.pointerInput.onUp(pointer); }
 
     /** Baby keyboard: listens on the window (see ../input/KeyboardInput.js). */
     initKeyboardInput() {
@@ -116,8 +86,6 @@ export class InputManager {
         if (this.keyboard) this.keyboard.destroy();
         if (this.gamepad) this.gamepad.destroy();
 
-        if (this.holdTimer) {
-            this.holdTimer.remove();
-        }
+        this.pointerInput.destroy();
     }
 }

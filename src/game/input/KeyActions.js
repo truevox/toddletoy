@@ -46,7 +46,8 @@ export class KeyActions {
         } finally {
             this.inFlight--;
             // a key spawn has nothing to "release": do not leave the drag lock on
-            scene.awaitingSpawnInputRelease = false;
+            const h = scene.sceneInputHandler;
+            if (h && h.releaseSpawnLock) h.releaseSpawnLock(); else scene.awaitingSpawnInputRelease = false;
         }
     }
 }

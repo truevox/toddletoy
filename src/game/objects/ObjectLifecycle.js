@@ -157,8 +157,9 @@ export class ObjectLifecycle {
             // Clean up particles
             this.scene.particleManager.cleanupParticles(obj.id);
 
-            // Stop drag trails
+            // Stop drag trails, and let go of it if a finger was holding it
             this.scene.particleManager.stopDragTrail(obj);
+            if (this.scene.pointerRegistry) this.scene.pointerRegistry.dropObject(obj);
 
             // Clean up word sparkles
             this.scene.particleManager.cleanupWordSparkles(obj);
