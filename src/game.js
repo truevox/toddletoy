@@ -26,6 +26,7 @@ import { buildSnapshot } from './game/systems/DebugSnapshot.js'
 import { viewSize, sizes, renderKey, syncCamera, installTextResolution } from './game/systems/DisplayScale.js'
 import { rebuildObjectsForResize } from './game/systems/ResizeRebuild.js'
 import { Backdrop } from './game/systems/Backdrop.js'
+import { SoftPhysics } from './game/systems/SoftPhysics.js'
 
 class GameScene extends Phaser.Scene {
     constructor() {
@@ -69,6 +70,7 @@ class GameScene extends Phaser.Scene {
         this.movementManager = new MovementManager(this);
         this.autoCleanupManager = new AutoCleanupManager(this);
         this.objectMotion = new ObjectMotion(this);
+        this.softPhysics = new SoftPhysics(this); // separation, throw/bounce, screen capacity
 
         this.backdrop = new Backdrop(this).create(); // soft living background, depth far below everything
 
@@ -220,6 +222,9 @@ class GameScene extends Phaser.Scene {
         this.movementManager.updateObjectMovements();
 
         this.objectMotion.update(time, delta);
+
+        // Keep objects apart, glide thrown ones, hold the screen to its capacity
+        if (this.softPhysics) this.softPhysics.update();
 
         // Check for auto-cleanup
         this.autoCleanupManager.checkAutoCleanup();
@@ -428,6 +433,7 @@ class GameScene extends Phaser.Scene {
         if (this.movementManager) this.movementManager.destroy();
         if (this.objectMotion) this.objectMotion.destroy();
         if (this.autoCleanupManager) this.autoCleanupManager.destroy();
+        if (this.softPhysics) this.softPhysics.destroy();
 
         // Clean up objects
         this.resetToyState();
