@@ -6,16 +6,15 @@
  * never cleared. The tween manager lives on the scene itself: `scene.tweens`.
  */
 import { SceneInputHandler } from '../src/game/systems/SceneInputHandler.js';
+import { installPointerState } from '../src/game/input/pointerState.js';
 
 function makePhaserLikeScene() {
-    return {
+    return installPointerState({
         // Phaser.Scene#scene is the ScenePlugin - it has NO tweens manager
         scene: { pause: jest.fn(), resume: jest.fn() },
         tweens: { add: jest.fn() },
-        particleManager: { startDragTrail: jest.fn(), stopDragTrail: jest.fn() },
-        isDragging: false,
-        draggedObject: null
-    };
+        particleManager: { startDragTrail: jest.fn(), stopDragTrail: jest.fn() }
+    })
 }
 
 describe('Drag scale feedback', () => {
@@ -56,13 +55,12 @@ describe('Drag scale feedback', () => {
 describe('drag end persists the new position', () => {
     test('stopDragging saves game state', () => {
         const { SceneInputHandler } = require('../src/game/systems/SceneInputHandler.js');
-        const scene = {
-            draggedObject: { id: 1, active: true },
-            isDragging: true,
+        const scene = installPointerState({
             tweens: { add: jest.fn() },
             particleManager: { stopDragTrail: jest.fn() },
             saveGameState: jest.fn()
-        };
+        });
+        scene.draggedObject = { id: 1, active: true };
         new SceneInputHandler(scene).stopDragging();
         expect(scene.saveGameState).toHaveBeenCalledTimes(1);
         expect(scene.isDragging).toBe(false);

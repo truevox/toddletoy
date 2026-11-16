@@ -1,4 +1,5 @@
-import { viewWidth, viewHeight, toLogical } from './DisplayScale.js'
+import { viewWidth, viewHeight } from './DisplayScale.js'
+import { PointerInput } from '../input/PointerInput.js'
 
 /**
  * InputManager - Unified input handling for pointer, keyboard, and gamepad
@@ -13,10 +14,8 @@ export class InputManager {
             x: viewWidth(scene) / 2,
             y: viewHeight(scene) / 2
         };
-        this.holdTimer = null;
-        this.holdDuration = 500; // 500ms hold to start auto-drag
-        this.isHolding = false;
-        this.pointerIsDown = false;
+        this.pointerIsDown = false; // any pointer down
+        this.pointerInput = new PointerInput(this); // the mouse and up to 10 fingers
         
         // Advanced keyboard state
         this.keyPositions = {};
@@ -41,39 +40,11 @@ export class InputManager {
         this.initGamepadInput();
     }
 
-    onPointerDown(pointer) {
-        this.pointerIsDown = true;
-        this.isHolding = false;
+    onPointerDown(pointer) { this.pointerInput.onDown(pointer); }
 
-        // Start hold timer for auto-drag
-        this.holdTimer = this.scene.time.delayedCall(this.holdDuration, () => {
-            if (this.pointerIsDown) {
-                this.isHolding = true;
-                this.emit('holdStart', toLogical(this.scene, pointer));
-            }
-        });
+    onPointerMove(pointer) { this.pointerInput.onMove(pointer); }
 
-        this.emit('pointerDown', toLogical(this.scene, pointer));
-    }
-
-    onPointerMove(pointer) {
-        if (this.pointerIsDown) {
-            this.emit('pointerMove', toLogical(this.scene, pointer));
-        }
-    }
-
-    onPointerUp(pointer) {
-        this.pointerIsDown = false;
-        this.isHolding = false;
-
-        // Clear hold timer
-        if (this.holdTimer) {
-            this.holdTimer.remove();
-            this.holdTimer = null;
-        }
-
-        this.emit('pointerUp', toLogical(this.scene, pointer));
-    }
+    onPointerUp(pointer) { this.pointerInput.onUp(pointer); }
 
     /**
      * (Re)compute the 3x3 grid (QWEASDZXC) positions from the current size.
@@ -348,8 +319,6 @@ export class InputManager {
             this.scene.input.keyboard.off('keyup', this.onKeyUp, this);
         }
 
-        if (this.holdTimer) {
-            this.holdTimer.remove();
-        }
+        this.pointerInput.destroy();
     }
 }

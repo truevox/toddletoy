@@ -11,6 +11,7 @@ import { solveLayout, stillEngaged, overlaps, EASE_K, MAX_PUSH_SPEED, EDGE_MARGI
 import { findFreeSpot } from './FreeSpot.js';
 import { enforceCapacity, sceneCapacity } from './ScreenCapacity.js';
 import { DragSamples, stepGlide, MAX_THROW_SPEED } from './ThrowMotion.js';
+import { draggedObjects, isDragged, anyDragged } from '../input/dragAccess.js';
 
 const NEWBORN_MS = 600, NEWBORN_MOB = 0.25, DROP_MOB = 0.35;
 const STILL_TICKS = 12, HEARTBEAT_MS = 1000, FAST_MEASURE_MS = 1000, MEASURE_EVERY = 100;
@@ -22,9 +23,9 @@ export class SoftPhysics {
     constructor(scene) {
         this.scene = scene;
         this.ctx = { width: 0, height: 0, keepOut: null, margin: EDGE_MARGIN, k: EASE_K, maxSpeed: MAX_PUSH_SPEED };
-        this.samples = new DragSamples();
+        this.samplesBy = new Map();   // dragged object -> its own release-velocity samples
         this.vel = { vx: 0, vy: 0 };
-        this.prevDragged = null;
+        this.prevDragged = new Set(); // objects that were being dragged last tick
         this.lastT = 0; this.lastN = -1; this.capacityUntil = 0;
         this.awake = true; this.stillTicks = 0; this.dirty = false; this.lastBeat = 0;
         this.sizeW = 0; this.sizeH = 0; this.seq = 0;
@@ -41,8 +42,8 @@ export class SoftPhysics {
 
         this.upT = 0;
         this.onMove = () => {
-            const d = scene.draggedObject;
-            if (d && d.active) this.samples.push(now(), d.x, d.y);
+            const t = now();
+            for (const d of draggedObjects(scene)) if (d && d.active) this.samplesOf(d).push(t, d.x, d.y);
         };
         // stamp the real release time: a slow frame must not make a throw look like a stop
         this.onUp = () => { this.upT = now(); };
@@ -135,7 +136,7 @@ export class SoftPhysics {
         if (scene.gridMode && scene.gridMode.enabled) { this.clearVelocities(); return; }
 
         const n = objs.length;
-        if (n === 0) { this.crowdCap = Infinity; this.samples.clear(); this.prevDragged = null; this.lastN = 0; return; }
+        if (n === 0) { this.crowdCap = Infinity; this.clearSamples(); this.lastN = 0; return; }
 
         this.refreshCtx();
         this.trackDrag(t);
@@ -183,29 +184,47 @@ export class SoftPhysics {
         return !!ls && Date.now() - ls < 1500;
     }
 
+    samplesOf(obj) {
+        let sm = this.samplesBy.get(obj);
+        if (!sm) { sm = new DragSamples(); this.samplesBy.set(obj, sm); }
+        return sm;
+    }
+
+    clearSamples() { this.samplesBy.clear(); this.prevDragged.clear(); }
+
+    /** Every dragged object (one per finger) is sampled; a released one is thrown or dropped on its own. */
     trackDrag(t) {
-        const d = this.scene.draggedObject || null;
-        if (d !== this.prevDragged) {
-            const prev = this.prevDragged;
+        const list = draggedObjects(this.scene);
+        const prev = this.prevDragged;
+        const changed = list.length !== prev.size || list.some(o => !prev.has(o));
+        if (changed) {
             this.wake();
-            if (prev && prev.active && prev.__soft) {
-                const rt = this.upT > 0 && t - this.upT < 1000 ? this.upT : t;
-                this.samples.push(rt, prev.x, prev.y);
-                const s = prev.__soft;
-                s.lowMobUntil = t + NEWBORN_MS; s.lowMob = DROP_MOB;
-                this.samples.velocity(rt, this.vel);
-                const am = this.scene.audioManager;
-                if (am) { if (!this.reduced && (this.vel.vx || this.vel.vy)) am.playThrow(prev); else am.playDrop(prev); }
-                if (!this.reduced && (this.vel.vx || this.vel.vy)) { s.vx = this.vel.vx; s.vy = this.vel.vy; s.x = prev.x; s.y = prev.y; }
-                else { s.vx = 0; s.vy = 0; }
-                if (!(this.vel.vx || this.vel.vy)) this.save(); // a plain drop: stopDragging already saved
-            }
-            this.samples.clear();
-            if (d) this.samples.push(t, d.x, d.y);
-            this.prevDragged = d;
-        } else if (d) {
-            this.samples.push(t, d.x, d.y);
+            for (const o of prev) if (!list.includes(o)) this.release(o, t);
+            for (const d of list) if (!prev.has(d)) this.samplesBy.delete(d);
+            this.prevDragged = new Set(list);
         }
+        for (const d of list) this.samplesOf(d).push(t, d.x, d.y);
+    }
+
+    release(prev, t) {
+        const sm = this.samplesBy.get(prev);
+        this.samplesBy.delete(prev);
+        if (!prev || !prev.active || !prev.__soft || !sm) return;
+        const reg = this.scene.pointerRegistry;
+        const regT = reg && reg.releaseTime ? reg.releaseTime(prev) : 0;
+        const cancelled = !!(reg && reg.wasCancelled && reg.wasCancelled(prev));
+        const rt = regT > 0 && t - regT < 1000 ? regT : (this.upT > 0 && t - this.upT < 1000 ? this.upT : t);
+        sm.push(rt, prev.x, prev.y);
+        const s = prev.__soft;
+        s.lowMobUntil = t + NEWBORN_MS; s.lowMob = DROP_MOB;
+        sm.velocity(rt, this.vel);
+        if (cancelled) { this.vel.vx = 0; this.vel.vy = 0; }
+        const thrown = !this.reduced && (this.vel.vx || this.vel.vy);
+        const am = this.scene.audioManager;
+        if (am) { if (thrown) am.playThrow(prev); else am.playDrop(prev); }
+        if (thrown) { s.vx = this.vel.vx; s.vy = this.vel.vy; s.x = prev.x; s.y = prev.y; }
+        else { s.vx = 0; s.vy = 0; }
+        if (!thrown) this.save(); // a plain drop: stopDragging already saved
     }
 
     step(dt, t) {
@@ -220,7 +239,7 @@ export class SoftPhysics {
             if (!s || !o.active) continue;
             s.moved = false; s.glide = false;
             s.x = o.x; s.y = o.y;
-            s.fixed = o === this.scene.draggedObject || (mm.hasMovingObject && mm.hasMovingObject(o.id));
+            s.fixed = isDragged(this.scene, o) || (mm.hasMovingObject && mm.hasMovingObject(o.id));
             s.mob = t < s.lowMobUntil ? s.lowMob : 1;
             if (s.fixed) { s.vx = 0; s.vy = 0; }
             else if (s.vx !== 0 || s.vy !== 0) {
@@ -262,7 +281,7 @@ export class SoftPhysics {
             }
         }
         if (activity > 0.01) this.stillTicks = 0;
-        else if (++this.stillTicks >= STILL_TICKS && !this.scene.draggedObject) {
+        else if (++this.stillTicks >= STILL_TICKS && !anyDragged(this.scene)) {
             this.awake = false;
             this.save();
         }
@@ -270,7 +289,7 @@ export class SoftPhysics {
 
     /** The pushes and free-spot search could not untangle a real overlap: the screen is too full for these sizes. */
     noteCrowded(bodies, n, t) {
-        if (this.scene.draggedObject) return;
+        if (anyDragged(this.scene)) return;
         for (let i = 0; i < n; i++) {
             const a = bodies[i];
             if (!a || a.glide) continue;
@@ -292,8 +311,7 @@ export class SoftPhysics {
     clearVelocities() {
         const objs = this.scene.objects || [];
         for (let i = 0; i < objs.length; i++) { const s = objs[i] && objs[i].__soft; if (s) { s.vx = 0; s.vy = 0; } }
-        this.samples.clear();
-        this.prevDragged = null;
+        this.clearSamples();
     }
 
     reset() { this.clearVelocities(); this.lastN = -1; this.wake(); }

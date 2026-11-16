@@ -8,6 +8,7 @@
  * motion factors, written in one place (applyPose) every tick.
  * Per-object state lives on obj.motionState; the tick allocates nothing.
  */
+import { isDragged } from '../input/dragAccess.js';
 import {
     newPose, resetPose, popInPose, captionAlpha, idlePose, reactKind, reactPose, bumpPose,
     dragTilt, DRAG_LIFT, POP_IN_MS, REACT_MS, BUMP_MS
@@ -122,7 +123,7 @@ export class ObjectMotion {
         const acc = resetPose(this.acc);
         const t = this.tmp;
         const reduced = this.reduced;
-        const dragged = this.scene.draggedObject === obj;
+        const dragged = isDragged(this.scene, obj);
         const size = glyphSize(obj);
 
         // drag lift and tilt (smoothed)

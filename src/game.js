@@ -15,6 +15,7 @@ import emojiDataBundled from '../public/emojis.json'
 import thingsDataBundled from '../public/things.json'
 import { GameStateStore } from './game/systems/GameStateStore.js'
 import { NumberModeRenderer } from './game/systems/NumberModeRenderer.js'
+import { installPointerState } from './game/input/pointerState.js'
 import { SceneInputHandler } from './game/systems/SceneInputHandler.js'
 import { ResponsiveGameManager } from './game/ResponsiveGameManager.js'
 import { ObjectFactory } from './game/objects/ObjectFactory.js'
@@ -105,9 +106,6 @@ class GameScene extends Phaser.Scene {
         this.currentSpeech = null;
         this.currentSpeakingObject = null;
 
-        // Initialize dragging state
-        this.isDragging = false;
-        this.draggedObject = null;
 
         // Spawn-after-movement cooldown: block spawns for 200ms (1/5s) after any movement
         this.lastMoveTime = 0;
@@ -243,12 +241,12 @@ class GameScene extends Phaser.Scene {
      * @param {number} x - Current pointer X position
      * @param {number} y - Current pointer Y position
      */
-    startDragging(obj, x, y) { return this.sceneInputHandler.startDragging(obj, x, y); }
+    startDragging(obj, x, y, pointerId) { return this.sceneInputHandler.startDragging(obj, x, y, pointerId); }
 
     /**
      * Stop dragging with smooth scale-down animation
      */
-    stopDragging() { return this.sceneInputHandler.stopDragging(); }
+    stopDragging(pointerId, options) { return this.sceneInputHandler.stopDragging(pointerId, options); }
 
     async onInputKeyPress(data) { return this.sceneInputHandler.onInputKeyPress(data); }
 
@@ -451,3 +449,7 @@ export { ResponsiveGameManager, GameScene };
 
 // Legacy export alias for compatibility
 export { ResponsiveGameManager as ToddlerToyGame };
+
+// Per-finger state: pointerRegistry, spawnGuard, getDraggedObjects(), isObjectDragged(), and the
+// old draggedObject / isDragging names as views of it (see src/game/input/pointerState.js)
+installPointerState(GameScene.prototype)

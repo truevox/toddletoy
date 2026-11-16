@@ -2,6 +2,8 @@
  * AutoCleanupManager - Handles automatic object cleanup based on time since last interaction
  * Extracted from GameScene to follow "wide and shallow" principle
  */
+import { isDragged } from '../input/dragAccess.js';
+
 export class AutoCleanupManager {
     constructor(scene) {
         this.scene = scene;
@@ -52,6 +54,9 @@ export class AutoCleanupManager {
                 return false;
             }
             
+            // ...or objects a finger is holding right now
+            if (isDragged(this.scene, obj)) return false;
+
             // Only cleanup objects that have a lastTouchedTime (were actually interacted with)
             if (!obj.lastTouchedTime) return false;
             

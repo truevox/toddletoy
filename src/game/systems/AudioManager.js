@@ -18,7 +18,7 @@ export class AudioManager {
         this.engine = new AudioEngine({ getConfig: () => this.audioConfig() });
         this.gate = new EventGate();
         this.log = new EventLog(64);
-        this.drag = null;          // { obj, idx } while a dragged object is being heard
+        this.drags = new Map();    // obj id -> { obj, idx, moved } for every dragged object being heard (one per finger)
         this.quiet = 0;            // >0 while removals are not events (reset, rebuild)
         this.onVis = () => this.onVisibility(typeof document !== 'undefined' && document.hidden);
         if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.onVis);
@@ -70,13 +70,13 @@ export class AudioManager {
     playTap(obj, x, y) { return this.fire('tap', obj, x, y); }
 
     playPickup(obj) {
-        this.drag = { obj, idx: this.position(obj).idx, moved: true };
+        this.drags.set(obj.id, { obj, idx: this.position(obj).idx, moved: true });
         return this.fire('pickup', obj);
     }
 
     /** Called on every pointer move while dragging: a soft note whenever the object crosses a scale step. */
     playDragStep(obj, x, y) {
-        const d = this.drag;
+        const d = this.drags.get(obj.id);
         if (!d || d.obj !== obj) return null;
         const idx = this.position(obj, x, y).idx;
         if (idx === d.idx) return null;
@@ -97,9 +97,9 @@ export class AudioManager {
     }
 
     endDrag(obj) {
-        const d = this.drag;
+        const d = this.drags.get(obj.id);
         if (!d || d.obj !== obj || !d.moved) return false;
-        this.drag = null;
+        this.drags.delete(obj.id);
         return true;
     }
 
@@ -107,7 +107,7 @@ export class AudioManager {
 
     playPop(obj) {
         if (this.quiet > 0 || !obj) return null;
-        if (this.drag && this.drag.obj === obj) this.drag = null;
+        this.drags.delete(obj.id);
         this.engine.stopOwner(obj.id);
         return this.fire('pop', obj);
     }
@@ -128,13 +128,14 @@ export class AudioManager {
 
     updateTonePosition(x, y, objId) {
         const o = { id: objId, type: 'emoji', x, y };
-        if (!this.drag || this.drag.obj.id !== objId) this.drag = { obj: o, idx: this.position(o).idx, moved: false };
-        else this.drag.obj = o;
+        const d = this.drags.get(objId);
+        if (!d) this.drags.set(objId, { obj: o, idx: this.position(o).idx, moved: false });
+        else d.obj = o;
         return this.playDragStep(o, x, y);
     }
 
     stopTone(objId) { this.engine.stopOwner(objId); }
-    stopAllTones() { this.drag = null; this.engine.stopAll(); }
+    stopAllTones() { this.drags.clear(); this.engine.stopAll(); }
     hasTone(objId) { return this.engine.hasOwner(objId); }
     getToneCount() { return this.engine.voiceCount(); }
 
@@ -148,7 +149,7 @@ export class AudioManager {
 
     destroy() {
         if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', this.onVis);
-        this.drag = null;
+        this.drags.clear();
         this.engine.destroy();
     }
 }
