@@ -1,3 +1,5 @@
+import { composeLabel, detectKind } from '../speech/labelGrammar.js';
+
 const DEFAULT_FALLBACK_KEYS = ['en', 'en-US', 'en-GB', 'value', 'label', 'name'];
 
 function normaliseLanguageCandidates(languageCode) {
@@ -88,7 +90,13 @@ export function buildColorizedLabel(itemData, languageCode) {
             getLocalizedString(itemData.color, 'en');
 
         if (colorWord) {
-            return baseLabel ? `${colorWord} ${baseLabel}` : colorWord;
+            return composeLabel({
+                kind: detectKind(itemData),
+                nounKey: coerceString(itemData.value),
+                noun: baseLabel,
+                colorKey: coerceString(itemData.color.value) || getLocalizedString(itemData.color, 'en'),
+                colorWord
+            }, languageCode);
         }
     }
 
