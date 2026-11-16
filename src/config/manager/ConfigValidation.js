@@ -39,6 +39,12 @@ export function validateConfig(manager, config) {
     validateWeights(config.emojiCategories);
     validateWeights(config.colorCategories);
 
+    // advanced.maxObjects: 0 = automatic, otherwise a whole number of at least 1
+    if (config.advanced) {
+        const m = Number(config.advanced.maxObjects);
+        config.advanced.maxObjects = Number.isFinite(m) && m > 0 ? Math.min(500, Math.floor(m)) : 0;
+    }
+
     // Validate audio settings
     if (config.audio) {
         if (config.audio.volume < 0) config.audio.volume = 0;

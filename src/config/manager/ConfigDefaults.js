@@ -63,6 +63,8 @@ export function getDefaults() {
         },
         advanced: {
             skipConfig: false,
+            // Most objects on screen at once: 0 = automatic (from object size and screen area)
+            maxObjects: 0,
             // Calm by default: a number shows its numeral and caption. The other
             // ways of showing it are opt-in (Advanced settings).
             numberModes: {
