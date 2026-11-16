@@ -31,6 +31,7 @@ export function makeMockContext(state = 'running') {
             ctx.sources.push(o);
             return o;
         },
+        createWaveShaper() { return makeNode({ curve: null }); },
         createStereoPanner() { return makeNode({ pan: makeParam(0) }); },
         createBiquadFilter() { return makeNode({ type: 'lowpass', frequency: makeParam(1000), Q: makeParam(1) }); },
         createDynamicsCompressor() {

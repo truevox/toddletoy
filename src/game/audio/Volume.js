@@ -1,10 +1,10 @@
 /**
  * Volume - perceptual mapping from the 0-100 setting to the master gain.
- * gain = 0.8 * (v/100)^0.6: the default of 10 lands at about 0.2 (soft but clearly audible,
- * roughly -14 dB), 50 at 0.53, and 100 at 0.8 (-2 dB) so the top of the slider is full but
- * never painful; the limiter after the master catches anything stacked.
+ * gain = 1.6 * (v/100)^0.6: the default of 10 lands at about 0.40 (single notes peak near -18 dBFS:
+ * soft but clearly audible), 50 at 1.06, and 100 at 1.6 (single notes about -6 dBFS). The
+ * compressor and a final soft clip after the master keep anything stacked below full scale.
  */
-export const MAX_MASTER_GAIN = 0.8;
+export const MAX_MASTER_GAIN = 1.6;
 export const DEFAULT_VOLUME = 10;
 
 export function volumeToGain(volume) {

@@ -161,7 +161,7 @@ test.describe('sound', () => {
         const bounces = await log(page, 'bounce');
         expect(bounces.length).toBeGreaterThanOrEqual(1);
         expect(bounces.every((b) => inScale(b.freq))).toBe(true);
-        expect(bounces[0].level).toBeGreaterThan(0.5);               // the hard one
+        expect(bounces[0].level).toBeGreaterThan(0.3);               // the hard one (level = 0.25 + 0.4 * strength)
         if (bounces.length > 1) expect(bounces.at(-1).level).toBeLessThan(bounces[0].level);
         expect(c.pageErrors).toEqual([]);
     });

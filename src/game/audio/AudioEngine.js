@@ -59,8 +59,8 @@ export class AudioEngine {
             const Ctor = typeof AudioContext !== 'undefined' ? AudioContext : (typeof webkitAudioContext !== 'undefined' ? webkitAudioContext : null);
             if (!Ctor) return null;
             const ctx = new Ctor();
-            const { master, limiter } = buildMasterChain(ctx, volumeToGain((this.getConfig() || {}).volume));
-            this.ctx = ctx; this.master = master; this.limiter = limiter;
+            const { master, limiter, clip } = buildMasterChain(ctx, volumeToGain((this.getConfig() || {}).volume));
+            this.ctx = ctx; this.master = master; this.limiter = limiter; this.clip = clip;
             this.lastGain = master.gain.value;
         } catch (error) {
             console.warn('Web Audio API not supported or failed to initialize:', error);
@@ -160,7 +160,7 @@ export class AudioEngine {
         this.stopListening();
         this.stopAll();
         const ctx = this.ctx;
-        this.ctx = null; this.master = null; this.limiter = null;
+        this.ctx = null; this.master = null; this.limiter = null; this.clip = null;
         if (ctx && ctx.close) {
             try { Promise.resolve(ctx.close()).catch(() => {}); } catch (e) { /* ignore */ }
         }

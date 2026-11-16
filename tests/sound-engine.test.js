@@ -12,9 +12,9 @@ describe('volume mapping', () => {
         expect(volumeToGain(0)).toBe(0);
         let last = 0;
         for (let v = 1; v <= 100; v++) { const g = volumeToGain(v); expect(g).toBeGreaterThan(last); last = g; }
-        expect(volumeToGain(10)).toBeGreaterThan(0.12);
-        expect(volumeToGain(10)).toBeLessThan(0.35);
-        expect(volumeToGain(100)).toBeLessThanOrEqual(0.85);
+        expect(volumeToGain(10)).toBeGreaterThan(0.3);
+        expect(volumeToGain(10)).toBeLessThan(0.5);
+        expect(volumeToGain(100)).toBeLessThanOrEqual(1.7);
         expect(volumeToGain(500)).toBe(volumeToGain(100));
         expect(volumeToGain('x')).toBeGreaterThan(0);
         expect(volumeToGain(-5)).toBe(0);
@@ -108,7 +108,8 @@ describe('engine', () => {
     test('master chain: voices -> master gain -> compressor -> destination', () => {
         engine.play(spec());
         expect(engine.master.connect).toHaveBeenCalledWith(engine.limiter);
-        expect(engine.limiter.connect).toHaveBeenCalledWith(ctx.destination);
+        expect(engine.limiter.connect).toHaveBeenCalledWith(engine.clip);
+        expect(engine.clip.connect).toHaveBeenCalledWith(ctx.destination);
         expect(engine.master.gain.value).toBeCloseTo(volumeToGain(10), 5);
     });
 
