@@ -84,9 +84,11 @@ export class SoftPhysics {
     restExtents(obj) {
         // rest size plus room for idle breathing (3%) and bobbing (3%) so neighbours never touch
         const rest = (obj.baseScale || 1) * (obj.gridFitScale || 1) * GLYPH_PAD;
-        let gw, gh, ox = 0.5, oy = 0.5;
+        let gw, gh;
+        const ox = 0.5, oy = 0.5;
         if (obj.mainShape) { gw = gh = (obj.shapeSize || 0) * rest; }
-        else { gw = (obj.width || 0) * rest; gh = (obj.height || 0) * rest; if (Number.isFinite(obj.originX)) ox = obj.originX; if (Number.isFinite(obj.originY)) oy = obj.originY; }
+        // glyphs rest centred; the live origin is NOT read because the idle bob is an origin shift
+        else { gw = (obj.width || 0) * rest; gh = (obj.height || 0) * rest; }
         if (!(gw > 0) || !(gh > 0)) return getObjectExtents(obj);
         let l = -ox * gw, r = (1 - ox) * gw, t = -oy * gh, b = (1 - oy) * gh;
         const parts = getCompositeComponents(obj);

@@ -14,7 +14,25 @@ export async function dragScene(page, from, to) {
     await page.mouse.move(o.x + from.x, o.y + from.y);
     await page.mouse.down();
     await page.mouse.move(o.x + to.x, o.y + to.y, { steps: 6 });
+    // hold still before letting go: a release at speed is a throw, and this is a plain drag-and-drop
+    await page.waitForTimeout(220);
     await page.mouse.up();
+}
+
+/**
+ * Lift the screen-capacity limit for a test that is about something else and
+ * simply needs many objects (by default a spawn beyond what fits pops the
+ * oldest). Call after any seedConfig: it merges into whatever is stored.
+ */
+export async function allowManyObjects(context) {
+    await context.addInitScript((key) => {
+        try {
+            let cfg = {};
+            try { cfg = JSON.parse(localStorage.getItem(key)) || {}; } catch (e) { cfg = {}; }
+            cfg.advanced = { ...(cfg.advanced || {}), maxObjects: 500 };
+            localStorage.setItem(key, JSON.stringify(cfg));
+        } catch (e) { /* storage unavailable */ }
+    }, 'toddleToyConfig');
 }
 
 /**

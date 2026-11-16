@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 import {
-    collectErrors, seedConfig, skipOnboarding, gotoSelector, enterSandbox, startPlaying, tapSpawn, objectCount,
+    collectErrors, seedConfig, spawnForced, sceneSize, skipOnboarding, gotoSelector, enterSandbox, startPlaying, tapSpawn, objectCount,
     waitForSpawnReady, SANDBOX_CARD,
 } from './helpers/app.js';
-import { tapFreeSpot } from './helpers/scene.js';
+import { tapFreeSpot, allowManyObjects } from './helpers/scene.js';
 
 /**
  * Performance and resource budgets. Budgets are deliberately generous (CI
@@ -14,6 +14,7 @@ test.describe('Performance budgets', () => {
         await skipOnboarding(context);
         // default idle auto-cleanup (10s) would reap objects mid-test
         await seedConfig(context, { advanced: { autoCleanup: { enabled: false } } });
+        await allowManyObjects(context); // these tests need many objects; capacity has its own spec
     });
 
     test('time to interactive: selector < 5s, START -> live scene < 6s', async ({ page }) => {
@@ -32,13 +33,16 @@ test.describe('Performance budgets', () => {
         expect(Date.now() - t2).toBeLessThan(2000);
     });
 
-    test('20 taps produce exactly 20 objects within budget', async ({ page }) => {
+    test('20 spawns produce exactly 20 objects within budget', async ({ page }) => {
         test.setTimeout(60000);
         const c = collectErrors(page);
         await enterSandbox(page);
+        const { width, height } = await sceneSize(page);
         const start = Date.now();
+        // spawned through the scene: 20 big objects leave no free space for a tap to land on
+        // (tap -> spawn is covered by the sandbox spec; this one budgets the spawn path)
         for (let i = 0; i < 20; i++) {
-            await tapFreeSpot(page);
+            await spawnForced(page, width * (0.1 + 0.2 * (i % 5)), height * (0.15 + 0.23 * Math.floor(i / 5)), 'emoji');
         }
         expect(Date.now() - start).toBeLessThan(30000);
         expect(await objectCount(page)).toBe(20);
@@ -89,6 +93,7 @@ test.describe('Resource management', () => {
         await skipOnboarding(context);
         // default idle auto-cleanup (10s) would reap objects mid-test
         await seedConfig(context, { advanced: { autoCleanup: { enabled: false } } });
+        await allowManyObjects(context); // these tests need many objects; capacity has its own spec
     });
 
     const census = (page) => page.evaluate(() => {

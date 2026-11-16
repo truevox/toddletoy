@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { seedConfig, skipOnboarding, enterSandbox, tapSpawn, spawnForced, allObjects, sceneSize, waitForSpawnReady, waitForObjectCount, objectCount } from './helpers/app.js';
-import { regionHasContent, attachmentOffsets, dragScene, tapFreeSpot } from './helpers/scene.js';
+import { regionHasContent, attachmentOffsets, dragScene, tapFreeSpot, allowManyObjects } from './helpers/scene.js';
 
 /**
  * Emoji rendering checks without pixel baselines: scene state says what was
@@ -16,6 +16,7 @@ test.describe('Emoji rendering', () => {
     test.beforeEach(async ({ context }) => {
         await skipOnboarding(context);
         await seedConfig(context, EMOJIS_ONLY);
+        await allowManyObjects(context);
     });
 
     test('a spawned emoji draws visible pixels where it is, and nothing is drawn there before', async ({ page }) => {

@@ -35,7 +35,8 @@ export function enforceCapacity(scene, width, height, maxObjects, crowdCap = Inf
         const objs = scene.objects;
         const n = objs.length;
         if (n < 2) break;
-        const cap = Math.min(crowdCap, computeCapacity(width, height, meanFromObjects(objs), maxObjects));
+        // an explicit advanced.maxObjects is the parent's choice: the crowd cap does not second-guess it
+        const cap = Math.min(maxObjects > 0 ? Infinity : crowdCap, computeCapacity(width, height, meanFromObjects(objs), maxObjects));
         if (n <= cap) break;
         let victim = null;
         for (let i = 0; i < n - 1; i++) {
@@ -64,5 +65,5 @@ function meanFromObjects(objs) {
 
 /** Current capacity for a scene (for tests and debugging). */
 export function sceneCapacity(scene, width, height, maxObjects, crowdCap = Infinity) {
-    return Math.min(crowdCap, computeCapacity(width, height, meanFromObjects(scene.objects || []), maxObjects));
+    return Math.min(maxObjects > 0 ? Infinity : crowdCap, computeCapacity(width, height, meanFromObjects(scene.objects || []), maxObjects));
 }

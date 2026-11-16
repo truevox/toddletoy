@@ -3,7 +3,7 @@ import {
     collectErrors, skipOnboarding, gotoSelector, enterSandbox, tapSpawn, waitForScene,
     GLOBE_CARD, SANDBOX_CARD, allObjects, startPlaying, enterConfig,
 } from './helpers/app.js';
-import { tapFreeSpot } from './helpers/scene.js';
+import { tapFreeSpot, allowManyObjects } from './helpers/scene.js';
 
 /**
  * Offline PWA regression tests. They need the real service worker, so they
@@ -73,6 +73,7 @@ test.describe('Service worker and offline', () => {
     });
 
     test('tapping offline produces varied objects with at most one JSON request', async ({ page, context }) => {
+        await allowManyObjects(context);
         await page.goto('/');
         await expect(page.locator('#toy-mode-selector')).toBeVisible();
         await swReady(page);

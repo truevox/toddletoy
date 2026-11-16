@@ -2,6 +2,7 @@ import { test, expect, devices } from '@playwright/test';
 import {
     collectErrors, seedConfig, enterSandbox, canvasPoint, waitForSpawnReady, objectCount, waitForObjectCount, lastObject,
 } from './helpers/app.js';
+import { allowManyObjects } from './helpers/scene.js';
 
 /**
  * Device-pixel rendering and screen-relative sizes (Stage 1 of the sandbox plan).
@@ -158,7 +159,8 @@ for (const [name, profile] of Object.entries(PROFILES)) {
             }
         });
 
-        test('10 mixed spawns, including large numbers with every mode on, stay inside the screen', async ({ page }) => {
+        test('10 mixed spawns, including large numbers with every mode on, stay inside the screen', async ({ page, context }) => {
+            await allowManyObjects(context);
             test.setTimeout(90000); // software GL at 2-3x pixel ratio makes each spawn round trip slow
             const errs = collectErrors(page);
             await enterSandbox(page);
