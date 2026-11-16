@@ -119,7 +119,6 @@ test.describe('Object motion', () => {
         await page.mouse.move(org.x + o.x + 3, org.y + o.y + 2);
         await page.mouse.down();
         await page.mouse.move(org.x + o.x + 6, org.y + o.y + 3);
-        await page.waitForTimeout(80);
         await page.mouse.up();
         await page.waitForTimeout(100);
         const tapped = await page.evaluate(() => {
@@ -128,7 +127,7 @@ test.describe('Object motion', () => {
         });
         expect(tapped.n).toBe(before);
         expect(Math.abs(tapped.x - o.x) + Math.abs(tapped.y - o.y)).toBeLessThan(0.5);
-        expect(tapped.reacts).toBe(1);
+        expect(tapped.reacts, JSON.stringify(tapped)).toBe(1);
         expect(tapped.speaks).toBe(1);
         expect(tapped.reactMs).toBeGreaterThanOrEqual(0);
 
