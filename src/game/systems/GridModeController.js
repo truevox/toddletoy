@@ -229,7 +229,7 @@ export class GridModeController {
     /**
      * Spawn object in specific grid cell
      */
-    async spawnObjectInGridCell(row, col, type = 'random') {
+    async spawnObjectInGridCell(row, col, type = 'random', item = null) {
         if (!this.scene.gridMode.gridManager) {
             console.warn('📐 Cannot spawn in grid cell: GridManager not initialized');
             return null;
@@ -259,7 +259,7 @@ export class GridModeController {
         }
 
         // Spawn object at cell center using existing spawn logic
-        const obj = await this.scene.spawnObjectAt(position.x, position.y, type);
+        const obj = await this.scene.spawnObjectAt(position.x, position.y, type, item);
 
         if (obj) {
             // Cell info, no dragging, fresh touch time (prevents immediate auto-cleanup),

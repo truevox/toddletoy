@@ -52,8 +52,9 @@ class ResponsiveGameManager {
             },
             // the toy makes its own sound (src/game/audio/): no second, unused Phaser AudioContext
             audio: { noAudio: true },
+            // gamepads are read by src/game/input/GamepadInput.js (only once one connects): no Phaser gamepad plugin polling
             input: {
-                gamepad: true,
+                gamepad: false,
                 activePointers: 10   // the mouse plus ten fingers (Phaser defaults to one finger)
             },
             physics: {

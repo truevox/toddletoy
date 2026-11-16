@@ -42,6 +42,46 @@ export class ContentSelector {
         return weights[0].type;
     }
 
+    /** Is this content type switched on (and weighted) in the parent's settings? */
+    isTypeEnabled(name) {
+        const config = this.scene.configManager ? this.scene.configManager.getConfig() : null;
+        const t = config && config.content && config.content[name];
+        return !!(t && t.enabled && t.weight > 0);
+    }
+
+    /**
+     * The content a baby-keyboard key asks for, or null when the settings do not allow it
+     * (the caller then spawns a random enabled thing instead).
+     * @param {'letter'|'digit'|'other'} kind
+     * @param {string|number} value - letter (any case) or digit
+     * @returns {Promise<{type:string,item:Object}|null>} type is a spawn type ('uppercaseLetters', 'smallNumbers', ...)
+     */
+    async resolveKeyContent(kind, value) {
+        if (!this.scene.thingsData) this.scene.thingsData = thingsDataBundled;
+        if (kind === 'letter') {
+            const type = this.isTypeEnabled('uppercaseLetters') ? 'uppercaseLetters'
+                : this.isTypeEnabled('lowercaseLetters') ? 'lowercaseLetters' : null;
+            if (!type) return null;
+            const upper = type === 'uppercaseLetters';
+            const wanted = upper ? String(value).toUpperCase() : String(value).toLowerCase();
+            const found = (this.scene.thingsData.letters || []).find(l => l.case === (upper ? 'upper' : 'lower') && l.value === wanted);
+            return found ? { type, item: { ...found, type: 'letter' } } : null;
+        }
+        if (kind === 'digit') {
+            const n = Number(value);
+            const found = (this.scene.thingsData.numbers || []).find(x => x.value === n);
+            if (!found) return null;
+            for (const type of ['smallNumbers', 'largeNumbers']) {
+                if (!this.isTypeEnabled(type)) continue;
+                const range = this.scene.getNumberRangeForType(type);
+                if (applyRangeFilter([found], normaliseBound(range?.min, undefined), normaliseBound(range?.max, undefined)).length === 0) continue;
+                const color = await this.scene.getRandomColor();
+                return { type, item: { ...found, type: 'number', color } };
+            }
+        }
+        return null;
+    }
+
     async getRandomEmoji() {
         // Emoji data is bundled at build time (see the import at the top of this
         // file), so it is always available - no network fetch, no failure mode.

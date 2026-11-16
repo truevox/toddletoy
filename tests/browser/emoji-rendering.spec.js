@@ -43,7 +43,7 @@ test.describe('Emoji rendering', () => {
         expect(a.words.length).toBeGreaterThan(0);
     });
 
-    test('keyboard-spawned emojis land on nine distinct grid positions', async ({ page }) => {
+    test('keyboard-spawned emojis (letter keys fall back to emoji here) land on nine distinct positions', async ({ page }) => {
         await enterSandbox(page);
         for (const key of ['KeyQ', 'KeyW', 'KeyE', 'KeyA', 'KeyS', 'KeyD', 'KeyZ', 'KeyX', 'KeyC']) {
             await waitForSpawnReady(page);

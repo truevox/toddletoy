@@ -43,15 +43,10 @@ describe('resetToyState', () => {
 });
 
 describe('InputManager.clearHeldKeys', () => {
-    test('forgets held keys so the next press counts as the first', () => {
+    test('forgets held keys so the next press of those keys counts as new', () => {
         const im = Object.create(InputManager.prototype);
-        im.keysHeld = new Set(['Q', 'W']);
-        im.randomKeyPositions = new Map([['KeyM', { x: 1, y: 2 }]]);
-        im.keyPositions = {};
-        im.averageKeyPosition = { x: 5, y: 5 };
+        im.keyboard = { clear: jest.fn() };
         im.clearHeldKeys();
-        expect(im.keysHeld.size).toBe(0);
-        expect(im.randomKeyPositions.size).toBe(0);
-        expect(im.averageKeyPosition).toEqual({ x: 0, y: 0 });
+        expect(im.keyboard.clear).toHaveBeenCalled();
     });
 });

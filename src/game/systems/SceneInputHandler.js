@@ -5,6 +5,8 @@ import { trackMove, isTapRelease } from '../input/PointerRegistry.js';
  * Pointer state is per finger (scene.pointerRegistry, scene.spawnGuard); calls go back through the
  * scene so spies intercept. Several fingers can spawn, tap and drag at once.
  */
+import { KeyActions } from '../input/KeyActions.js';
+
 const now = () => Date.now();
 const MOUSE_ID = 0;
 const LEGACY_ID = 'legacy'; // a drag set through the old scene.draggedObject property
@@ -12,6 +14,7 @@ const LEGACY_ID = 'legacy'; // a drag set through the old scene.draggedObject pr
 export class SceneInputHandler {
     constructor(scene) {
         this.scene = scene;
+        this.keyActions = new KeyActions(scene);
     }
 
     get registry() { return this.scene.pointerRegistry; }
@@ -195,48 +198,13 @@ export class SceneInputHandler {
         if (!silent && this.scene.saveGameState) this.scene.saveGameState();
     }
 
+    /** Baby keyboard: see ../input/KeyActions.js */
     async onInputKeyPress(data) {
-        const { position } = data;
-
-        if (!this.scene.speechManager.getIsSpeaking()) {
-            if (!this.scene.canSpawnAfterMovement()) {
-                return;
-            }
-            await this.scene.spawnAndAnnounce(position.x, position.y, 'random');
-        } else if (this.scene.speechManager.getCurrentSpeakingObject() && this.scene.canMoveAfterSpawn()) {
-            this.scene.moveObjectTo(this.scene.speechManager.getCurrentSpeakingObject(), position.x, position.y);
-        }
-    }
-
-    onInputKeyInterpolate(data) {
-        const { position } = data;
-
-        if (this.scene.speechManager.getCurrentSpeakingObject() && this.scene.canMoveAfterSpawn()) {
-            this.scene.moveObjectTo(this.scene.speechManager.getCurrentSpeakingObject(), position.x, position.y);
-        }
+        return this.keyActions.play(data);
     }
 
     onInputKeyRelease() {
-        this.scene.awaitingSpawnInputRelease = false;
-    }
-
-    async onInputGamepadButtonDown(data) {
-        const { position } = data;
-
-        if (!this.scene.speechManager.getIsSpeaking()) {
-            if (!this.scene.canSpawnAfterMovement()) {
-                return;
-            }
-            await this.scene.spawnAndAnnounce(position.x, position.y, 'random');
-        } else if (this.scene.speechManager.getCurrentSpeakingObject() && this.scene.canMoveAfterSpawn()) {
-            this.scene.autoCleanupManager.updateObjectTouchTime(this.scene.speechManager.getCurrentSpeakingObject());
-            this.scene.moveObjectTo(this.scene.speechManager.getCurrentSpeakingObject(), position.x, position.y);
-            this.scene.audioManager.playTap(this.scene.speechManager.getCurrentSpeakingObject(), position.x, position.y);
-        }
-    }
-
-    onInputGamepadButtonUp() {
-        this.scene.awaitingSpawnInputRelease = false;
+        this.releaseSpawnLock();
     }
 
     // Object management methods
