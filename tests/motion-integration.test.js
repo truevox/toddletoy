@@ -4,6 +4,7 @@
 import { ObjectLifecycle } from '../src/game/objects/ObjectLifecycle.js';
 import { SceneInputHandler } from '../src/game/systems/SceneInputHandler.js';
 import { GameStateStore } from '../src/game/systems/GameStateStore.js';
+import { audioManagerMock } from './helpers/mock-audio-manager.js';
 
 function glyph(extra = {}) {
     return { id: 'o1', x: 100, y: 100, width: 80, height: 80, active: true, type: 'emoji', scaleX: 1, scaleY: 1,
@@ -14,7 +15,7 @@ function glyph(extra = {}) {
 function lifecycleScene(obj) {
     const scene = {
         objects: [obj],
-        audioManager: { hasTone: () => false, stopTone: jest.fn(), generateContinuousTone: jest.fn() },
+        audioManager: audioManagerMock(),
         particleManager: { cleanupParticles: jest.fn(), stopDragTrail: jest.fn(), cleanupWordSparkles: jest.fn(), createSpawnBurst: jest.fn() },
         speechManager: { speakText: jest.fn() },
         movementManager: { clearMovement: jest.fn() },
@@ -58,7 +59,7 @@ describe('resetToyState clears ghosts', () => {
     test('calls clearGhosts after removing objects', () => {
         const scene = {
             objects: [], objectMotion: { clearGhosts: jest.fn() },
-            audioManager: { stopAllTones: jest.fn() }, speechManager: { cancelSpeech: jest.fn() },
+            audioManager: audioManagerMock(), speechManager: { cancelSpeech: jest.fn() },
             movementManager: { clearAllMovements: jest.fn() },
             removeObject: jest.fn()
         };
@@ -79,7 +80,7 @@ describe('tap versus drag', () => {
             speechManager: { getIsSpeaking: () => false, speakText: jest.fn(), getCurrentSpeakingObject: () => null },
             autoCleanupManager: { updateObjectTouchTime: jest.fn() },
             particleManager: { startDragTrail: jest.fn(), stopDragTrail: jest.fn(), updateDragTrail: jest.fn() },
-            audioManager: { updateTonePosition: jest.fn() },
+            audioManager: audioManagerMock(),
             objectMotion: { react: jest.fn() },
             canSpawnAfterMovement: () => true, canMoveAfterSpawn: () => true,
             getObjectUnderPointer: (x, y) => handler.getObjectUnderPointer(x, y),

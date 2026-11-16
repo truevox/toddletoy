@@ -194,6 +194,8 @@ export class SoftPhysics {
                 const s = prev.__soft;
                 s.lowMobUntil = t + NEWBORN_MS; s.lowMob = DROP_MOB;
                 this.samples.velocity(rt, this.vel);
+                const am = this.scene.audioManager;
+                if (am) { if (!this.reduced && (this.vel.vx || this.vel.vy)) am.playThrow(prev); else am.playDrop(prev); }
                 if (!this.reduced && (this.vel.vx || this.vel.vy)) { s.vx = this.vel.vx; s.vy = this.vel.vy; s.x = prev.x; s.y = prev.y; }
                 else { s.vx = 0; s.vy = 0; }
                 if (!(this.vel.vx || this.vel.vy)) this.save(); // a plain drop: stopDragging already saved
@@ -224,7 +226,7 @@ export class SoftPhysics {
             else if (s.vx !== 0 || s.vy !== 0) {
                 const hit = stepGlide(ctx, s, dt);
                 s.glide = true; s.fixed = true; activity += 1;
-                if (hit > 150 && this.scene.objectMotion && this.scene.objectMotion.bump) this.scene.objectMotion.bump(o, Math.min(1, hit / MAX_THROW_SPEED));
+                if (hit > 150 && this.scene.objectMotion && this.scene.objectMotion.bump) { this.scene.objectMotion.bump(o, Math.min(1, hit / MAX_THROW_SPEED)); if (this.scene.audioManager) this.scene.audioManager.playBounce(o, Math.min(1, hit / MAX_THROW_SPEED)); }
             }
         }
         // 2. solve where everyone should be; bodies the pushes cannot untangle go to the nearest free spot

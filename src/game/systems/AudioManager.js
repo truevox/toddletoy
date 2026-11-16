@@ -1,187 +1,154 @@
 import { viewWidth, viewHeight } from './DisplayScale.js'
+import { AudioEngine } from '../audio/AudioEngine.js'
+import { EventGate } from '../audio/EventGate.js'
+import { EventLog } from '../audio/EventLog.js'
+import { makeSound } from '../audio/SoundRecipes.js'
+import { noteIndexForY } from '../audio/Scale.js'
+import { kindOfType } from '../audio/Timbres.js'
 
 /**
- * AudioManager - Handles Web Audio API tone generation and management
- * Manages position-based audio tones with continuous playback
+ * AudioManager - the facade the scene talks to for sound.
+ * Short, enveloped, pentatonic notes (height = pitch, kind of object = timbre) and a
+ * handful of event sounds; see src/game/audio/. Nothing drones, so `audio.toneDuration`
+ * from older configs is kept but ignored.
  */
 export class AudioManager {
     constructor(scene) {
         this.scene = scene;
-        this.audioContext = null;
-        this.activeTones = new Map();
-        this.toneTimeouts = new Map(); // Store timeout IDs for duration-based tone stopping
-
-        this.initAudio();
+        this.engine = new AudioEngine({ getConfig: () => this.audioConfig() });
+        this.gate = new EventGate();
+        this.log = new EventLog(64);
+        this.drag = null;          // { obj, idx } while a dragged object is being heard
+        this.quiet = 0;            // >0 while removals are not events (reset, rebuild)
+        this.onVis = () => this.onVisibility(typeof document !== 'undefined' && document.hidden);
+        if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this.onVis);
     }
 
-    initAudio() {
+    audioConfig() {
+        const cm = this.scene && this.scene.configManager;
+        return (cm && cm.getAudioConfig && cm.getAudioConfig()) || { volume: 10, mute: false };
+    }
+
+    // ---- compatibility surface -------------------------------------------------
+
+    get audioContext() { return this.engine.ctx; }
+
+    /** Voices currently sounding (id -> voice). Notes end by themselves, so this is normally tiny. */
+    get activeTones() { return this.engine.voiceMap(); }
+
+    async resumeAudioContext() { this.engine.unlock(); }
+
+    // ---- events ----------------------------------------------------------------
+
+    position(obj, x, y) {
+        const px = Number.isFinite(x) ? x : obj && obj.x, py = Number.isFinite(y) ? y : obj && obj.y;
+        const w = viewWidth(this.scene), h = viewHeight(this.scene);
+        return {
+            idx: noteIndexForY(py, h),
+            pan: Math.min(0.5, Math.max(-0.5, ((Number.isFinite(px) ? px : w / 2) / w - 0.5))),
+        };
+    }
+
+    fire(event, obj, x, y, strength) {
         try {
-            // Initialize Web Audio Context (suspended until user interaction)
-            if (typeof AudioContext !== 'undefined') {
-                this.audioContext = new AudioContext();
-            } else if (typeof webkitAudioContext !== 'undefined') {
-                this.audioContext = new webkitAudioContext();
-            }
-            
-            if (this.audioContext) {
-                console.log('Web Audio API initialized successfully');
-            }
+            const cfg = this.audioConfig();
+            if (cfg.mute) return null;
+            const { idx, pan } = this.position(obj, x, y);
+            const kind = kindOfType(obj && obj.type);
+            if (!this.gate.allow(event, obj && obj.id, kind + idx)) return null;
+            const spec = makeSound(event, { kind, noteIndex: idx, strength, pan });
+            const voice = this.engine.play(spec, obj ? obj.id : null);
+            this.log.add({ event, kind, note: spec.note, freq: spec.freq, level: spec.level, t: this.gate.now(), played: !!voice });
+            return voice;
         } catch (error) {
-            console.warn('Web Audio API not supported or failed to initialize:', error);
+            console.warn('Error playing sound:', error);
+            return null;
         }
     }
 
-    async resumeAudioContext() {
-        if (this.audioContext && this.audioContext.state === 'suspended') {
-            try {
-                await this.audioContext.resume();
-                console.log('Audio context resumed');
-            } catch (error) {
-                console.warn('Failed to resume audio context:', error);
-            }
-        }
+    playSpawn(obj, x, y) { return this.fire('spawn', obj, x, y); }
+    playTap(obj, x, y) { return this.fire('tap', obj, x, y); }
+
+    playPickup(obj) {
+        this.drag = { obj, idx: this.position(obj).idx, moved: true };
+        return this.fire('pickup', obj);
     }
+
+    /** Called on every pointer move while dragging: a soft note whenever the object crosses a scale step. */
+    playDragStep(obj, x, y) {
+        const d = this.drag;
+        if (!d || d.obj !== obj) return null;
+        const idx = this.position(obj, x, y).idx;
+        if (idx === d.idx) return null;
+        const voice = this.fire('dragStep', obj, x, y);
+        if (voice || this.audioConfig().mute) d.idx = idx;      // a rate-limited step is retried on the next move
+        return voice;
+    }
+
+    /** Drag released slowly. Silent unless the press really turned into a drag (a tap is not a drop). */
+    playDrop(obj) {
+        if (!this.endDrag(obj)) return null;
+        return this.fire('drop', obj);
+    }
+
+    playThrow(obj) {
+        if (!this.endDrag(obj)) return null;
+        return this.fire('throw', obj);
+    }
+
+    endDrag(obj) {
+        const d = this.drag;
+        if (!d || d.obj !== obj || !d.moved) return false;
+        this.drag = null;
+        return true;
+    }
+
+    playBounce(obj, strength = 1) { return this.fire('bounce', obj, undefined, undefined, strength); }
+
+    playPop(obj) {
+        if (this.quiet > 0 || !obj) return null;
+        if (this.drag && this.drag.obj === obj) this.drag = null;
+        this.engine.stopOwner(obj.id);
+        return this.fire('pop', obj);
+    }
+
+    /** Run fn with removal pops off (resets and rebuilds are not something the child did). */
+    silenceDuring(fn) {
+        this.quiet++;
+        try { return fn(); } finally { this.quiet--; }
+    }
+
+    debugLog() { return this.log.list(); }
+
+    // ---- shims for the old continuous-tone API (now short notes) -------------------
 
     generateContinuousTone(x, y, objId) {
-        if (!this.audioContext) {
-            console.warn('Audio context not available');
-            return null;
-        }
-
-        // Check if audio is muted in config
-        const audioConfig = this.scene.configManager ? this.scene.configManager.getAudioConfig() : null;
-        if (audioConfig && audioConfig.mute) {
-            return null;
-        }
-
-        try {
-            // Resume audio context if needed
-            this.resumeAudioContext();
-
-            // Stop any existing tone for this object
-            this.stopTone(objId);
-
-            // Create oscillator and gain nodes
-            const oscillator = this.audioContext.createOscillator();
-            const gainNode = this.audioContext.createGain();
-
-            // Set frequency based on Y position
-            const frequency = this.getFrequencyFromPosition(x, y);
-            oscillator.frequency.value = frequency;
-
-            // Set waveform based on X/Y position
-            oscillator.type = this.getWaveformFromPosition(x, y);
-
-            // Set volume from config (0-100 scale to 0-1 scale)
-            const volumeMultiplier = audioConfig ? (audioConfig.volume / 100) : 0.1;
-            gainNode.gain.value = volumeMultiplier;
-
-            // Connect audio nodes
-            oscillator.connect(gainNode);
-            gainNode.connect(this.audioContext.destination);
-
-            // Start the tone
-            oscillator.start();
-
-            // Store reference for cleanup
-            this.activeTones.set(objId, { oscillator, gainNode });
-
-            // Apply duration-based timeout if configured
-            const toneDuration = audioConfig ? audioConfig.toneDuration : -1;
-            if (toneDuration !== -1 && toneDuration > 0) {
-                // Set timeout to stop tone after specified duration
-                const timeoutId = setTimeout(() => {
-                    this.stopTone(objId);
-                }, toneDuration);
-
-                this.toneTimeouts.set(objId, timeoutId);
-            }
-
-            return { oscillator, gainNode };
-        } catch (error) {
-            console.warn('Error generating continuous tone:', error);
-            return null;
-        }
+        return this.fire('spawn', { id: objId, type: 'emoji', x, y }, x, y);
     }
 
     updateTonePosition(x, y, objId) {
-        const tone = this.activeTones.get(objId);
-        if (tone) {
-            try {
-                // Update frequency and waveform based on new position
-                tone.oscillator.frequency.value = this.getFrequencyFromPosition(x, y);
-                tone.oscillator.type = this.getWaveformFromPosition(x, y);
-            } catch (error) {
-                // Oscillator may have been stopped, ignore
-            }
-        }
+        const o = { id: objId, type: 'emoji', x, y };
+        if (!this.drag || this.drag.obj.id !== objId) this.drag = { obj: o, idx: this.position(o).idx, moved: false };
+        else this.drag.obj = o;
+        return this.playDragStep(o, x, y);
     }
 
-    stopAllTones() {
-        for (const objId of this.activeTones.keys()) {
-            this.stopTone(objId);
-        }
-    }
+    stopTone(objId) { this.engine.stopOwner(objId); }
+    stopAllTones() { this.drag = null; this.engine.stopAll(); }
+    hasTone(objId) { return this.engine.hasOwner(objId); }
+    getToneCount() { return this.engine.voiceCount(); }
 
-    stopTone(objId) {
-        // Clear any pending timeout for this tone
-        const timeoutId = this.toneTimeouts.get(objId);
-        if (timeoutId) {
-            clearTimeout(timeoutId);
-            this.toneTimeouts.delete(objId);
-        }
+    // ---- lifecycle ---------------------------------------------------------------
 
-        const tone = this.activeTones.get(objId);
-        if (tone) {
-            try {
-                tone.oscillator.stop();
-            } catch (error) {
-                // Oscillator may already be stopped
-            }
-            this.activeTones.delete(objId);
-        }
-    }
-
-    getFrequencyFromPosition(x, y) {
-        // Map Y position to frequency range (200Hz - 800Hz)
-        // Higher Y = lower frequency (like a piano)
-        const normalizedY = 1 - (y / viewHeight(this.scene));
-        const minFreq = 200;
-        const maxFreq = 800;
-        return minFreq + (normalizedY * (maxFreq - minFreq));
-    }
-
-    getWaveformFromPosition(x, y) {
-        // Map screen quadrants to different waveforms
-        const midX = viewWidth(this.scene) / 2;
-        const midY = viewHeight(this.scene) / 2;
-        
-        if (x < midX && y < midY) return 'sine';        // Top-left
-        if (x >= midX && y < midY) return 'square';     // Top-right  
-        if (x < midX && y >= midY) return 'sawtooth';   // Bottom-left
-        return 'triangle';                              // Bottom-right
-    }
-
-    hasTone(objId) {
-        return this.activeTones.has(objId);
-    }
-
-    getToneCount() {
-        return this.activeTones.size;
+    /** Tab hidden: silence now and suspend; shown: resume. Notes are short, so nothing can stick. */
+    onVisibility(hidden) {
+        if (hidden) this.engine.suspend();
+        else this.engine.resume();
     }
 
     destroy() {
-        // Stop all active tones (this also clears all timeouts)
-        this.stopAllTones();
-
-        // Close audio context if available
-        if (this.audioContext && this.audioContext.close) {
-            this.audioContext.close().catch(error => {
-                console.warn('Error closing audio context:', error);
-            });
-        }
-
-        this.audioContext = null;
-        this.toneTimeouts.clear();
+        if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', this.onVis);
+        this.drag = null;
+        this.engine.destroy();
     }
 }

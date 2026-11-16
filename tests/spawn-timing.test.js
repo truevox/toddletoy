@@ -50,6 +50,7 @@ jest.mock('../src/game/systems/GridManager.js', () => ({
 }));
 
 import { GameScene } from '../src/game.js';
+import { audioManagerMock } from './helpers/mock-audio-manager.js';
 
 describe('Spawn Timing After Movement', () => {
     let game;
@@ -79,10 +80,7 @@ describe('Spawn Timing After Movement', () => {
                 setObjectPosition: jest.fn()
             },
 
-            audioManager: {
-                generateContinuousTone: jest.fn(),
-                updateTonePosition: jest.fn()
-            },
+            audioManager: audioManagerMock(),
             particleManager: {
                 createSpawnBurst: jest.fn(),
                 startDragTrail: jest.fn(),

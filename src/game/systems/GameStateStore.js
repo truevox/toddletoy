@@ -143,7 +143,8 @@ export class GameStateStore {
 
         // Clean up all objects
         // Iterate over a copy: removeObject() splices scene.objects as it goes
-        [...this.scene.objects].forEach(obj => this.scene.removeObject(obj));
+        const removeAll = () => [...this.scene.objects].forEach(obj => this.scene.removeObject(obj));
+        if (this.scene.audioManager) this.scene.audioManager.silenceDuring(removeAll); else removeAll();
         this.scene.objects = [];
 
         // Pop-out ghosts are display objects too: destroy them now, not in 300 ms
