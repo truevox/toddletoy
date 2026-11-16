@@ -142,6 +142,24 @@ describe('SoftPhysics controller', () => {
         expect(sc.movementManager.setObjectPosition).not.toHaveBeenCalled();
         expect(p.awake).toBe(false);
     });
+    test('restores and resize rebuilds never evict; only a fresh spawn can', () => {
+        const mk = (id) => ({ id, active: true, x: 100 + id * 5, y: 100, getBounds: () => ({ x: 0, y: 0, width: 300, height: 300 }) });
+        const objs = [1, 2, 3, 4, 5, 6].map(mk);
+        const sc = fakeScene(objs);
+        sc.removeObject = (o) => objs.splice(objs.indexOf(o), 1);
+        sc.lastSpawnTime = 0; // objects came from a restore / rebuild
+        sc.resizeRebuild = new Promise(() => {}); // rebuild in flight
+        const p = new SoftPhysics(sc);
+        for (let i = 0; i < 5; i++) p.update();
+        expect(objs.length).toBe(6);
+        sc.resizeRebuild = null; p.rebuilding = false; p.seenRebuild = null;
+        for (let i = 0; i < 5; i++) p.update();
+        expect(objs.length).toBe(6); // no genuine spawn: still nothing evicted
+        sc.lastSpawnTime = Date.now();
+        p.lastN = -1;
+        for (let i = 0; i < 5; i++) p.update();
+        expect(objs.length).toBeLessThan(6);
+    });
     test('grid mode disables it', () => {
         const mk = (id) => ({ id, active: true, x: 100, y: 100, getBounds: () => ({ x: 50, y: 50, width: 100, height: 100 }) });
         const sc = fakeScene([mk(1), mk(2)]); sc.gridMode.enabled = true;

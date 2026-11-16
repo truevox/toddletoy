@@ -29,7 +29,7 @@ export class SoftPhysics {
         this.sizeW = 0; this.sizeH = 0; this.seq = 0;
         this.reduced = false;
         this.keepOut = { x: 0, y: 0, width: 0, height: 0 };
-        this.crowdCap = Infinity; this.crowdUntil = 0;
+        this.crowdCap = Infinity; this.crowdUntil = 0; this.rebuilding = false; this.seenRebuild = null;
         this.bodies = []; this.spot = { x: 0, y: 0 };
 
         const mq = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
@@ -130,11 +130,30 @@ export class SoftPhysics {
 
         if (this.crowdCap !== Infinity && t > this.crowdUntil) this.crowdCap = Infinity;
         if (n !== this.lastN) { this.lastN = n; this.capacityUntil = t + 1000; this.wake(); }
-        if (t < this.capacityUntil) {
+        this.watchRebuild();
+        if (t < this.capacityUntil && this.mayEvict()) {
             if (enforceCapacity(scene, this.ctx.width, this.ctx.height, this.maxObjects(), this.crowdCap) > 0) { this.lastN = scene.objects.length; this.wake(); }
         }
         if (!this.awake) return;
         this.step(dt, t);
+    }
+
+    /** Track ResizeRebuild: objects being re-created are never evicted. */
+    watchRebuild() {
+        const p = this.scene.resizeRebuild;
+        if (p && p !== this.seenRebuild) {
+            this.seenRebuild = p;
+            this.rebuilding = true;
+            const done = () => { if (this.seenRebuild === p) { this.rebuilding = false; this.lastN = -2; } };
+            p.then(done, done);
+        }
+    }
+
+    /** Only genuinely new spawns can push the count over capacity (not restores or resize rebuilds). */
+    mayEvict() {
+        if (this.rebuilding) return false;
+        const ls = this.scene.lastSpawnTime;
+        return !!ls && Date.now() - ls < 1500;
     }
 
     trackDrag(t) {

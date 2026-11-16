@@ -146,6 +146,19 @@ test.describe('throw, bounce and restore', () => {
         before.forEach((p, i) => { expect(Math.abs(p[0] - after[i][0])).toBeLessThan(1); expect(Math.abs(p[1] - after[i][1])).toBeLessThan(1); });
     });
 
+    test('rotating the screen rebuilds objects without evicting any', async ({ page }) => {
+        test.setTimeout(90000);
+        await spawnAll(page, [[300, 300, 'emoji'], [700, 300, 'shapes'], [300, 600, 'emoji'], [700, 600, 'uppercaseLetters']]);
+        await page.waitForTimeout(1200);
+        const n = await objectCount(page);
+        await page.setViewportSize({ width: 800, height: 1280 });
+        await page.waitForTimeout(2500);
+        expect(await objectCount(page)).toBe(n);
+        await page.setViewportSize({ width: 1280, height: 800 });
+        await page.waitForTimeout(2500);
+        expect(await objectCount(page)).toBe(n);
+    });
+
     test('maxObjects overrides the automatic capacity', async ({ page }) => {
         await page.evaluate(() => { window.appRoutes.getGameScene().configManager.config.advanced.maxObjects = 2; });
         await spawnAll(page, [[200, 200, 'emoji'], [600, 200, 'emoji'], [1000, 200, 'emoji'], [400, 600, 'emoji']]);
