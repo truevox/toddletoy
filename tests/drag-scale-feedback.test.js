@@ -30,26 +30,23 @@ describe('Drag scale feedback', () => {
 
     afterEach(() => jest.restoreAllMocks());
 
-    test('startDragging scales the object up via the scene tween manager and starts the trail', () => {
+    // Changed with Stage 2 motion: the 1.15x lift is now a factor ObjectMotion applies while
+    // scene.draggedObject is set (tests/object-motion.test.js); nobody tweens glyph scale directly.
+    test('startDragging marks the object dragged (no scale tween) and starts the trail', () => {
         expect(() => handler.startDragging(obj, 10, 20)).not.toThrow();
 
-        expect(scene.tweens.add).toHaveBeenCalledWith(
-            expect.objectContaining({ targets: obj, scaleX: 1.15, scaleY: 1.15 })
-        );
+        expect(scene.tweens.add).not.toHaveBeenCalled();
         expect(scene.particleManager.startDragTrail).toHaveBeenCalledWith(obj);
         expect(scene.isDragging).toBe(true);
         expect(scene.draggedObject).toBe(obj);
     });
 
-    test('stopDragging scales back, stops the trail and clears drag state', () => {
+    test('stopDragging stops the trail and clears drag state (motion eases the scale back)', () => {
         handler.startDragging(obj, 10, 20);
-        scene.tweens.add.mockClear();
 
         expect(() => handler.stopDragging()).not.toThrow();
 
-        expect(scene.tweens.add).toHaveBeenCalledWith(
-            expect.objectContaining({ targets: obj, scaleX: 1.0, scaleY: 1.0 })
-        );
+        expect(scene.tweens.add).not.toHaveBeenCalled();
         expect(scene.particleManager.stopDragTrail).toHaveBeenCalledWith(obj);
         expect(scene.isDragging).toBe(false);
         expect(scene.draggedObject).toBeNull();
