@@ -36,7 +36,7 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 - [x] Stage 1 — Sharp and big: backdrop (v2.1.0–2.1.3), device-pixel rendering and screen-relative sizes (v2.2.0); calm number default brought forward from Stage 5 (v2.3.0–2.3.1)
 - [x] Stage 2 — It feels alive: coloured pooled particles (v2.4.0), pop-in/idle/tap reactions/pop-out (v2.5.0), throw and bounce, no overlap, screen capacity (v2.6.0–2.6.2)
 - [x] Stage 3 — It sounds good: speech queue, voices, word order (v2.7.0), musical sound engine and event sounds (v2.8.0), taps always spawn (v2.8.1). Open: Russian/Arabic/Hindi agreement needs a native speaker; real-device listen
-- [ ] Stage 4 — Many fingers, many keys: multi-touch, baby keyboard, gamepads (object cap done in Stage 2)
+- [x] Stage 4 — Many fingers, many keys: multi-touch with palm handling (v2.9.0), baby keyboard and up to four gamepads (v2.10.0). Open: real-device check of the 50 ms palm window and thresholds, iOS multi-touch, real controllers
 - [ ] Stage 5 — Something to discover: tap a number to cycle its displays, surprises, attract mode, ~250 emoji (calm default done in v2.3)
 - [ ] Stage 6 — Parents: presets, live preview, docs
 - [ ] Stage 7 — Family voices: voice packs (record; clone on a computer; clone on the phone if a real-device trial works), review screen, top-ups for new words
@@ -508,4 +508,4 @@ This document tracks the structured implementation of the toddler-toy PWA follow
 
 ---
 
-**🎯 Current Focus**: Phase 26 (Sandbox 10x), Stage 4 next. See PICK-UP-HERE.md for the 2.0 baseline and known gaps.
+**🎯 Current Focus**: Phase 26 (Sandbox 10x), Stage 5 next. See PICK-UP-HERE.md for the 2.0 baseline and known gaps.
