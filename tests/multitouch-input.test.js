@@ -7,7 +7,7 @@ import { SceneInputHandler } from '../src/game/systems/SceneInputHandler.js';
 import { PointerInput } from '../src/game/input/PointerInput.js';
 import { installPointerState } from '../src/game/input/pointerState.js';
 
-const glyph = (id, x, y) => ({ id, active: true, x, y, getBounds: () => ({ contains: (px, py) => Math.abs(px - x) < 30 && Math.abs(py - y) < 30 }) });
+const glyph = (id, x, y) => ({ id, active: true, x, y, getBounds: () => ({ x: x - 30, y: y - 30, width: 60, height: 60, contains: (px, py) => Math.abs(px - x) < 30 && Math.abs(py - y) < 30 }) });
 
 function makeScene(objs) {
     let handler;
@@ -69,6 +69,16 @@ describe('SceneInputHandler with several fingers', () => {
         expect(a.x).toBe(100);
         handler.onInputPointerUp({ id: 2, x: 200, y: 200 });
         expect(scene.getDraggedObjects()).toEqual([a]); // finger 1 still holds it
+    });
+
+    test('a finger landing just beside a dragged (lifted) object does not spawn under it', async () => {
+        const a = glyph('a', 100, 100);
+        const { scene, handler } = makeScene([a]);
+        await handler.onInputPointerDown({ id: 1, x: 100, y: 100, touch: true });
+        await handler.onInputPointerDown({ id: 2, x: 100, y: 100 + 40, touch: true }); // outside the box, inside its lift margin
+        expect(scene.spawnAndAnnounce).not.toHaveBeenCalled();
+        await handler.onInputPointerDown({ id: 3, x: 100, y: 100 + 120, touch: true }); // clearly apart
+        expect(scene.spawnAndAnnounce).toHaveBeenCalledTimes(1);
     });
 
     test('one finger dragging does not stop another spawning; its own spawn lock is its own', async () => {
@@ -175,6 +185,16 @@ describe('PointerInput', () => {
         expect(pi.anyDown).toBe(false);
     });
 
+    test('a finger that moves inside the window lands where it went down, then follows', () => {
+        pi.onDown(touch(1, 100, 100));
+        pi.onMove(touch(1, 140, 120));
+        jest.advanceTimersByTime(60);
+        expect(events).toEqual([
+            ['pointerDown', { x: 100, y: 100, id: 1, touch: true }],
+            ['pointerMove', { x: 140, y: 120, id: 1, touch: true }]
+        ]);
+    });
+
     test('a finger that lifts before the window closes still lands, then lifts', () => {
         pi.onDown(touch(1, 50, 50));
         pi.onUp(touch(1, 50, 50));
@@ -209,10 +229,8 @@ describe('PointerInput', () => {
     test('presses on the exit control are ignored, however many fingers', () => {
         const canvas = {};
         scene.game = { canvas };
-        scene.keepOutRects = [{ x: 756, y: 0, width: 44, height: 44 }];
-        pi.onDown({ id: 0, x: 780, y: 20, downElement: canvas });               // inside the exit corner
         pi.onDown({ id: 0, x: 400, y: 300, downElement: { tagName: 'BUTTON' } }); // started on a DOM control
-        pi.onDown(touch(1, 770, 30, { downElement: canvas }));
+        pi.onDown(touch(1, 770, 30, { downElement: { tagName: 'BUTTON' } }));
         jest.advanceTimersByTime(60);
         expect(events).toHaveLength(0);
         pi.onDown({ id: 0, x: 400, y: 300, downElement: canvas });

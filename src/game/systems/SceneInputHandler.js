@@ -46,6 +46,9 @@ export class SceneInputHandler {
         }
 
         // Free-form Mode: empty space spawns, an object is dragged (or tapped)
+        // A finger landing on (or just by) an object another finger is holding does nothing: no tug-of-war,
+        // and no new object under a lifted, tilted drag
+        if (this.nearDragged(x, y)) return;
         const hitObject = scene.getObjectUnderPointer(x, y);
         const isSpeaking = scene.speechManager.getIsSpeaking();
 
@@ -71,6 +74,17 @@ export class SceneInputHandler {
             scene.speechManager.speakText(hitObject, 'both');
         }
         rec.revoiced = isSpeaking;
+    }
+
+    /** Is (x, y) on a dragged object, with room for its lift and tilt? */
+    nearDragged(x, y) {
+        for (const o of this.scene.getDraggedObjects()) {
+            if (!o || !o.active || typeof o.getBounds !== 'function') continue;
+            const b = o.getBounds();
+            const padX = Math.max(12, b.width * 0.2), padY = Math.max(12, b.height * 0.3);
+            if (x >= b.x - padX && x <= b.x + b.width + padX && y >= b.y - padY && y <= b.y + b.height + padY) return true;
+        }
+        return false;
     }
 
     async onPalm(x, y, id) {

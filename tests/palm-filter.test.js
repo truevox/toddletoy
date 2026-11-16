@@ -72,7 +72,7 @@ describe('PalmFilter', () => {
         f.offer(c(1, 0, 0), 0)
         expect(f.isPending(1)).toBe(true)
         f.updatePending(1, 5, 6)
-        expect(f.flush(10).singles[0]).toMatchObject({ id: 1, x: 5, y: 6 })
+        expect(f.flush(10).singles[0]).toMatchObject({ id: 1, x: 0, y: 0, lx: 5, ly: 6 }) // lands where it went down, knows where it is now
         f.offer(c(2, 0, 0), 20)
         f.removePending(2)
         expect(f.flush(30).singles).toEqual([])

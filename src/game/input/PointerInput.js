@@ -4,7 +4,7 @@
  *
  *  - a palm (4+ close contacts landing together) becomes ONE soft touch (PalmFilter)
  *  - a mouse press echoing a touch at the same spot is dropped (EmulatedMouseFilter)
- *  - presses that start on the DOM exit button (or its keep-out corner) are ignored
+ *  - presses that start on a DOM control above the canvas (the exit button) are ignored
  *  - a pointer that vanishes (touchcancel, slid off the screen, app switch) is released
  *    as a cancelled pointer-up, so nothing is left dragging
  */
@@ -39,7 +39,7 @@ export class PointerInput {
         const now = clock();
         this.sweep(id);
         if (this.active.has(id)) this.release(id, p, true);   // a lost pointer-up: let go of the old press first
-        if (this.onExitControl(pointer, p)) return;
+        if (this.onExitControl(pointer)) return;
         if (touch) this.echo.noteTouch(p.x, p.y, now);
         else if (this.echo.isDuplicate(false, p.x, p.y, now)) return;
 
@@ -81,7 +81,10 @@ export class PointerInput {
         }
         for (const s of singles) {
             const rec = this.active.get(s.id);
-            if (rec) this.emit('pointerDown', { x: s.x, y: s.y, id: s.id, touch: true });
+            if (!rec) continue;
+            this.emit('pointerDown', { x: s.x, y: s.y, id: s.id, touch: true });
+            // it moved while the window was open: land where it went down, then follow it
+            if (s.lx !== s.x || s.ly !== s.y) this.emit('pointerMove', { x: s.lx, y: s.ly, id: s.id, touch: true });
         }
     }
 
@@ -116,11 +119,9 @@ export class PointerInput {
     }
 
     /** The DOM exit button sits above the canvas: a press there must never reach the toy. */
-    onExitControl(pointer, p) {
+    onExitControl(pointer) {
         const canvas = this.scene.game && this.scene.game.canvas;
-        if (pointer.downElement && canvas && pointer.downElement !== canvas) return true;
-        const rects = this.scene.keepOutRects;
-        return Array.isArray(rects) && rects.some(r => p.x >= r.x && p.x <= r.x + r.width && p.y >= r.y && p.y <= r.y + r.height);
+        return !!(pointer.downElement && canvas && pointer.downElement !== canvas);
     }
 
     destroy() {

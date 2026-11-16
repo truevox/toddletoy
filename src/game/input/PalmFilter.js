@@ -34,13 +34,13 @@ export class PalmFilter {
             return { absorbed: true };
         }
         if (!this.pending.length) this.windowStart = now;
-        this.pending.push({ id: contact.id, x: contact.x, y: contact.y });
+        this.pending.push({ id: contact.id, x: contact.x, y: contact.y, lx: contact.x, ly: contact.y });
         return { absorbed: false };
     }
 
     updatePending(id, x, y) {
         const p = this.pending.find(q => q.id === id);
-        if (p) { p.x = x; p.y = y; }
+        if (p) { p.lx = x; p.ly = y; } // where it went down stays; this is where it is now
     }
 
     removePending(id) { this.pending = this.pending.filter(p => p.id !== id); }
