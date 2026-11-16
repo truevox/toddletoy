@@ -47,7 +47,7 @@ export class GridModeController {
             const data = { id: obj.id, type: obj.type, itemData: obj.itemData, x: obj.x, y: obj.y, lastTouchedTime: obj.lastTouchedTime };
             gm.occupiedCells.delete(key);
             obj.gridCell = null;                // removeObject must not respawn or clear the new entry
-            this.scene.removeObject(obj);
+            this.scene.audioManager.silenceDuring(() => this.scene.removeObject(obj)); // a rebuild, not a pop
             const fresh = await this.scene.restoreObject(data);
             if (fresh) this.placeInCell(fresh, row, col);
         }
@@ -283,8 +283,7 @@ export class GridModeController {
             // Add fun particle effects before removal
             if (obj.x !== undefined && obj.y !== undefined) {
                 this.scene.particleManager.createSpawnBurst(obj.x, obj.y);
-                // Add a small pop sound effect
-                this.scene.audioManager.generateContinuousTone(obj.x, obj.y, obj.id); // Short pop tone
+                // (removeObject below plays the pop sound)
             }
 
             // Clear from occupied cells BEFORE removing (prevents double-respawn)

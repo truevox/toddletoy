@@ -159,8 +159,8 @@ test.describe('Resource management', () => {
         await tapSpawn(page, 0.7, 0.5);
         expect(await objectCount(page)).toBe(2);
         await expect.poll(() => objectCount(page), { timeout: 20000, intervals: [500] }).toBe(0);
-        const after = await census(page);
-        expect(after.tones).toBe(0);
+        // removal plays a short pop (no oscillator lives as long as an object any more): it must end by itself
+        await expect.poll(async () => (await census(page)).tones, { timeout: 3000 }).toBe(0);
     });
 
     test('JS heap does not balloon over repeated spawn/exit cycles (Chromium only)', async ({ page, browserName }) => {

@@ -22,7 +22,7 @@ export function rebuildObjectsForResize(scene, previous, current) {
         }
         old.forEach(obj => {
             if (scene.movementManager) scene.movementManager.clearMovement(obj.id);
-            scene.removeObject(obj);
+            scene.audioManager.silenceDuring(() => scene.removeObject(obj)); // a rebuild, not a pop
         });
         for (const snap of snaps) {
             try { await scene.restoreObject(snap); } catch (error) { console.warn('Rebuild after resize failed for', snap.id, error); }

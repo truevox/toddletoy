@@ -5,11 +5,12 @@
  */
 import { GameStateStore } from '../src/game/systems/GameStateStore.js';
 import { InputManager } from '../src/game/systems/InputManager.js';
+import { audioManagerMock } from './helpers/mock-audio-manager.js';
 
 function makeScene(count) {
     const scene = {
         objects: Array.from({ length: count }, (_, i) => ({ id: `o${i}` })),
-        audioManager: { stopAllTones: jest.fn() },
+        audioManager: audioManagerMock(),
         speechManager: { cancelSpeech: jest.fn() },
         movementManager: { clearAllMovements: jest.fn() },
         particleManager: { clearTransientEffects: jest.fn() },

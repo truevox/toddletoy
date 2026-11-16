@@ -12,6 +12,7 @@ import {
 } from '../src/positioning/BoundsClamp.js';
 import { outlineColorFor, outlineThicknessFor } from '../src/game/utils/colorOutline.js';
 import { ObjectFactory } from '../src/game/objects/ObjectFactory.js';
+import { audioManagerMock } from './helpers/mock-audio-manager.js';
 
 // Minimal Phaser-like game object with a centre origin and scale
 function box(x, y, w, h, originX = 0.5, originY = 0.5) {
@@ -126,6 +127,7 @@ describe('grid resize rebuild', () => {
             movementManager: { setObjectPosition: (o, x, y) => o.setPosition(x, y) },
             createGridOverlay: jest.fn(),
             removeObject: jest.fn(),
+            audioManager: audioManagerMock(),
             restoreObject: jest.fn(async (d) => Object.assign(box(d.x, d.y, 30, 30), { id: d.id, type: d.type, itemData: d.itemData }))
         };
         return scene;

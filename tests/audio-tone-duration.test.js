@@ -5,42 +5,19 @@
 
 import { ConfigManager } from '../src/config/ConfigManager.js';
 import { AudioManager } from '../src/game/systems/AudioManager.js';
+import { makeMockContext } from './helpers/mock-audio.js';
 
 describe('Audio Tone Duration Configuration', () => {
     let configManager;
     let mockScene;
     let audioManager;
     let mockAudioContext;
-    let mockOscillator;
-    let mockGainNode;
 
     beforeEach(() => {
         // Clear localStorage before each test
         localStorage.clear();
 
-        // Mock Web Audio API components
-        mockOscillator = {
-            connect: jest.fn(),
-            start: jest.fn(),
-            stop: jest.fn(),
-            frequency: { value: 440 },
-            type: 'sine'
-        };
-
-        mockGainNode = {
-            connect: jest.fn(),
-            gain: { value: 0.1 }
-        };
-
-        mockAudioContext = {
-            createOscillator: jest.fn().mockReturnValue(mockOscillator),
-            createGain: jest.fn().mockReturnValue(mockGainNode),
-            destination: {},
-            currentTime: 0,
-            state: 'running',
-            resume: jest.fn().mockResolvedValue(undefined)
-        };
-
+        mockAudioContext = makeMockContext();
         global.AudioContext = jest.fn().mockImplementation(() => mockAudioContext);
 
         // Create ConfigManager instance
@@ -57,7 +34,7 @@ describe('Audio Tone Duration Configuration', () => {
 
         // Create AudioManager instance
         audioManager = new AudioManager(mockScene);
-        audioManager.audioContext = mockAudioContext;
+        audioManager.engine.unlocked = true; // as after the first tap
     });
 
     describe('ConfigManager Default Configuration', () => {
@@ -130,137 +107,38 @@ describe('Audio Tone Duration Configuration', () => {
         });
     });
 
-    describe('AudioManager Duration Support', () => {
-        test('should play tone indefinitely when toneDuration is -1', (done) => {
+    // audio.toneDuration is still stored and validated (older configs carry it) but the sound engine
+    // plays short enveloped notes that end by themselves, so it no longer changes playback.
+    describe('AudioManager ignores toneDuration (notes always end on their own)', () => {
+        const withDuration = (ms) => {
             const config = configManager.getConfig();
-            config.audio.toneDuration = -1;
+            config.audio.toneDuration = ms;
             configManager.updateConfig(config);
+        };
 
+        test.each([-1, 100, 5000, 20000])('toneDuration %i: a note sounds, then ends by itself', (ms) => {
+            withDuration(ms);
             audioManager.generateContinuousTone(100, 200, 'obj1');
-
-            // Verify tone was started
-            expect(mockOscillator.start).toHaveBeenCalled();
-
-            // Wait 100ms and verify tone is still active
-            setTimeout(() => {
-                expect(audioManager.hasTone('obj1')).toBe(true);
-                expect(mockOscillator.stop).not.toHaveBeenCalled();
-                done();
-            }, 100);
+            expect(audioManager.hasTone('obj1')).toBe(true);
+            mockAudioContext.currentTime = 3;
+            expect(audioManager.hasTone('obj1')).toBe(false);
+            expect(audioManager.getToneCount()).toBe(0);
+            for (const src of mockAudioContext.sources) expect(src.stop).toHaveBeenCalled();
         });
 
-        test('should stop tone after specified duration (1000ms)', (done) => {
-            const config = configManager.getConfig();
-            config.audio.toneDuration = 1000;
-            configManager.updateConfig(config);
-
-            audioManager.generateContinuousTone(100, 200, 'obj2');
-
-            // Verify tone was started
-            expect(mockOscillator.start).toHaveBeenCalled();
-
-            // Verify tone is still active before timeout
-            setTimeout(() => {
-                expect(audioManager.hasTone('obj2')).toBe(true);
-            }, 500);
-
-            // Verify tone is stopped after timeout
-            setTimeout(() => {
-                expect(mockOscillator.stop).toHaveBeenCalled();
-                expect(audioManager.hasTone('obj2')).toBe(false);
-                done();
-            }, 1100);
-        });
-
-        test('should stop tone after minimum duration (100ms)', (done) => {
-            const config = configManager.getConfig();
-            config.audio.toneDuration = 100;
-            configManager.updateConfig(config);
-
-            audioManager.generateContinuousTone(100, 200, 'obj3');
-
-            // Verify tone is stopped after minimum timeout
-            setTimeout(() => {
-                expect(mockOscillator.stop).toHaveBeenCalled();
-                expect(audioManager.hasTone('obj3')).toBe(false);
-                done();
-            }, 150);
-        });
-
-        test('should allow manual stop before duration expires', () => {
-            const config = configManager.getConfig();
-            config.audio.toneDuration = 5000;
-            configManager.updateConfig(config);
-
+        test('manual stop silences the object at once', () => {
+            withDuration(5000);
             audioManager.generateContinuousTone(100, 200, 'obj4');
             expect(audioManager.hasTone('obj4')).toBe(true);
-
-            // Manually stop before timeout
             audioManager.stopTone('obj4');
-
-            expect(mockOscillator.stop).toHaveBeenCalled();
             expect(audioManager.hasTone('obj4')).toBe(false);
         });
 
-        test('should cancel previous timeout when replacing tone', (done) => {
-            const config = configManager.getConfig();
-            config.audio.toneDuration = 2000;
-            configManager.updateConfig(config);
-
-            // Create first tone with 2000ms timeout
-            audioManager.generateContinuousTone(100, 200, 'obj5');
-            const firstOscillator = mockOscillator;
-
-            // Replace with second tone after 500ms
-            setTimeout(() => {
-                mockOscillator = {
-                    connect: jest.fn(),
-                    start: jest.fn(),
-                    stop: jest.fn(),
-                    frequency: { value: 440 },
-                    type: 'sine'
-                };
-                mockAudioContext.createOscillator.mockReturnValue(mockOscillator);
-
-                audioManager.generateContinuousTone(150, 250, 'obj5');
-
-                // First oscillator should have been stopped (and its timeout cleared)
-                expect(firstOscillator.stop).toHaveBeenCalled();
-
-                // After 2100ms from start (600ms after first would have expired),
-                // verify second tone is still active (only 1600ms into its 2000ms timeout)
-                setTimeout(() => {
-                    expect(audioManager.hasTone('obj5')).toBe(true);
-                    done();
-                }, 1600);
-            }, 500);
-        }, 10000); // Increase timeout to 10 seconds for this test
-    });
-
-    describe('Duration Edge Cases', () => {
-        test('should handle object removal before duration expires', () => {
-            const config = configManager.getConfig();
-            config.audio.toneDuration = 10000;
-            configManager.updateConfig(config);
-
-            audioManager.generateContinuousTone(100, 200, 'obj6');
-            expect(audioManager.hasTone('obj6')).toBe(true);
-
-            // Remove object immediately
-            audioManager.stopTone('obj6');
-
-            expect(audioManager.hasTone('obj6')).toBe(false);
-        });
-
-        test('should not create tone when audio is muted', () => {
+        test('no note is created when audio is muted', () => {
             const config = configManager.getConfig();
             config.audio.mute = true;
-            config.audio.toneDuration = 1000;
             configManager.updateConfig(config);
-
-            const result = audioManager.generateContinuousTone(100, 200, 'obj7');
-
-            expect(result).toBeNull();
+            expect(audioManager.generateContinuousTone(100, 200, 'obj7')).toBeNull();
             expect(audioManager.hasTone('obj7')).toBe(false);
         });
     });

@@ -140,7 +140,7 @@ export class ObjectLifecycle {
     announceObject(obj, x, y) {
         if (!obj) return;
         this.scene.speechManager.speakText(obj, 'both');
-        this.scene.audioManager.generateContinuousTone(x, y, obj.id);
+        this.scene.audioManager.playSpawn(obj, x, y);
         this.scene.particleManager.createSpawnBurst(x, y, burstOptions(obj));
     }
 
@@ -150,10 +150,8 @@ export class ObjectLifecycle {
         const gridCell = obj.gridCell; // Store before removal
 
         try {
-            // Stop any audio tones
-            if (this.scene.audioManager.hasTone(obj.id)) {
-                this.scene.audioManager.stopTone(obj.id);
-            }
+            // Cute pop (also cuts off anything still ringing for this object)
+            this.scene.audioManager.playPop(obj);
 
             // Clean up particles
             this.scene.particleManager.cleanupParticles(obj.id);

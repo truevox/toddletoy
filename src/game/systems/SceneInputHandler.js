@@ -73,7 +73,7 @@ export class SceneInputHandler {
             // Teleport speaking object to tap location with smooth lerp AND make it draggable
             const speakingObj = this.scene.speechManager.getCurrentSpeakingObject();
             this.scene.moveObjectTo(speakingObj, x, y, true); // true = smooth lerp animation
-            this.scene.audioManager.updateTonePosition(x, y, speakingObj.id);
+            this.scene.audioManager.playTap(speakingObj, x, y);
             this.scene.particleManager.createSpawnBurst(x, y);
             this.scene.autoCleanupManager.updateObjectTouchTime(speakingObj);
             // Start dragging immediately so finger movement works during/after lerp
@@ -95,7 +95,9 @@ export class SceneInputHandler {
         if (this.scene.isDragging && this.scene.draggedObject && this.scene.canMoveAfterSpawn()) {
             // Use immediate positioning during drag (no lerp lag)
             this.scene.moveObjectTo(this.scene.draggedObject, x, y, false); // false = instant, no smooth lerp
-            this.scene.audioManager.updateTonePosition(x, y, this.scene.draggedObject.id);
+            const dragged = this.scene.draggedObject;
+            if (!this.pickedUp) { this.pickedUp = true; this.scene.audioManager.playPickup(dragged); }
+            this.scene.audioManager.playDragStep(dragged, x, y);
             this.scene.particleManager.updateDragTrail(this.scene.draggedObject, x, y);
         }
     }
@@ -114,6 +116,7 @@ export class SceneInputHandler {
 
         // A tap: react, and say the name again whether or not speech was running
         if (this.scene.objectMotion) this.scene.objectMotion.react(tap.obj);
+        this.scene.audioManager.playTap(tap.obj);
         if (!tap.revoiced) this.scene.speechManager.speakText(tap.obj, 'both');
     }
 
@@ -130,6 +133,7 @@ export class SceneInputHandler {
         // Set drag state
         this.scene.isDragging = true;
         this.scene.draggedObject = obj;
+        this.pickedUp = false; // the pick-up blip waits until the press really becomes a drag
 
         // Lift (1.15x) and tilt are motion factors applied by ObjectMotion while draggedObject is set
 
@@ -195,7 +199,7 @@ export class SceneInputHandler {
         } else if (this.scene.speechManager.getCurrentSpeakingObject() && this.scene.canMoveAfterSpawn()) {
             this.scene.autoCleanupManager.updateObjectTouchTime(this.scene.speechManager.getCurrentSpeakingObject());
             this.scene.moveObjectTo(this.scene.speechManager.getCurrentSpeakingObject(), position.x, position.y);
-            this.scene.audioManager.updateTonePosition(position.x, position.y, this.scene.speechManager.getCurrentSpeakingObject().id);
+            this.scene.audioManager.playTap(this.scene.speechManager.getCurrentSpeakingObject(), position.x, position.y);
         }
     }
 
