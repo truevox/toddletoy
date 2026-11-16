@@ -62,7 +62,7 @@ export class BurstPool {
             g.fillStyle(0xffffff);
             g.fillPoints([{ x: TEX / 2, y: 2 }, { x: TEX - 2, y: TEX / 2 }, { x: TEX / 2, y: TEX - 2 }, { x: 2, y: TEX / 2 }], true);
         });
-        make('fx-ring', RING_TEX, (g) => { g.lineStyle(6, 0xffffff, 1); g.strokeCircle(RING_TEX / 2, RING_TEX / 2, RING_TEX / 2 - 4); });
+        make('fx-ring', RING_TEX, (g) => { g.lineStyle(4, 0xffffff, 1); g.strokeCircle(RING_TEX / 2, RING_TEX / 2, RING_TEX / 2 - 4); });
     }
 
     take(kind) {
@@ -182,7 +182,7 @@ export class BurstPool {
             let r, a;
             if (b.reduced) { r = glyph * 0.85; a = 0.7 * (1 - u); }
             else if (b.type === 'spawn') { const e = 1 - Math.pow(1 - u, 2.5); r = glyph * (0.55 + 0.8 * e); a = 0.65 * (1 - u); }
-            else { const e = 1 - Math.pow(1 - Math.min(1, u / 0.5), 3); r = glyph * (0.45 + 0.7 * e); a = u < 0.5 ? 1 - u * 0.6 : 0.7 * (1 - (u - 0.5) * 2); }
+            else { const e = 1 - Math.pow(1 - Math.min(1, u / 0.5), 3); r = glyph * (0.45 + 0.7 * e); a = u < 0.3 ? 1 : Math.max(0, 1 - (u - 0.3) / 0.4); }
             b.ring.setPosition(b.x, b.y).setScale((2 * r) / RING_TEX).setAlpha(Math.max(0, a));
         }
         const r0 = glyph * (b.type === 'spawn' ? 0.62 : 0.55);
