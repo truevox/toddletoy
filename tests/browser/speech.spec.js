@@ -54,6 +54,25 @@ test.describe('Speech', () => {
         await page.addInitScript(FAKE_SPEECH);
     });
 
+    test('real taps on empty space spawn while an earlier object is still being spoken', async ({ page }) => {
+        const c = collectErrors(page);
+        await enterSandbox(page);
+        const box = await page.locator('#game-container canvas:not(.tt-backdrop)').boundingBox();
+        const spots = [[0.25, 0.3], [0.75, 0.55], [0.3, 0.8]];
+        let first = null;
+        for (const [fx, fy] of spots) {
+            await page.mouse.click(box.x + box.width * fx, box.y + box.height * fy);
+            // shorter than a spoken label (about 0.6 s here), longer than the anti-bounce cooldown
+            await page.waitForTimeout(280);
+            if (!first) first = await page.evaluate(() => { const o = window.appRoutes.getGameScene().objects[0]; return o && { id: o.id, x: o.x, y: o.y }; });
+        }
+        await expect.poll(() => page.evaluate(() => window.appRoutes.getGameScene().objects.length)).toBe(3);
+        // the first object was not pulled to the later taps
+        const again = await page.evaluate((id) => { const o = window.appRoutes.getGameScene().objects.find((x) => x.id === id); return o && { x: o.x, y: o.y }; }, first.id);
+        expect(Math.hypot(again.x - first.x, again.y - first.y)).toBeLessThan(40);
+        expect(c.pageErrors).toEqual([]);
+    });
+
     test('three quick spawns speak in order and nothing is cut off', async ({ page }) => {
         const c = collectErrors(page);
         await enterSandbox(page);

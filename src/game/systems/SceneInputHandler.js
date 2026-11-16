@@ -43,42 +43,27 @@ export class SceneInputHandler {
         const hitObject = this.scene.getObjectUnderPointer(x, y);
         const isSpeaking = this.scene.speechManager.getIsSpeaking();
 
-        // 1. SPAWN CHECK (first priority) — empty space, not speaking
-        if (!hitObject && !isSpeaking) {
+        // 1. Empty space: always a new thing. Speech queues (SpeechQueue), so a child
+        //    tapping quickly gets something new every time instead of dragging the
+        //    object that happens to be speaking.
+        if (!hitObject) {
             if (this.scene.canSpawnAfterMovement()) {
                 await this.scene.spawnAndAnnounce(x, y, 'random');
             }
             return;
         }
 
-        // 2. DRAG/MOVE checks (only reached when spawn doesn't apply)
-        // Block all movement if post-spawn lock is active
+        // 2. On an object: drag it (a short press that does not wander is a tap, see pointer up)
         if (!this.scene.canMoveAfterSpawn()) {
             return;
         }
-
-        if (hitObject && !isSpeaking) {
-            // Start dragging existing object when not speaking
-            this.scene.startDragging(hitObject, x, y);
-            this.scene.autoCleanupManager.updateObjectTouchTime(hitObject);
-            this.tap = { obj: hitObject, x, y, t: Date.now(), moved: false, revoiced: false };
-        } else if (hitObject && isSpeaking) {
-            // Allow dragging any object even during speech
-            this.scene.startDragging(hitObject, x, y);
-            this.scene.autoCleanupManager.updateObjectTouchTime(hitObject);
-            // Re-voice the object being dragged
+        this.scene.startDragging(hitObject, x, y);
+        this.scene.autoCleanupManager.updateObjectTouchTime(hitObject);
+        if (isSpeaking) {
+            // Re-voice the object being touched (the queue ignores it if it is already speaking or waiting)
             this.scene.speechManager.speakText(hitObject, 'both');
-            this.tap = { obj: hitObject, x, y, t: Date.now(), moved: false, revoiced: true };
-        } else if (isSpeaking && this.scene.speechManager.getCurrentSpeakingObject()) {
-            // Teleport speaking object to tap location with smooth lerp AND make it draggable
-            const speakingObj = this.scene.speechManager.getCurrentSpeakingObject();
-            this.scene.moveObjectTo(speakingObj, x, y, true); // true = smooth lerp animation
-            this.scene.audioManager.playTap(speakingObj, x, y);
-            this.scene.particleManager.createSpawnBurst(x, y);
-            this.scene.autoCleanupManager.updateObjectTouchTime(speakingObj);
-            // Start dragging immediately so finger movement works during/after lerp
-            this.scene.startDragging(speakingObj, x, y);
         }
+        this.tap = { obj: hitObject, x, y, t: Date.now(), moved: false, revoiced: isSpeaking };
     }
 
     onInputPointerMove(data) {
