@@ -410,7 +410,10 @@ class GameScene extends Phaser.Scene {
 
     // Auto-cleanup system
 
-    removeObject(obj) { return this.objectLifecycle.removeObject(obj); }
+    removeObject(obj) {
+        if (this.speechManager && this.speechManager.objectRemoved) this.speechManager.objectRemoved(obj);
+        return this.objectLifecycle.removeObject(obj);
+    }
 
 
     // State preservation methods
