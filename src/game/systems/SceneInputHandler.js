@@ -160,25 +160,6 @@ export class SceneInputHandler {
         this.scene.awaitingSpawnInputRelease = false;
     }
 
-    async onInputGamepadButtonDown(data) {
-        const { position } = data;
-
-        if (!this.scene.speechManager.getIsSpeaking()) {
-            if (!this.scene.canSpawnAfterMovement()) {
-                return;
-            }
-            await this.scene.spawnAndAnnounce(position.x, position.y, 'random');
-        } else if (this.scene.speechManager.getCurrentSpeakingObject() && this.scene.canMoveAfterSpawn()) {
-            this.scene.autoCleanupManager.updateObjectTouchTime(this.scene.speechManager.getCurrentSpeakingObject());
-            this.scene.moveObjectTo(this.scene.speechManager.getCurrentSpeakingObject(), position.x, position.y);
-            this.scene.audioManager.playTap(this.scene.speechManager.getCurrentSpeakingObject(), position.x, position.y);
-        }
-    }
-
-    onInputGamepadButtonUp() {
-        this.scene.awaitingSpawnInputRelease = false;
-    }
-
     // Object management methods
     getObjectUnderPointer(x, y) {
         // Find the topmost object at the given coordinates

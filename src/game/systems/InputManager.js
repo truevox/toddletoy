@@ -1,5 +1,6 @@
-import { viewWidth, viewHeight, toLogical } from './DisplayScale.js'
+import { toLogical } from './DisplayScale.js'
 import { KeyboardInput } from '../input/KeyboardInput.js'
+import { GamepadInput } from '../input/GamepadInput.js'
 
 /**
  * InputManager - Unified input handling for pointer, keyboard, and gamepad
@@ -8,18 +9,13 @@ import { KeyboardInput } from '../input/KeyboardInput.js'
 export class InputManager {
     constructor(scene) {
         this.scene = scene;
-        this.gamepadDeadzone = 0.1;
-        this.gamepadButtonStates = new Map();
-        this.currentGamepadPosition = {
-            x: viewWidth(scene) / 2,
-            y: viewHeight(scene) / 2
-        };
         this.holdTimer = null;
         this.holdDuration = 500; // 500ms hold to start auto-drag
         this.isHolding = false;
         this.pointerIsDown = false;
         
         this.keyboard = null; // baby keyboard, created by initKeyboardInput()
+        this.gamepad = null;  // pads and their cursors, created by initGamepadInput()
 
         this.initializeInputHandlers();
     }
@@ -76,25 +72,15 @@ export class InputManager {
         this.keyboard = new KeyboardInput(this.scene, (name, data) => this.emit(name, data));
     }
 
-    /** Viewport changed (resize / rotation): rescale the gamepad cursor. Key positions are computed per press. */
+    /** Viewport changed (resize / rotation): keep the gamepad cursors where they were, relatively. Key positions are computed per press. */
     handleResize(previous) {
-        const width = viewWidth(this.scene);
-        const height = viewHeight(this.scene);
-
-        if (previous && previous.width > 0 && previous.height > 0) {
-            const sx = width / previous.width;
-            const sy = height / previous.height;
-            this.currentGamepadPosition.x *= sx;
-            this.currentGamepadPosition.y *= sy;
-        } else {
-            this.currentGamepadPosition.x = width / 2;
-            this.currentGamepadPosition.y = height / 2;
-        }
+        if (this.gamepad) this.gamepad.handleResize(previous);
     }
 
     /** Another screen covers the toy (or the toy is back): keys and pads are ignored right away, not a frame later. */
     setInputPaused(paused) {
         if (this.keyboard) this.keyboard.setPaused(paused);
+        if (this.gamepad) this.gamepad.setPaused(paused);
     }
 
     /**
@@ -106,73 +92,13 @@ export class InputManager {
         if (this.keyboard) this.keyboard.clear();
     }
 
+    /** Gamepads: nothing is polled until one connects (see ../input/GamepadInput.js). */
     initGamepadInput() {
-        // Gamepad events are handled in update loop
-        this.gamepadEnabled = true;
+        this.gamepad = new GamepadInput(this.scene, (name, data) => this.emit(name, data));
     }
 
     update() {
-        this.updateGamepad();
-    }
-
-    updateGamepad() {
-        if (!this.gamepadEnabled) return;
-
-        const gamepads = navigator.getGamepads();
-        if (!gamepads || gamepads.length === 0) return;
-
-        const gamepad = gamepads[0];
-        if (!gamepad) return;
-
-        // Update gamepad position based on stick input
-        this.updateGamepadPosition(gamepad);
-        
-        // Check gamepad buttons
-        this.updateGamepadButtons(gamepad);
-    }
-
-    updateGamepadPosition(gamepad) {
-        const leftStickX = Math.abs(gamepad.axes[0]) > this.gamepadDeadzone ? gamepad.axes[0] : 0;
-        const leftStickY = Math.abs(gamepad.axes[1]) > this.gamepadDeadzone ? gamepad.axes[1] : 0;
-        const rightStickX = Math.abs(gamepad.axes[2]) > this.gamepadDeadzone ? gamepad.axes[2] : 0;
-        const rightStickY = Math.abs(gamepad.axes[3]) > this.gamepadDeadzone ? gamepad.axes[3] : 0;
-
-        // Average the two sticks for position
-        const avgX = (leftStickX + rightStickX) / 2;
-        const avgY = (leftStickY + rightStickY) / 2;
-
-        if (Math.abs(avgX) > 0.01 || Math.abs(avgY) > 0.01) {
-            const screenWidth = viewWidth(this.scene);
-            const screenHeight = viewHeight(this.scene);
-            
-            this.currentGamepadPosition.x = Math.max(50, Math.min(screenWidth - 50, 
-                this.currentGamepadPosition.x + avgX * 5));
-            this.currentGamepadPosition.y = Math.max(50, Math.min(screenHeight - 50, 
-                this.currentGamepadPosition.y + avgY * 5));
-
-            this.emit('gamepadMove', { position: this.currentGamepadPosition });
-        }
-    }
-
-    updateGamepadButtons(gamepad) {
-        gamepad.buttons.forEach((button, index) => {
-            const wasPressed = this.gamepadButtonStates.get(index) || false;
-            const isPressed = button.pressed;
-
-            if (isPressed && !wasPressed) {
-                this.emit('gamepadButtonDown', { 
-                    button: index, 
-                    position: this.currentGamepadPosition 
-                });
-            } else if (!isPressed && wasPressed) {
-                this.emit('gamepadButtonUp', { 
-                    button: index, 
-                    position: this.currentGamepadPosition 
-                });
-            }
-
-            this.gamepadButtonStates.set(index, isPressed);
-        });
+        if (this.gamepad) this.gamepad.update();
     }
 
     // Event emitter functionality
@@ -188,6 +114,7 @@ export class InputManager {
         this.scene.input.off('pointerup', this.onPointerUp, this);
         
         if (this.keyboard) this.keyboard.destroy();
+        if (this.gamepad) this.gamepad.destroy();
 
         if (this.holdTimer) {
             this.holdTimer.remove();

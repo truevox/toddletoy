@@ -97,14 +97,34 @@ describe('InputManager', () => {
     });
 
     describe('resize (#4)', () => {
-        test('gamepad position starts at the real centre and is rescaled on resize', () => {
+        test('a connected pad starts at the real centre area and its cursor is rescaled on resize', () => {
             const scene = makeScene(1280, 800);
             const im = new InputManager(scene);
-            expect(im.currentGamepadPosition).toEqual({ x: 640, y: 400 });
-            scene.scale.width = 600;
-            scene.scale.height = 900;
+            window.dispatchEvent(Object.assign(new Event('gamepadconnected'), { gamepad: { index: 1 } }));
+            const before = im.gamepad.cursor(1);
+            expect(before.y).toBeCloseTo(400, 0);
+            scene.scale.width = 640;
+            scene.scale.height = 400;
             im.handleResize({ width: 1280, height: 800 });
-            expect(im.currentGamepadPosition).toEqual({ x: 300, y: 450 });
+            const after = im.gamepad.cursor(1);
+            expect(after.x).toBeCloseTo(before.x / 2, 0);
+            expect(after.y).toBeCloseTo(200, 0);
+            im.destroy();
+        });
+
+        test('no pad connected: update() does not ask the browser for pads', () => {
+            const scene = makeScene();
+            const im = new InputManager(scene);
+            const spy = jest.fn(() => []);
+            const had = Object.getOwnPropertyDescriptor(navigator, 'getGamepads');
+            Object.defineProperty(navigator, 'getGamepads', { value: spy, configurable: true });
+            try {
+                im.update(); im.update();
+                expect(spy).not.toHaveBeenCalled();
+            } finally {
+                if (had) Object.defineProperty(navigator, 'getGamepads', had); else delete navigator.getGamepads;
+                im.destroy();
+            }
         });
     });
 });
